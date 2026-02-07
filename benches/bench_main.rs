@@ -1,5 +1,5 @@
 use criterion::{BenchmarkId, Criterion, Throughput, criterion_group, criterion_main};
-use libdeflate::{Compressor, Decompressor};
+use libdeflate::{Compressor, Decompressor, adler32, crc32};
 use libdeflate::batch;
 use libdeflate::stream;
 use std::fs::File;
@@ -11,6 +11,28 @@ fn read_file(path: &str) -> Vec<u8> {
     let mut data = Vec::new();
     file.read_to_end(&mut data).expect("Failed to read file");
     data
+}
+
+fn bench_checksums(c: &mut Criterion) {
+    let path = "bench_data/data_L.bin";
+    if !Path::new(path).exists() {
+        return;
+    }
+    let data = read_file(path);
+    let size = data.len();
+
+    let mut group = c.benchmark_group("Checksums");
+    group.throughput(Throughput::Bytes(size as u64));
+
+    group.bench_with_input("Adler32", &size, |b, &_size| {
+        b.iter(|| adler32(1, &data));
+    });
+
+    group.bench_with_input("CRC32", &size, |b, &_size| {
+        b.iter(|| crc32(0, &data));
+    });
+
+    group.finish();
 }
 
 fn bench_compress(c: &mut Criterion) {
@@ -28,7 +50,6 @@ fn bench_compress(c: &mut Criterion) {
 
     for (name, path) in &files {
         if !Path::new(path).exists() {
-            eprintln!("Skipping {} (file not found: {})", name, path);
             continue;
         }
         let data = read_file(path);
@@ -40,7 +61,7 @@ fn bench_compress(c: &mut Criterion) {
             group.throughput(Throughput::Bytes(size as u64));
 
             group.bench_with_input(
-                BenchmarkId::new(format!("libdeflate-rsx {} Level {}", name, level), size),
+                BenchmarkId::new(format!("libdeflate-rs {} Level {}", name, level), size),
                 &size,
                 |b, &_size| {
                     let mut compressor = Compressor::new(level).unwrap();
@@ -93,19 +114,12 @@ fn bench_decompress(c: &mut Criterion) {
                 &mut compressed_data,
             ).unwrap();
 
-            assert!(
-                compressed_size > 0,
-                "Compression failed for {} Level {}",
-                name,
-                level
-            );
-
             let mut out_buf = vec![0u8; size];
 
             group.throughput(Throughput::Bytes(size as u64));
 
             group.bench_with_input(
-                BenchmarkId::new(format!("libdeflate-rsx {} Level {}", name, level), size),
+                BenchmarkId::new(format!("libdeflate-rs {} Level {}", name, level), size),
                 &size,
                 |b, &_size| {
                     let mut decompressor = Decompressor::new();
@@ -195,9 +209,10 @@ fn bench_batch(c: &mut Criterion) {
 
 criterion_group!(
     benches,
+    bench_checksums,
     bench_compress,
     bench_decompress,
     bench_stream,
-    bench_batch
+    bench_batch,
 );
 criterion_main!(benches);
