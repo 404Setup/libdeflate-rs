@@ -1,0 +1,20 @@
+   Compiling libdeflate v1.25.0 (/app)
+    Finished `bench` profile [optimized] target(s) in 39.59s
+     Running benches/bench_main.rs (target/release/deps/bench_main-3950439fa902122e)
+Gnuplot not found, using plotters backend
+Benchmarking Stream Processing/DeflateEncoder
+Benchmarking Stream Processing/DeflateEncoder: Warming up for 3.0000 s
+
+Warning: Unable to complete 100 samples in 5.0s. You may wish to increase target time to 8.0s, enable flat sampling, or reduce sample count to 50.
+Benchmarking Stream Processing/DeflateEncoder: Collecting 100 samples in estimated 7.9652 s (5050 iterations)
+Benchmarking Stream Processing/DeflateEncoder: Analyzing
+Stream Processing/DeflateEncoder
+                        time:   [1.5800 ms 1.5933 ms 1.6088 ms]
+                        thrpt:  [621.56 MiB/s 627.61 MiB/s 632.92 MiB/s]
+                 change:
+                        time:   [+13.333% +15.895% +18.337%] (p = 0.00 < 0.05)
+                        thrpt:  [-15.495% -13.715% -11.765%]
+                        Performance has regressed.
+Found 9 outliers among 100 measurements (9.00%)
+  6 (6.00%) high mild
+  3 (3.00%) high severe

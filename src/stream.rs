@@ -44,7 +44,7 @@ impl<W: Write + Send> DeflateEncoder<W> {
                     || Compressor::new(self.level),
                     |compressor, (i, &chunk)| {
                         let bound = Compressor::deflate_compress_bound(chunk.len());
-                        let mut output = vec![0u8; bound];
+                        let mut output = Vec::with_capacity(bound); unsafe { output.set_len(bound); }
                         let mode = if final_block && i == num_chunks - 1 {
                              crate::compress::FlushMode::Finish
                         } else {
@@ -70,7 +70,7 @@ impl<W: Write + Send> DeflateEncoder<W> {
         } else {
             let mut compressor = Compressor::new(self.level);
             let bound = Compressor::deflate_compress_bound(self.buffer.len());
-            let mut output = vec![0u8; bound];
+            let mut output = Vec::with_capacity(bound); unsafe { output.set_len(bound); }
             let mode = if final_block {
                  crate::compress::FlushMode::Finish
             } else {

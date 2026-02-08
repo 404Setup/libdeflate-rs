@@ -1,0 +1,19 @@
+    Finished `bench` profile [optimized] target(s) in 0.06s
+     Running benches/bench_main.rs (target/release/deps/bench_main-3950439fa902122e)
+Gnuplot not found, using plotters backend
+Benchmarking Stream Processing/DeflateEncoder
+Benchmarking Stream Processing/DeflateEncoder: Warming up for 3.0000 s
+
+Warning: Unable to complete 100 samples in 5.0s. You may wish to increase target time to 8.1s, enable flat sampling, or reduce sample count to 50.
+Benchmarking Stream Processing/DeflateEncoder: Collecting 100 samples in estimated 8.0779 s (5050 iterations)
+Benchmarking Stream Processing/DeflateEncoder: Analyzing
+Stream Processing/DeflateEncoder
+                        time:   [1.5539 ms 1.5602 ms 1.5673 ms]
+                        thrpt:  [638.06 MiB/s 640.94 MiB/s 643.53 MiB/s]
+                 change:
+                        time:   [+1.0907% +2.2526% +3.3329%] (p = 0.00 < 0.05)
+                        thrpt:  [-3.2254% -2.2029% -1.0789%]
+                        Performance has regressed.
+Found 5 outliers among 100 measurements (5.00%)
+  2 (2.00%) high mild
+  3 (3.00%) high severe

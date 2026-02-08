@@ -1,0 +1,118 @@
+ Downloading crates ...
+  Downloaded autocfg v1.5.0
+  Downloaded clap_lex v0.7.7
+  Downloaded ciborium-io v0.2.2
+  Downloaded is-terminal v0.4.17
+  Downloaded ciborium-ll v0.2.2
+  Downloaded itoa v1.0.17
+  Downloaded cfg-if v1.0.4
+  Downloaded find-msvc-tools v0.1.9
+  Downloaded criterion-plot v0.5.0
+  Downloaded same-file v1.0.6
+  Downloaded zmij v1.0.19
+  Downloaded half v2.7.1
+  Downloaded walkdir v2.5.0
+  Downloaded serde_derive v1.0.228
+  Downloaded zerocopy-derive v0.8.38
+  Downloaded memchr v2.7.6
+  Downloaded criterion v0.5.1
+  Downloaded cc v1.2.55
+  Downloaded plotters v0.3.7
+  Downloaded serde_json v1.0.149
+  Downloaded libdeflate-sys v1.25.0
+  Downloaded regex v1.12.3
+  Downloaded clap_builder v4.5.57
+  Downloaded aho-corasick v1.1.4
+  Downloaded serde_core v1.0.228
+  Downloaded zerocopy v0.8.38
+  Downloaded syn v2.0.114
+  Downloaded serde v1.0.228
+  Downloaded proc-macro2 v1.0.106
+  Downloaded itertools v0.10.5
+  Downloaded oorandom v11.1.5
+  Downloaded regex-syntax v0.8.9
+  Downloaded once_cell v1.21.3
+  Downloaded num-traits v0.2.19
+  Downloaded libdeflater v1.25.0
+  Downloaded clap v4.5.57
+  Downloaded unicode-ident v1.0.22
+  Downloaded tinytemplate v1.2.1
+  Downloaded shlex v1.3.0
+  Downloaded quote v1.0.44
+  Downloaded ciborium v0.2.2
+  Downloaded plotters-svg v0.3.7
+  Downloaded regex-automata v0.4.14
+  Downloaded plotters-backend v0.3.7
+  Downloaded anstyle v1.0.13
+  Downloaded anes v0.1.6
+  Downloaded cast v0.3.0
+  Downloaded libc v0.2.180
+   Compiling proc-macro2 v1.0.106
+   Compiling quote v1.0.44
+   Compiling unicode-ident v1.0.22
+   Compiling crossbeam-utils v0.8.21
+   Compiling serde_core v1.0.228
+   Compiling zerocopy v0.8.38
+   Compiling crossbeam-epoch v0.9.18
+   Compiling syn v2.0.114
+   Compiling rayon-core v1.13.0
+   Compiling either v1.15.0
+   Compiling serde v1.0.228
+   Compiling zmij v1.0.19
+   Compiling shlex v1.3.0
+   Compiling autocfg v1.5.0
+   Compiling find-msvc-tools v0.1.9
+   Compiling cc v1.2.55
+   Compiling num-traits v0.2.19
+   Compiling crossbeam-deque v0.8.6
+   Compiling libc v0.2.180
+   Compiling cfg-if v1.0.4
+   Compiling serde_json v1.0.149
+   Compiling plotters-backend v0.3.7
+   Compiling libdeflate-sys v1.25.0
+   Compiling itoa v1.0.17
+   Compiling clap_lex v0.7.7
+   Compiling memchr v2.7.6
+   Compiling ciborium-io v0.2.2
+   Compiling anstyle v1.0.13
+   Compiling regex-syntax v0.8.9
+   Compiling clap_builder v4.5.57
+   Compiling zerocopy-derive v0.8.38
+   Compiling serde_derive v1.0.228
+   Compiling regex-automata v0.4.14
+   Compiling plotters-svg v0.3.7
+   Compiling rayon v1.11.0
+   Compiling half v2.7.1
+   Compiling ciborium-ll v0.2.2
+   Compiling itertools v0.10.5
+   Compiling cast v0.3.0
+   Compiling same-file v1.0.6
+   Compiling walkdir v2.5.0
+   Compiling is-terminal v0.4.17
+   Compiling ciborium v0.2.2
+   Compiling plotters v0.3.7
+   Compiling criterion-plot v0.5.0
+   Compiling tinytemplate v1.2.1
+   Compiling regex v1.12.3
+   Compiling clap v4.5.57
+   Compiling once_cell v1.21.3
+   Compiling oorandom v11.1.5
+   Compiling anes v0.1.6
+   Compiling libdeflate v1.25.0 (/app)
+   Compiling criterion v0.5.1
+   Compiling libdeflater v1.25.0
+    Finished `bench` profile [optimized] target(s) in 1m 17s
+     Running benches/bench_main.rs (target/release/deps/bench_main-3950439fa902122e)
+Gnuplot not found, using plotters backend
+Benchmarking Stream Processing/DeflateEncoder
+Benchmarking Stream Processing/DeflateEncoder: Warming up for 3.0000 s
+
+Warning: Unable to complete 100 samples in 5.0s. You may wish to increase target time to 7.6s, enable flat sampling, or reduce sample count to 50.
+Benchmarking Stream Processing/DeflateEncoder: Collecting 100 samples in estimated 7.5838 s (5050 iterations)
+Benchmarking Stream Processing/DeflateEncoder: Analyzing
+Stream Processing/DeflateEncoder
+                        time:   [1.3194 ms 1.3256 ms 1.3335 ms]
+                        thrpt:  [749.91 MiB/s 754.35 MiB/s 757.95 MiB/s]
+Found 7 outliers among 100 measurements (7.00%)
+  3 (3.00%) high mild
+  4 (4.00%) high severe
