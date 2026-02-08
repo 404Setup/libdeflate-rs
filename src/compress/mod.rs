@@ -170,98 +170,13 @@ pub struct Compressor {
     pub length_costs: [u32; DEFLATE_MAX_MATCH_LEN + 1],
     pub offset_slot_costs: [u32; 32],
 
-    mf: MatchFinderEnum,
+    mf: Option<MatchFinderEnum>,
     sequences: Vec<Sequence>,
     dp_nodes: Vec<DPNode>,
     split_stats: BlockSplitStats,
 }
 
-impl MatchFinderEnum {
-    fn reset(&mut self) {
-        match self {
-            MatchFinderEnum::Chain(mf) => mf.reset(),
-            MatchFinderEnum::Table(mf) => mf.reset(),
-            MatchFinderEnum::Bt(mf) => mf.reset(),
-        }
-    }
 
-    fn prepare(&mut self, len: usize) {
-        match self {
-            MatchFinderEnum::Chain(mf) => mf.prepare(len),
-            MatchFinderEnum::Table(mf) => mf.prepare(len),
-            MatchFinderEnum::Bt(mf) => mf.prepare(len),
-        }
-    }
-
-    fn advance(&mut self, len: usize) {
-        match self {
-            MatchFinderEnum::Chain(mf) => mf.advance(len),
-            MatchFinderEnum::Table(mf) => mf.advance(len),
-            MatchFinderEnum::Bt(mf) => mf.advance(len),
-        }
-    }
-
-    #[inline(always)]
-    fn find_match(&mut self, data: &[u8], pos: usize, max_depth: usize) -> (usize, usize) {
-        match self {
-            MatchFinderEnum::Chain(mf) => mf.find_match(data, pos, max_depth),
-            MatchFinderEnum::Table(mf) => mf.find_match(data, pos),
-            MatchFinderEnum::Bt(mf) => mf.find_match(data, pos, max_depth),
-        }
-    }
-
-    #[inline(always)]
-    fn skip_match(&mut self, data: &[u8], pos: usize, max_depth: usize) {
-        match self {
-            MatchFinderEnum::Chain(mf) => mf.skip_match(data, pos),
-            MatchFinderEnum::Table(mf) => mf.skip_match(data, pos),
-            MatchFinderEnum::Bt(mf) => {
-                let mut matches = Vec::new();
-                mf.advance_one_byte(data, pos, 0, 0, max_depth, &mut matches, false);
-            }
-        }
-    }
-
-    #[inline(always)]
-    fn find_matches(
-        &mut self,
-        data: &[u8],
-        pos: usize,
-        max_depth: usize,
-        matches: &mut Vec<(u16, u16)>,
-    ) -> (usize, usize) {
-        match self {
-            MatchFinderEnum::Chain(mf) => mf.find_matches(data, pos, max_depth, matches),
-            MatchFinderEnum::Table(mf) => {
-                let (len, offset) = mf.find_match(data, pos);
-                matches.clear();
-                if len >= 3 {
-                    matches.push((len as u16, offset as u16));
-                    (len, offset)
-                } else {
-                    (0, 0)
-                }
-            }
-            MatchFinderEnum::Bt(mf) => {
-                matches.clear();
-                mf.advance_one_byte(
-                    data,
-                    pos,
-                    DEFLATE_MAX_MATCH_LEN,
-                    DEFLATE_MAX_MATCH_LEN,
-                    max_depth,
-                    matches,
-                    true,
-                );
-                if let Some(&(len, offset)) = matches.last() {
-                    (len as usize, offset as usize)
-                } else {
-                    (0, 0)
-                }
-            }
-        }
-    }
-}
 
 impl Compressor {
     pub fn new(level: usize) -> Self {
@@ -278,13 +193,13 @@ impl Compressor {
             literal_costs: [0; 256],
             length_costs: [0; DEFLATE_MAX_MATCH_LEN + 1],
             offset_slot_costs: [0; 32],
-            mf: if level == 1 {
+            mf: Some(if level == 1 {
                 MatchFinderEnum::Table(HtMatchFinder::new())
             } else if level >= 10 {
                 MatchFinderEnum::Bt(BtMatchFinder::new())
             } else {
                 MatchFinderEnum::Chain(MatchFinder::new())
-            },
+            }),
             sequences: if level == 0 {
                 Vec::new()
             } else {
@@ -491,7 +406,7 @@ impl Compressor {
 
         let mut bs = Bitstream::new(output);
         
-        let mut mf_enum = std::mem::replace(&mut self.mf, MatchFinderEnum::Chain(MatchFinder::new()));
+        let mut mf_enum = self.mf.take().unwrap();
         
         let res = match &mut mf_enum {
             MatchFinderEnum::Chain(mf) => self.compress_loop(mf, input, &mut bs, flush_mode),
@@ -499,7 +414,7 @@ impl Compressor {
             MatchFinderEnum::Bt(mf) => self.compress_loop(mf, input, &mut bs, flush_mode),
         };
         
-        self.mf = mf_enum;
+        self.mf = Some(mf_enum);
         res
     }
 
@@ -726,7 +641,7 @@ impl Compressor {
             return input.len() + num_blocks * 5;
         }
 
-        let mut mf_enum = std::mem::replace(&mut self.mf, MatchFinderEnum::Chain(MatchFinder::new()));
+        let mut mf_enum = self.mf.take().unwrap();
         
         let res = match &mut mf_enum {
             MatchFinderEnum::Chain(mf) => self.compress_to_size_loop(mf, input, final_block),
@@ -734,7 +649,7 @@ impl Compressor {
             MatchFinderEnum::Bt(mf) => self.compress_to_size_loop(mf, input, final_block),
         };
         
-        self.mf = mf_enum;
+        self.mf = Some(mf_enum);
         res
     }
 

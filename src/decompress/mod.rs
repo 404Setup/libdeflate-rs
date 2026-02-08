@@ -460,15 +460,23 @@ impl Decompressor {
                      let b = *out_ptr.add(src);
                      std::ptr::write_bytes(out_ptr.add(dest), b, length);
                  } else {
-                     let mut copied = 0;
-                     while copied < length {
-                         let copy_len = std::cmp::min(offset, length - copied);
-                         std::ptr::copy_nonoverlapping(
-                             out_ptr.add(src + copied),
-                             out_ptr.add(dest + copied),
-                             copy_len,
-                         );
-                         copied += copy_len;
+                     if offset < 16 {
+                         let src_ptr = out_ptr.add(src);
+                         let dest_ptr = out_ptr.add(dest);
+                         for i in 0..length {
+                             *dest_ptr.add(i) = *src_ptr.add(i);
+                         }
+                     } else {
+                         let mut copied = 0;
+                         while copied < length {
+                             let copy_len = std::cmp::min(offset, length - copied);
+                             std::ptr::copy_nonoverlapping(
+                                 out_ptr.add(src + copied),
+                                 out_ptr.add(dest + copied),
+                                 copy_len,
+                             );
+                             copied += copy_len;
+                         }
                      }
                  }
              }
@@ -563,15 +571,23 @@ impl Decompressor {
                         let b = *out_ptr.add(src);
                         std::ptr::write_bytes(out_ptr.add(dest), b, length);
                     } else {
-                        let mut copied = 0;
-                        while copied < length {
-                            let copy_len = std::cmp::min(offset, length - copied);
-                            std::ptr::copy_nonoverlapping(
-                                out_ptr.add(src + copied),
-                                out_ptr.add(dest + copied),
-                                copy_len,
-                            );
-                            copied += copy_len;
+                        if offset < 16 {
+                            let src_ptr = out_ptr.add(src);
+                            let dest_ptr = out_ptr.add(dest);
+                            for i in 0..length {
+                                *dest_ptr.add(i) = *src_ptr.add(i);
+                            }
+                        } else {
+                            let mut copied = 0;
+                            while copied < length {
+                                let copy_len = std::cmp::min(offset, length - copied);
+                                std::ptr::copy_nonoverlapping(
+                                    out_ptr.add(src + copied),
+                                    out_ptr.add(dest + copied),
+                                    copy_len,
+                                );
+                                copied += copy_len;
+                            }
                         }
                     }
                 }
