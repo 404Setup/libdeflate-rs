@@ -1,5 +1,6 @@
 use criterion::{BenchmarkId, Criterion, Throughput, criterion_group, criterion_main};
 use libdeflate::{Compressor, Decompressor, adler32, crc32};
+use libdeflate::crc32::crc32_slice8;
 use libdeflate::batch;
 use libdeflate::stream;
 use std::fs::File;
@@ -11,6 +12,24 @@ fn read_file(path: &str) -> Vec<u8> {
     let mut data = Vec::new();
     file.read_to_end(&mut data).expect("Failed to read file");
     data
+}
+
+fn bench_crc32_slice8(c: &mut Criterion) {
+    let path = "bench_data/data_L.bin";
+    if !Path::new(path).exists() {
+        return;
+    }
+    let data = read_file(path);
+    let size = data.len();
+
+    let mut group = c.benchmark_group("CRC32 Slice8");
+    group.throughput(Throughput::Bytes(size as u64));
+
+    group.bench_with_input("libdeflate-rs slice8", &size, |b, &_size| {
+        b.iter(|| crc32_slice8(0, &data));
+    });
+
+    group.finish();
 }
 
 fn bench_checksums(c: &mut Criterion) {
@@ -232,6 +251,7 @@ fn bench_batch(c: &mut Criterion) {
 
 criterion_group!(
     benches,
+    bench_crc32_slice8,
     bench_checksums,
     bench_compress,
     bench_decompress,
