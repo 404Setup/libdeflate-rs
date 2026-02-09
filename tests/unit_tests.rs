@@ -183,3 +183,31 @@ fn test_compress_gzip_into_insufficient_space() {
     let result = compressor.compress_gzip_into(data, &mut output);
     assert!(result.is_err());
 }
+
+#[test]
+fn test_decompress_zlib_into_success() {
+    let mut compressor = Compressor::new(6).unwrap();
+    let mut decompressor = Decompressor::new();
+    let data = b"Hello world! This is a test string for zlib decompression into buffer.";
+
+    let compressed = compressor.compress_zlib(data).unwrap();
+    let mut output = vec![0u8; data.len()];
+
+    let size = decompressor.decompress_zlib_into(&compressed, &mut output).unwrap();
+
+    assert_eq!(size, data.len());
+    assert_eq!(output, data);
+}
+
+#[test]
+fn test_decompress_zlib_into_insufficient_space() {
+    let mut compressor = Compressor::new(6).unwrap();
+    let mut decompressor = Decompressor::new();
+    let data = b"Hello world! This is a test string for zlib decompression into buffer.";
+
+    let compressed = compressor.compress_zlib(data).unwrap();
+    let mut output = vec![0u8; data.len() - 1]; // Intentionally too small
+
+    let result = decompressor.decompress_zlib_into(&compressed, &mut output);
+    assert!(result.is_err());
+}
