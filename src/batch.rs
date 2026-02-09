@@ -14,18 +14,24 @@ impl BatchCompressor {
     pub fn compress_batch(&self, inputs: &[&[u8]]) -> Vec<Vec<u8>> {
         inputs
             .par_iter()
-            .map(|&input| {
-                let mut compressor = Compressor::new(self.level);
-                let bound = Compressor::deflate_compress_bound(input.len());
-                let mut output = vec![0u8; bound];
-                let (res, size, _) = compressor.compress(input, &mut output, crate::compress::FlushMode::Finish);
-                if res == CompressResult::Success {
-                    output.truncate(size);
-                    output
-                } else {
-                    Vec::new()
-                }
-            })
+            .map_init(
+                || Compressor::new(self.level),
+                |compressor, &input| {
+                    let bound = Compressor::deflate_compress_bound(input.len());
+                    let mut output = vec![0u8; bound];
+                    let (res, size, _) = compressor.compress(
+                        input,
+                        &mut output,
+                        crate::compress::FlushMode::Finish,
+                    );
+                    if res == CompressResult::Success {
+                        output.truncate(size);
+                        output
+                    } else {
+                        Vec::new()
+                    }
+                },
+            )
             .collect()
     }
 }
@@ -45,17 +51,19 @@ impl BatchDecompressor {
         inputs
             .par_iter()
             .zip(max_out_sizes.par_iter())
-            .map(|(&input, &max_size)| {
-                let mut decompressor = Decompressor::new();
-                let mut output = vec![0u8; max_size];
-                let (res, _, size) = decompressor.decompress(input, &mut output);
-                if res == DecompressResult::Success {
-                    output.truncate(size);
-                    Some(output)
-                } else {
-                    None
-                }
-            })
+            .map_init(
+                Decompressor::new,
+                |decompressor, (&input, &max_size)| {
+                    let mut output = vec![0u8; max_size];
+                    let (res, _, size) = decompressor.decompress(input, &mut output);
+                    if res == DecompressResult::Success {
+                        output.truncate(size);
+                        Some(output)
+                    } else {
+                        None
+                    }
+                },
+            )
             .collect()
     }
 }
