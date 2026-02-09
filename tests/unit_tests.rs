@@ -149,3 +149,30 @@ fn test_compress_bound_overflow_check() {
     let bound = compressor.gzip_compress_bound(size);
     assert!(bound >= size);
 }
+
+#[test]
+fn test_compress_gzip_into_success() {
+    let mut compressor = Compressor::new(6).unwrap();
+    let mut decompressor = Decompressor::new();
+    let data = b"Hello world! This is a test string for gzip compression into buffer.";
+
+    let bound = compressor.gzip_compress_bound(data.len());
+    let mut output = vec![0u8; bound];
+
+    let size = compressor.compress_gzip_into(data, &mut output).unwrap();
+    assert!(size > 0);
+    assert!(size <= bound);
+
+    let decompressed = decompressor.decompress_gzip(&output[..size], data.len()).unwrap();
+    assert_eq!(data.to_vec(), decompressed);
+}
+
+#[test]
+fn test_compress_gzip_into_insufficient_space() {
+    let mut compressor = Compressor::new(6).unwrap();
+    let data = b"Hello world! This is a test string for gzip compression.";
+
+    let mut output = vec![0u8; 10]; // Intentionally too small
+    let result = compressor.compress_gzip_into(data, &mut output);
+    assert!(result.is_err());
+}
