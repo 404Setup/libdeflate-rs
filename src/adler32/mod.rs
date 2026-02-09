@@ -5,29 +5,29 @@ const MAX_CHUNK_LEN: usize = 5552;
 
 #[inline]
 fn adler32_chunk(s1: &mut u32, s2: &mut u32, mut p: &[u8]) {
-    let mut n = p.len();
     let mut s1_local = *s1;
     let mut s2_local = *s2;
 
-    while n >= 16 {
-        let b0 = p[0] as u32;
-        let b1 = p[1] as u32;
-        let b2 = p[2] as u32;
-        let b3 = p[3] as u32;
-        let b4 = p[4] as u32;
-        let b5 = p[5] as u32;
-        let b6 = p[6] as u32;
-        let b7 = p[7] as u32;
-        let b8 = p[8] as u32;
-        let b9 = p[9] as u32;
-        let b10 = p[10] as u32;
-        let b11 = p[11] as u32;
-        let b12 = p[12] as u32;
-        let b13 = p[13] as u32;
-        let b14 = p[14] as u32;
-        let b15 = p[15] as u32;
+    let mut chunks = p.chunks_exact(16);
+    for chunk in chunks.by_ref() {
+        let b0 = chunk[0] as u32;
+        let b1 = chunk[1] as u32;
+        let b2 = chunk[2] as u32;
+        let b3 = chunk[3] as u32;
+        let b4 = chunk[4] as u32;
+        let b5 = chunk[5] as u32;
+        let b6 = chunk[6] as u32;
+        let b7 = chunk[7] as u32;
+        let b8 = chunk[8] as u32;
+        let b9 = chunk[9] as u32;
+        let b10 = chunk[10] as u32;
+        let b11 = chunk[11] as u32;
+        let b12 = chunk[12] as u32;
+        let b13 = chunk[13] as u32;
+        let b14 = chunk[14] as u32;
+        let b15 = chunk[15] as u32;
 
-        s2_local += (s1_local * 16)
+        s2_local += (s1_local << 4)
             + (b0 * 16)
             + (b1 * 15)
             + (b2 * 14)
@@ -46,10 +46,9 @@ fn adler32_chunk(s1: &mut u32, s2: &mut u32, mut p: &[u8]) {
             + (b15 * 1);
 
         s1_local += b0 + b1 + b2 + b3 + b4 + b5 + b6 + b7 + b8 + b9 + b10 + b11 + b12 + b13 + b14 + b15;
-
-        p = &p[16..];
-        n -= 16;
     }
+    p = chunks.remainder();
+    let mut n = p.len();
 
     while n >= 4 {
         let b0 = p[0] as u32;

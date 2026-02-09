@@ -37,6 +37,13 @@ fn test_adler32_large() {
 }
 
 #[test]
+fn test_adler32_huge() {
+    let data: Vec<u8> = (0..10000).map(|i| (i % 255) as u8).collect();
+    let res = adler32(1, &data);
+    assert_eq!(res, 1336954002);
+}
+
+#[test]
 fn test_crc32_empty() {
     let buf = [];
     assert_eq!(crc32(0, &buf), 0);
