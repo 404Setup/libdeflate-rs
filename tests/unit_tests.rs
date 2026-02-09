@@ -183,3 +183,108 @@ fn test_compress_gzip_into_insufficient_space() {
     let result = compressor.compress_gzip_into(data, &mut output);
     assert!(result.is_err());
 }
+
+#[test]
+fn test_compress_gzip_into_empty() {
+    let mut compressor = Compressor::new(6).unwrap();
+    let mut decompressor = Decompressor::new();
+    let data = b"";
+
+    let bound = compressor.gzip_compress_bound(data.len());
+    let mut output = vec![0u8; bound];
+
+    let size = compressor.compress_gzip_into(data, &mut output).unwrap();
+    assert!(size > 0);
+    assert!(size <= bound);
+
+    let decompressed = decompressor.decompress_gzip(&output[..size], data.len()).unwrap();
+    assert_eq!(data.to_vec(), decompressed);
+}
+
+#[test]
+fn test_compress_gzip_into_exact_buffer() {
+    let mut compressor = Compressor::new(6).unwrap();
+    let data = b"Hello world! This is a test string for exact buffer size.";
+
+    // First compress to get exact size
+    let compressed = compressor.compress_gzip(data).unwrap();
+    let exact_size = compressed.len();
+
+    // Now try to compress into a buffer of that exact size
+    let mut output = vec![0u8; exact_size];
+    let size = compressor.compress_gzip_into(data, &mut output).unwrap();
+
+    assert_eq!(size, exact_size);
+    assert_eq!(output, compressed);
+}
+
+#[test]
+fn test_compress_gzip_into_large() {
+    let mut compressor = Compressor::new(1).unwrap();
+    let mut decompressor = Decompressor::new();
+    let data: Vec<u8> = (0..10000).map(|i| (i % 255) as u8).collect();
+
+    let bound = compressor.gzip_compress_bound(data.len());
+    let mut output = vec![0u8; bound];
+
+    let size = compressor.compress_gzip_into(&data, &mut output).unwrap();
+    assert!(size > 0);
+    assert!(size <= bound);
+
+    let decompressed = decompressor.decompress_gzip(&output[..size], data.len()).unwrap();
+    assert_eq!(data, decompressed);
+}
+
+#[test]
+fn test_compress_deflate_into_success() {
+    let mut compressor = Compressor::new(6).unwrap();
+    let mut decompressor = Decompressor::new();
+    let data = b"Hello world! This is a test string for deflate compression into buffer.";
+
+    let bound = compressor.deflate_compress_bound(data.len());
+    let mut output = vec![0u8; bound];
+
+    let size = compressor.compress_deflate_into(data, &mut output).unwrap();
+    assert!(size > 0);
+    assert!(size <= bound);
+
+    let decompressed = decompressor.decompress_deflate(&output[..size], data.len()).unwrap();
+    assert_eq!(data.to_vec(), decompressed);
+}
+
+#[test]
+fn test_compress_deflate_into_insufficient_space() {
+    let mut compressor = Compressor::new(6).unwrap();
+    let data = b"Hello world! This is a test string for deflate compression.";
+
+    let mut output = vec![0u8; 10]; // Intentionally too small
+    let result = compressor.compress_deflate_into(data, &mut output);
+    assert!(result.is_err());
+}
+
+#[test]
+fn test_compress_zlib_into_success() {
+    let mut compressor = Compressor::new(6).unwrap();
+    let mut decompressor = Decompressor::new();
+    let data = b"Hello world! This is a test string for zlib compression into buffer.";
+
+    let bound = compressor.zlib_compress_bound(data.len());
+    let mut output = vec![0u8; bound];
+
+    let size = compressor.compress_zlib_into(data, &mut output).unwrap();
+    assert!(size > 0);
+    assert!(size <= bound);
+
+    let decompressed = decompressor.decompress_zlib(&output[..size], data.len()).unwrap();
+    assert_eq!(data.to_vec(), decompressed);
+}
+
+#[test]
+fn test_compress_zlib_into_insufficient_space() {
+    let mut compressor = Compressor::new(6).unwrap();
+    let data = b"Hello world! This is a test string for zlib compression.";
+
+    let mut output = vec![0u8; 10]; // Intentionally too small
+    let result = compressor.compress_zlib_into(data, &mut output);
+    assert!(result.is_err());
+}
