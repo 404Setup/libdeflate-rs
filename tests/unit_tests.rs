@@ -37,6 +37,13 @@ fn test_adler32_large() {
 }
 
 #[test]
+fn test_adler32_huge() {
+    let data: Vec<u8> = (0..10000).map(|i| (i % 255) as u8).collect();
+    let res = adler32(1, &data);
+    assert_eq!(res, 1336954002);
+}
+
+#[test]
 fn test_crc32_empty() {
     let buf = [];
     assert_eq!(crc32(0, &buf), 0);
@@ -134,4 +141,60 @@ fn test_buffer_reuse() {
     let comp2 = c.compress_deflate(data2).unwrap();
     let decomp2 = d.decompress_deflate(&comp2, data2.len()).unwrap();
     assert_eq!(data2.to_vec(), decomp2);
+}
+#[test]
+fn test_compress_bound_overflow_check() {
+    let mut compressor = Compressor::new(1).unwrap();
+    let size = usize::MAX - 100;
+
+    let bound = compressor.deflate_compress_bound(size);
+    assert!(bound >= size);
+
+    let bound = compressor.zlib_compress_bound(size);
+    assert!(bound >= size);
+
+    let bound = compressor.gzip_compress_bound(size);
+    assert!(bound >= size);
+}
+
+#[test]
+fn test_compress_gzip_into_success() {
+    let mut compressor = Compressor::new(6).unwrap();
+    let mut decompressor = Decompressor::new();
+    let data = b"Hello world! This is a test string for gzip compression into buffer.";
+
+    let bound = compressor.gzip_compress_bound(data.len());
+    let mut output = vec![0u8; bound];
+
+    let size = compressor.compress_gzip_into(data, &mut output).unwrap();
+    assert!(size > 0);
+    assert!(size <= bound);
+
+    let decompressed = decompressor.decompress_gzip(&output[..size], data.len()).unwrap();
+    assert_eq!(data.to_vec(), decompressed);
+}
+
+#[test]
+fn test_compress_gzip_into_insufficient_space() {
+    let mut compressor = Compressor::new(6).unwrap();
+    let data = b"Hello world! This is a test string for gzip compression.";
+
+    let mut output = vec![0u8; 10]; // Intentionally too small
+    let result = compressor.compress_gzip_into(data, &mut output);
+    assert!(result.is_err());
+}
+
+#[test]
+fn test_new_compressor_invalid_level() {
+    let res = Compressor::new(-1);
+    assert!(res.is_err());
+    let err = res.err().unwrap();
+    assert_eq!(err.kind(), std::io::ErrorKind::InvalidInput);
+    assert_eq!(err.to_string(), "Compression level must be between 0 and 12");
+
+    let res = Compressor::new(13);
+    assert!(res.is_err());
+    let err = res.err().unwrap();
+    assert_eq!(err.kind(), std::io::ErrorKind::InvalidInput);
+    assert_eq!(err.to_string(), "Compression level must be between 0 and 12");
 }
