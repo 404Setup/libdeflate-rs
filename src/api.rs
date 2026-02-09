@@ -76,12 +76,7 @@ impl Compressor {
         InternalCompressor::gzip_compress_bound(size)
     }
 
-    fn compress_helper<F>(
-        &mut self,
-        data: &[u8],
-        bound: usize,
-        f: F,
-    ) -> io::Result<Vec<u8>>
+    fn compress_helper<F>(&mut self, data: &[u8], bound: usize, f: F) -> io::Result<Vec<u8>>
     where
         F: FnOnce(&mut InternalCompressor, &[u8], &mut [u8]) -> (CompressResult, usize),
     {
@@ -132,7 +127,9 @@ impl Decompressor {
     }
 
     pub fn decompress_zlib(&mut self, data: &[u8], expected_size: usize) -> io::Result<Vec<u8>> {
-        self.decompress_helper(data, expected_size, |d, data, out| d.decompress_zlib(data, out))
+        self.decompress_helper(data, expected_size, |d, data, out| {
+            d.decompress_zlib(data, out)
+        })
     }
 
     pub fn decompress_zlib_into(&mut self, data: &[u8], output: &mut [u8]) -> io::Result<usize> {
@@ -148,7 +145,9 @@ impl Decompressor {
     }
 
     pub fn decompress_gzip(&mut self, data: &[u8], expected_size: usize) -> io::Result<Vec<u8>> {
-        self.decompress_helper(data, expected_size, |d, data, out| d.decompress_gzip(data, out))
+        self.decompress_helper(data, expected_size, |d, data, out| {
+            d.decompress_gzip(data, out)
+        })
     }
 
     pub fn decompress_gzip_into(&mut self, data: &[u8], output: &mut [u8]) -> io::Result<usize> {
@@ -170,7 +169,11 @@ impl Decompressor {
         f: F,
     ) -> io::Result<Vec<u8>>
     where
-        F: FnOnce(&mut InternalDecompressor, &[u8], &mut [u8]) -> (crate::decompress::DecompressResult, usize, usize),
+        F: FnOnce(
+            &mut InternalDecompressor,
+            &[u8],
+            &mut [u8],
+        ) -> (crate::decompress::DecompressResult, usize, usize),
     {
         let mut output = Vec::with_capacity(expected_size);
         unsafe {

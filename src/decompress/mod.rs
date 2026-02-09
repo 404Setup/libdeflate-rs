@@ -1,4 +1,3 @@
-
 mod tables;
 
 use self::tables::*;
@@ -170,7 +169,11 @@ impl Decompressor {
                 DecompressorState::Start => {
                     refill_bits!(input, in_idx, self.bitbuf, self.bitsleft);
                     if self.bitsleft < 3 {
-                        return (DecompressResult::ShortInput, in_idx, *out_idx - start_out_idx);
+                        return (
+                            DecompressResult::ShortInput,
+                            in_idx,
+                            *out_idx - start_out_idx,
+                        );
                     }
                     self.is_final_block = (self.bitbuf & 1) != 0;
                     let block_type = ((self.bitbuf >> 1) & 3) as u8;
@@ -178,12 +181,16 @@ impl Decompressor {
                     self.bitsleft -= 3;
 
                     match block_type {
-                        DEFLATE_BLOCKTYPE_UNCOMPRESSED => self.state = DecompressorState::UncompressedHeader,
+                        DEFLATE_BLOCKTYPE_UNCOMPRESSED => {
+                            self.state = DecompressorState::UncompressedHeader
+                        }
                         DEFLATE_BLOCKTYPE_STATIC_HUFFMAN => {
                             self.load_static_huffman_codes();
                             self.state = DecompressorState::BlockBody;
                         }
-                        DEFLATE_BLOCKTYPE_DYNAMIC_HUFFMAN => self.state = DecompressorState::DynamicHeader,
+                        DEFLATE_BLOCKTYPE_DYNAMIC_HUFFMAN => {
+                            self.state = DecompressorState::DynamicHeader
+                        }
                         _ => return (DecompressResult::BadData, in_idx, *out_idx - start_out_idx),
                     }
                 }
@@ -217,7 +224,11 @@ impl Decompressor {
                     self.bitbuf = 0;
                     self.bitsleft = 0;
                     if in_idx + 4 > input.len() {
-                        return (DecompressResult::ShortInput, in_idx, *out_idx - start_out_idx);
+                        return (
+                            DecompressResult::ShortInput,
+                            in_idx,
+                            *out_idx - start_out_idx,
+                        );
                     }
                     let len = u16::from_le_bytes([input[in_idx], input[in_idx + 1]]) as usize;
                     let nlen = u16::from_le_bytes([input[in_idx + 2], input[in_idx + 3]]) as usize;
@@ -249,10 +260,18 @@ impl Decompressor {
                     } else {
                         self.state = DecompressorState::UncompressedBody { len: new_len };
                         if available_out == 0 {
-                            return (DecompressResult::InsufficientSpace, in_idx, *out_idx - start_out_idx);
+                            return (
+                                DecompressResult::InsufficientSpace,
+                                in_idx,
+                                *out_idx - start_out_idx,
+                            );
                         }
                         if available_in == 0 {
-                            return (DecompressResult::ShortInput, in_idx, *out_idx - start_out_idx);
+                            return (
+                                DecompressResult::ShortInput,
+                                in_idx,
+                                *out_idx - start_out_idx,
+                            );
                         }
                     }
                 }
@@ -359,7 +378,9 @@ impl Decompressor {
                     return DecompressResult::BadData;
                 }
                 let rep_val = self.lens[i - 1];
-                if self.bitsleft < 2 { return DecompressResult::ShortInput; }
+                if self.bitsleft < 2 {
+                    return DecompressResult::ShortInput;
+                }
                 let rep_count = 3 + ((self.bitbuf & 3) as usize);
                 self.bitbuf >>= 2;
                 self.bitsleft -= 2;
@@ -370,7 +391,9 @@ impl Decompressor {
                     }
                 }
             } else if presym == 17 {
-                if self.bitsleft < 3 { return DecompressResult::ShortInput; }
+                if self.bitsleft < 3 {
+                    return DecompressResult::ShortInput;
+                }
                 let rep_count = 3 + ((self.bitbuf & 7) as usize);
                 self.bitbuf >>= 3;
                 self.bitsleft -= 3;
@@ -381,7 +404,9 @@ impl Decompressor {
                     }
                 }
             } else {
-                if self.bitsleft < 7 { return DecompressResult::ShortInput; }
+                if self.bitsleft < 7 {
+                    return DecompressResult::ShortInput;
+                }
                 let rep_count = 11 + ((self.bitbuf & 0x7F) as usize);
                 self.bitbuf >>= 7;
                 self.bitsleft -= 7;
@@ -415,88 +440,99 @@ impl Decompressor {
     ) -> DecompressResult {
         let litlen_tablemask = (1 << self.litlen_tablebits) - 1;
 
-        if let DecompressorState::BlockBodyOffset { length, extra_bits: _ } = self.state {
-             refill_bits!(input, *in_idx, self.bitbuf, self.bitsleft);
-             let mut entry = self.offset_decode_table[(self.bitbuf as usize) & ((1 << OFFSET_TABLEBITS) - 1)];
-             if entry & HUFFDEC_SUBTABLE_POINTER != 0 {
-                  let main_bits = entry & 0xFF;
-                  if self.bitsleft < main_bits {
-                       return DecompressResult::ShortInput;
-                  }
-                  self.bitbuf >>= main_bits;
-                  self.bitsleft -= main_bits;
-                  let subtable_idx = (entry >> 16) as usize;
-                  let subtable_bits = (entry >> 8) & 0x3F;
-                  entry = self.offset_decode_table[subtable_idx + ((self.bitbuf as usize) & ((1 << subtable_bits) - 1))];
-             }
-             let total_bits = entry & 0xFF;
-             if self.bitsleft < total_bits {
-                 return DecompressResult::ShortInput;
-             }
-             self.bitbuf >>= total_bits;
-             self.bitsleft -= total_bits;
-             let mut offset = (entry >> 16) as usize;
-             let len = (entry >> 8) & 0xFF;
-             let extra_bits = total_bits - len;
-                 if extra_bits > 0 {
-                     offset += (self.bitbuf as usize) & ((1 << extra_bits) - 1);
-                     self.bitbuf >>= extra_bits;
-                     self.bitsleft -= extra_bits;
-                 }
-             
-             if offset > *out_idx {
-                 return DecompressResult::BadData;
-             }
-             let dest = *out_idx;
-             let src = dest - offset;
-             if dest + length > output.len() {
-                 return DecompressResult::InsufficientSpace;
-             }
-             unsafe {
-                 let out_ptr = output.as_mut_ptr();
-                 if offset >= length {
-                     std::ptr::copy_nonoverlapping(out_ptr.add(src), out_ptr.add(dest), length);
-                 } else if offset == 1 {
-                     let b = *out_ptr.add(src);
-                     std::ptr::write_bytes(out_ptr.add(dest), b, length);
-                 } else {
-                     if offset < 16 {
-                         let src_ptr = out_ptr.add(src);
-                         let dest_ptr = out_ptr.add(dest);
-                         for i in 0..length {
-                             *dest_ptr.add(i) = *src_ptr.add(i);
-                         }
-                     } else {
-                         let mut copied = 0;
-                         while copied < length {
-                             let copy_len = std::cmp::min(offset, length - copied);
-                             std::ptr::copy_nonoverlapping(
-                                 out_ptr.add(src + copied),
-                                 out_ptr.add(dest + copied),
-                                 copy_len,
-                             );
-                             copied += copy_len;
-                         }
-                     }
-                 }
-             }
-             *out_idx += length;
-             self.state = DecompressorState::BlockBody;
+        if let DecompressorState::BlockBodyOffset {
+            length,
+            extra_bits: _,
+        } = self.state
+        {
+            refill_bits!(input, *in_idx, self.bitbuf, self.bitsleft);
+            let mut entry =
+                self.offset_decode_table[(self.bitbuf as usize) & ((1 << OFFSET_TABLEBITS) - 1)];
+            if entry & HUFFDEC_SUBTABLE_POINTER != 0 {
+                let main_bits = entry & 0xFF;
+                if self.bitsleft < main_bits {
+                    return DecompressResult::ShortInput;
+                }
+                self.bitbuf >>= main_bits;
+                self.bitsleft -= main_bits;
+                let subtable_idx = (entry >> 16) as usize;
+                let subtable_bits = (entry >> 8) & 0x3F;
+                entry = self.offset_decode_table
+                    [subtable_idx + ((self.bitbuf as usize) & ((1 << subtable_bits) - 1))];
+            }
+            let total_bits = entry & 0xFF;
+            if self.bitsleft < total_bits {
+                return DecompressResult::ShortInput;
+            }
+            self.bitbuf >>= total_bits;
+            self.bitsleft -= total_bits;
+            let mut offset = (entry >> 16) as usize;
+            let len = (entry >> 8) & 0xFF;
+            let extra_bits = total_bits - len;
+            if extra_bits > 0 {
+                offset += (self.bitbuf as usize) & ((1 << extra_bits) - 1);
+                self.bitbuf >>= extra_bits;
+                self.bitsleft -= extra_bits;
+            }
+
+            if offset > *out_idx {
+                return DecompressResult::BadData;
+            }
+            let dest = *out_idx;
+            let src = dest - offset;
+            if dest + length > output.len() {
+                return DecompressResult::InsufficientSpace;
+            }
+            unsafe {
+                let out_ptr = output.as_mut_ptr();
+                if offset >= length {
+                    std::ptr::copy_nonoverlapping(out_ptr.add(src), out_ptr.add(dest), length);
+                } else if offset == 1 {
+                    let b = *out_ptr.add(src);
+                    std::ptr::write_bytes(out_ptr.add(dest), b, length);
+                } else {
+                    if offset < 16 {
+                        let src_ptr = out_ptr.add(src);
+                        let dest_ptr = out_ptr.add(dest);
+                        for i in 0..length {
+                            *dest_ptr.add(i) = *src_ptr.add(i);
+                        }
+                    } else {
+                        let mut copied = 0;
+                        while copied < length {
+                            let copy_len = std::cmp::min(offset, length - copied);
+                            std::ptr::copy_nonoverlapping(
+                                out_ptr.add(src + copied),
+                                out_ptr.add(dest + copied),
+                                copy_len,
+                            );
+                            copied += copy_len;
+                        }
+                    }
+                }
+            }
+            *out_idx += length;
+            self.state = DecompressorState::BlockBody;
         }
 
         loop {
             while *in_idx + 15 < input.len() && *out_idx + 258 < output.len() {
                 if self.bitsleft < 32 {
-                     let word = unsafe { (input.as_ptr().add(*in_idx) as *const u64).read_unaligned() };
-                     let word = u64::from_le(word);
-                     self.bitbuf |= word << self.bitsleft;
-                     let consumed = (63 - self.bitsleft) >> 3;
-                     *in_idx += consumed as usize;
-                     self.bitsleft |= 56;
+                    let word =
+                        unsafe { (input.as_ptr().add(*in_idx) as *const u64).read_unaligned() };
+                    let word = u64::from_le(word);
+                    self.bitbuf |= word << self.bitsleft;
+                    let consumed = (63 - self.bitsleft) >> 3;
+                    *in_idx += consumed as usize;
+                    self.bitsleft |= 56;
                 }
 
-                let entry = unsafe { *self.litlen_decode_table.get_unchecked((self.bitbuf as usize) & litlen_tablemask) };
-                
+                let entry = unsafe {
+                    *self
+                        .litlen_decode_table
+                        .get_unchecked((self.bitbuf as usize) & litlen_tablemask)
+                };
+
                 if entry & HUFFDEC_EXCEPTIONAL != 0 {
                     break;
                 }
@@ -520,27 +556,37 @@ impl Decompressor {
                     }
 
                     if self.bitsleft < 32 {
-                         let word = unsafe { (input.as_ptr().add(*in_idx) as *const u64).read_unaligned() };
-                         let word = u64::from_le(word);
-                         self.bitbuf |= word << self.bitsleft;
-                         let consumed = (63 - self.bitsleft) >> 3;
-                         *in_idx += consumed as usize;
-                         self.bitsleft |= 56;
+                        let word =
+                            unsafe { (input.as_ptr().add(*in_idx) as *const u64).read_unaligned() };
+                        let word = u64::from_le(word);
+                        self.bitbuf |= word << self.bitsleft;
+                        let consumed = (63 - self.bitsleft) >> 3;
+                        *in_idx += consumed as usize;
+                        self.bitsleft |= 56;
                     }
 
-                    let mut off_entry = unsafe { *self.offset_decode_table.get_unchecked((self.bitbuf as usize) & ((1 << OFFSET_TABLEBITS) - 1)) };
-                    
+                    let mut off_entry = unsafe {
+                        *self
+                            .offset_decode_table
+                            .get_unchecked((self.bitbuf as usize) & ((1 << OFFSET_TABLEBITS) - 1))
+                    };
+
                     if off_entry & HUFFDEC_EXCEPTIONAL != 0 {
-                         if off_entry & HUFFDEC_SUBTABLE_POINTER != 0 {
-                              let main_bits = off_entry & 0xFF;
-                              self.bitbuf >>= main_bits;
-                              self.bitsleft -= main_bits;
-                              let subtable_idx = (off_entry >> 16) as usize;
-                              let subtable_bits = (off_entry >> 8) & 0x3F;
-                              off_entry = unsafe { *self.offset_decode_table.get_unchecked(subtable_idx + ((self.bitbuf as usize) & ((1 << subtable_bits) - 1))) };
-                         } else {
-                             break;
-                         }
+                        if off_entry & HUFFDEC_SUBTABLE_POINTER != 0 {
+                            let main_bits = off_entry & 0xFF;
+                            self.bitbuf >>= main_bits;
+                            self.bitsleft -= main_bits;
+                            let subtable_idx = (off_entry >> 16) as usize;
+                            let subtable_bits = (off_entry >> 8) & 0x3F;
+                            off_entry = unsafe {
+                                *self.offset_decode_table.get_unchecked(
+                                    subtable_idx
+                                        + ((self.bitbuf as usize) & ((1 << subtable_bits) - 1)),
+                                )
+                            };
+                        } else {
+                            break;
+                        }
                     }
 
                     let saved_bitbuf_off = self.bitbuf;
@@ -551,31 +597,32 @@ impl Decompressor {
                     let len_off = (off_entry >> 8) & 0xFF;
                     let extra_bits_off = total_bits_off - len_off;
                     if extra_bits_off > 0 {
-                        offset += ((saved_bitbuf_off >> len_off) as usize) & ((1 << extra_bits_off) - 1);
+                        offset +=
+                            ((saved_bitbuf_off >> len_off) as usize) & ((1 << extra_bits_off) - 1);
                     }
-                    
+
                     let src = *out_idx - offset;
                     let dest = *out_idx;
-                    
+
                     unsafe {
                         let out_ptr = output.as_mut_ptr();
                         if offset < 16 {
-                             let src_ptr = out_ptr.add(src);
-                             let dest_ptr = out_ptr.add(dest);
-                             for i in 0..length {
-                                 *dest_ptr.add(i) = *src_ptr.add(i);
-                             }
+                            let src_ptr = out_ptr.add(src);
+                            let dest_ptr = out_ptr.add(dest);
+                            for i in 0..length {
+                                *dest_ptr.add(i) = *src_ptr.add(i);
+                            }
                         } else {
-                             let mut copied = 0;
-                             while copied < length {
-                                 let copy_len = std::cmp::min(offset, length - copied);
-                                 std::ptr::copy_nonoverlapping(
-                                     out_ptr.add(src + copied),
-                                     out_ptr.add(dest + copied),
-                                     copy_len,
-                                 );
-                                 copied += copy_len;
-                             }
+                            let mut copied = 0;
+                            while copied < length {
+                                let copy_len = std::cmp::min(offset, length - copied);
+                                std::ptr::copy_nonoverlapping(
+                                    out_ptr.add(src + copied),
+                                    out_ptr.add(dest + copied),
+                                    copy_len,
+                                );
+                                copied += copy_len;
+                            }
                         }
                     }
                     *out_idx += length;
@@ -592,7 +639,9 @@ impl Decompressor {
                 }
                 if entry & HUFFDEC_SUBTABLE_POINTER != 0 {
                     let main_bits = entry & 0xFF;
-                    if self.bitsleft < main_bits { return DecompressResult::ShortInput; }
+                    if self.bitsleft < main_bits {
+                        return DecompressResult::ShortInput;
+                    }
                     self.bitbuf >>= main_bits;
                     self.bitsleft -= main_bits;
                     let subtable_idx = (entry >> 16) as usize;
@@ -603,7 +652,9 @@ impl Decompressor {
             }
             let saved_bitbuf = self.bitbuf;
             let total_bits = entry & 0xFF;
-            if self.bitsleft < total_bits { return DecompressResult::ShortInput; }
+            if self.bitsleft < total_bits {
+                return DecompressResult::ShortInput;
+            }
             self.bitbuf >>= total_bits;
             self.bitsleft -= total_bits;
             if entry & HUFFDEC_LITERAL != 0 {
@@ -622,13 +673,16 @@ impl Decompressor {
                     length += ((saved_bitbuf >> len) as usize) & ((1 << extra_bits) - 1);
                 }
                 refill_bits!(input, *in_idx, self.bitbuf, self.bitsleft);
-                let mut entry =
-                    self.offset_decode_table[(self.bitbuf as usize) & ((1 << OFFSET_TABLEBITS) - 1)];
+                let mut entry = self.offset_decode_table
+                    [(self.bitbuf as usize) & ((1 << OFFSET_TABLEBITS) - 1)];
                 if entry & HUFFDEC_SUBTABLE_POINTER != 0 {
                     let main_bits = entry & 0xFF;
                     if self.bitsleft < main_bits {
-                         self.state = DecompressorState::BlockBodyOffset { length, extra_bits: 0 };
-                         return DecompressResult::ShortInput; 
+                        self.state = DecompressorState::BlockBodyOffset {
+                            length,
+                            extra_bits: 0,
+                        };
+                        return DecompressResult::ShortInput;
                     }
                     self.bitbuf >>= main_bits;
                     self.bitsleft -= main_bits;
@@ -640,8 +694,11 @@ impl Decompressor {
                 let saved_bitbuf = self.bitbuf;
                 let total_bits = entry & 0xFF;
                 if self.bitsleft < total_bits {
-                     self.state = DecompressorState::BlockBodyOffset { length, extra_bits: 0 };
-                     return DecompressResult::ShortInput; 
+                    self.state = DecompressorState::BlockBodyOffset {
+                        length,
+                        extra_bits: 0,
+                    };
+                    return DecompressResult::ShortInput;
                 }
                 self.bitbuf >>= total_bits;
                 self.bitsleft -= total_bits;
@@ -718,7 +775,7 @@ impl Decompressor {
 
         let (res, in_consumed, out_produced) =
             self.decompress(&input[2..input.len() - ZLIB_FOOTER_SIZE], output);
-        
+
         if res != DecompressResult::Success {
             return (res, in_consumed + 2, out_produced);
         }
@@ -732,10 +789,18 @@ impl Decompressor {
         ]);
 
         if actual_adler != expected_adler {
-            return (DecompressResult::BadData, in_consumed + 2 + ZLIB_FOOTER_SIZE, out_produced);
+            return (
+                DecompressResult::BadData,
+                in_consumed + 2 + ZLIB_FOOTER_SIZE,
+                out_produced,
+            );
         }
 
-        (DecompressResult::Success, in_consumed + 2 + ZLIB_FOOTER_SIZE, out_produced)
+        (
+            DecompressResult::Success,
+            in_consumed + 2 + ZLIB_FOOTER_SIZE,
+            out_produced,
+        )
     }
 
     pub fn decompress_gzip(
@@ -790,7 +855,7 @@ impl Decompressor {
 
         let (res, in_consumed, out_produced) =
             self.decompress(&input[in_idx..input.len() - GZIP_FOOTER_SIZE], output);
-        
+
         if res != DecompressResult::Success {
             return (res, in_idx + in_consumed, out_produced);
         }
@@ -804,7 +869,11 @@ impl Decompressor {
         ]);
 
         if actual_crc != expected_crc {
-            return (DecompressResult::BadData, in_idx + in_consumed + GZIP_FOOTER_SIZE, out_produced);
+            return (
+                DecompressResult::BadData,
+                in_idx + in_consumed + GZIP_FOOTER_SIZE,
+                out_produced,
+            );
         }
 
         let expected_isize = u32::from_le_bytes([
@@ -815,13 +884,20 @@ impl Decompressor {
         ]);
 
         if (out_produced as u32) != expected_isize {
-            return (DecompressResult::BadData, in_idx + in_consumed + GZIP_FOOTER_SIZE, out_produced);
+            return (
+                DecompressResult::BadData,
+                in_idx + in_consumed + GZIP_FOOTER_SIZE,
+                out_produced,
+            );
         }
 
-        (DecompressResult::Success, in_idx + in_consumed + GZIP_FOOTER_SIZE, out_produced)
+        (
+            DecompressResult::Success,
+            in_idx + in_consumed + GZIP_FOOTER_SIZE,
+            out_produced,
+        )
     }
 }
-
 
 #[inline(always)]
 fn make_decode_table_entry(decode_results: &[u32], sym: usize, len: u32) -> u32 {

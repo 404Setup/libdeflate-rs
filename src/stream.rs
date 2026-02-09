@@ -36,7 +36,7 @@ impl<W: Write + Send> DeflateEncoder<W> {
         if self.buffer.len() > chunk_size {
             let chunks: Vec<&[u8]> = self.buffer.chunks(chunk_size).collect();
             let num_chunks = chunks.len();
-            
+
             let compressed_chunks: Vec<io::Result<Vec<u8>>> = chunks
                 .par_iter()
                 .enumerate()
@@ -46,9 +46,9 @@ impl<W: Write + Send> DeflateEncoder<W> {
                         let bound = Compressor::deflate_compress_bound(chunk.len());
                         let mut output = vec![0u8; bound];
                         let mode = if final_block && i == num_chunks - 1 {
-                             crate::compress::FlushMode::Finish
+                            crate::compress::FlushMode::Finish
                         } else {
-                             crate::compress::FlushMode::Sync
+                            crate::compress::FlushMode::Sync
                         };
                         let (res, size, _) = compressor.compress(chunk, &mut output, mode);
                         if res == CompressResult::Success {
@@ -72,9 +72,9 @@ impl<W: Write + Send> DeflateEncoder<W> {
             let bound = Compressor::deflate_compress_bound(self.buffer.len());
             let mut output = vec![0u8; bound];
             let mode = if final_block {
-                 crate::compress::FlushMode::Finish
+                crate::compress::FlushMode::Finish
             } else {
-                 crate::compress::FlushMode::Sync
+                crate::compress::FlushMode::Sync
             };
             let (res, size, _) = compressor.compress(&self.buffer, &mut output, mode);
             if res == CompressResult::Success {
@@ -153,99 +153,117 @@ impl<R: Read> DeflateDecoder<R> {
 impl<R: Read> Read for DeflateDecoder<R> {
     fn read(&mut self, buf: &mut [u8]) -> io::Result<usize> {
         if self.read_pos < self.write_pos {
-             let count = min(buf.len(), self.write_pos - self.read_pos);
-             buf[..count].copy_from_slice(&self.window[self.read_pos..self.read_pos + count]);
-             self.read_pos += count;
-             return Ok(count);
+            let count = min(buf.len(), self.write_pos - self.read_pos);
+            buf[..count].copy_from_slice(&self.window[self.read_pos..self.read_pos + count]);
+            self.read_pos += count;
+            return Ok(count);
         }
-        
+
         if self.done {
             return Ok(0);
         }
 
         loop {
-             if self.write_pos >= 64 * 1024 {
-                 if self.read_pos >= 32 * 1024 {
-                     self.window.copy_within(self.read_pos - 32 * 1024..self.write_pos, 32 * 1024 - (self.read_pos - 32 * 1024));
+            if self.write_pos >= 64 * 1024 {
+                if self.read_pos >= 32 * 1024 {
+                    self.window.copy_within(
+                        self.read_pos - 32 * 1024..self.write_pos,
+                        32 * 1024 - (self.read_pos - 32 * 1024),
+                    );
 
-                     let amount_to_keep = 32 * 1024;
-                     let shift = self.write_pos - amount_to_keep;
-                     self.window.copy_within(shift..self.write_pos, 0);
-                     self.write_pos = amount_to_keep;
-                     self.read_pos -= shift;
-                 }
-             }
+                    let amount_to_keep = 32 * 1024;
+                    let shift = self.write_pos - amount_to_keep;
+                    self.window.copy_within(shift..self.write_pos, 0);
+                    self.write_pos = amount_to_keep;
+                    self.read_pos -= shift;
+                }
+            }
 
-             let mut output_full = false;
-             if self.input_pos < self.input_cap {
-                 let input = &self.input_buffer[self.input_pos..self.input_cap];
-                 let (res, in_consumed) = {
-                     let (res, inc, _outc) = self.decompressor.decompress_streaming(input, &mut self.window, &mut self.write_pos);
-                     (res, inc)
-                 };
-                 
-                 self.input_pos += in_consumed;
+            let mut output_full = false;
+            if self.input_pos < self.input_cap {
+                let input = &self.input_buffer[self.input_pos..self.input_cap];
+                let (res, in_consumed) = {
+                    let (res, inc, _outc) = self.decompressor.decompress_streaming(
+                        input,
+                        &mut self.window,
+                        &mut self.write_pos,
+                    );
+                    (res, inc)
+                };
 
-                 if let DecompressorState::Done = self.decompressor.state {
-                      self.done = true;
-                      if self.read_pos < self.write_pos {
-                           let count = min(buf.len(), self.write_pos - self.read_pos);
-                           buf[..count].copy_from_slice(&self.window[self.read_pos..self.read_pos + count]);
-                           self.read_pos += count;
-                           return Ok(count);
-                      }
-                      return Ok(0);
-                 }
-                 
-                 if self.read_pos < self.write_pos {
-                      let count = min(buf.len(), self.write_pos - self.read_pos);
-                      buf[..count].copy_from_slice(&self.window[self.read_pos..self.read_pos + count]);
-                      self.read_pos += count;
-                      return Ok(count);
-                 }
+                self.input_pos += in_consumed;
 
-                 match res {
-                     DecompressResult::ShortInput => {
-                     }
-                     DecompressResult::InsufficientSpace => {
-                         output_full = true;
-                     }
-                     DecompressResult::BadData => {
-                         return Err(io::Error::new(io::ErrorKind::InvalidData, "deflate decompression failed"));
-                     }
-                     _ => {}
-                 }
-             }
+                if let DecompressorState::Done = self.decompressor.state {
+                    self.done = true;
+                    if self.read_pos < self.write_pos {
+                        let count = min(buf.len(), self.write_pos - self.read_pos);
+                        buf[..count]
+                            .copy_from_slice(&self.window[self.read_pos..self.read_pos + count]);
+                        self.read_pos += count;
+                        return Ok(count);
+                    }
+                    return Ok(0);
+                }
 
-             if !output_full {
-                 if self.input_pos > 0 {
-                  self.input_buffer.copy_within(self.input_pos..self.input_cap, 0);
-                  self.input_cap -= self.input_pos;
-                  self.input_pos = 0;
-             }
-             if self.input_cap == self.input_buffer.len() {
-                  if self.input_buffer.len() < 1024 * 1024 {
-                      self.input_buffer.resize(self.input_buffer.len() * 2, 0);
-                  } else {
-                      return Err(io::Error::new(io::ErrorKind::Other, "input buffer full"));
-                  }
-             }
-             
-             let n = self.inner.read(&mut self.input_buffer[self.input_cap..])?;
-             if n == 0 {
-                 if self.done {
-                     return Ok(0);
-                 }
-                 if self.input_pos < self.input_cap {
-                     return Err(io::Error::new(io::ErrorKind::UnexpectedEof, "unexpected EOF"));
-                 }
-                 if !self.done && self.decompressor.state != DecompressorState::Start {
-                      return Err(io::Error::new(io::ErrorKind::UnexpectedEof, "unexpected EOF"));
-                 }
-                 return Ok(0);
-             }
-                 self.input_cap += n;
-             }
+                if self.read_pos < self.write_pos {
+                    let count = min(buf.len(), self.write_pos - self.read_pos);
+                    buf[..count]
+                        .copy_from_slice(&self.window[self.read_pos..self.read_pos + count]);
+                    self.read_pos += count;
+                    return Ok(count);
+                }
+
+                match res {
+                    DecompressResult::ShortInput => {}
+                    DecompressResult::InsufficientSpace => {
+                        output_full = true;
+                    }
+                    DecompressResult::BadData => {
+                        return Err(io::Error::new(
+                            io::ErrorKind::InvalidData,
+                            "deflate decompression failed",
+                        ));
+                    }
+                    _ => {}
+                }
+            }
+
+            if !output_full {
+                if self.input_pos > 0 {
+                    self.input_buffer
+                        .copy_within(self.input_pos..self.input_cap, 0);
+                    self.input_cap -= self.input_pos;
+                    self.input_pos = 0;
+                }
+                if self.input_cap == self.input_buffer.len() {
+                    if self.input_buffer.len() < 1024 * 1024 {
+                        self.input_buffer.resize(self.input_buffer.len() * 2, 0);
+                    } else {
+                        return Err(io::Error::new(io::ErrorKind::Other, "input buffer full"));
+                    }
+                }
+
+                let n = self.inner.read(&mut self.input_buffer[self.input_cap..])?;
+                if n == 0 {
+                    if self.done {
+                        return Ok(0);
+                    }
+                    if self.input_pos < self.input_cap {
+                        return Err(io::Error::new(
+                            io::ErrorKind::UnexpectedEof,
+                            "unexpected EOF",
+                        ));
+                    }
+                    if !self.done && self.decompressor.state != DecompressorState::Start {
+                        return Err(io::Error::new(
+                            io::ErrorKind::UnexpectedEof,
+                            "unexpected EOF",
+                        ));
+                    }
+                    return Ok(0);
+                }
+                self.input_cap += n;
+            }
         }
     }
 }

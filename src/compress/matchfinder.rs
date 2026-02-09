@@ -301,12 +301,11 @@ impl MatchFinder {
         let prev_offset = abs_pos - (cur_pos as usize);
         *self
             .prev_tab
-            .get_unchecked_mut(abs_pos & (MATCHFINDER_WINDOW_SIZE - 1)) =
-            if prev_offset > 0xFFFF {
-                0
-            } else {
-                prev_offset as u16
-            };
+            .get_unchecked_mut(abs_pos & (MATCHFINDER_WINDOW_SIZE - 1)) = if prev_offset > 0xFFFF {
+            0
+        } else {
+            prev_offset as u16
+        };
 
         let mut best_len = 0;
         let mut best_offset = 0;
@@ -835,27 +834,21 @@ mod tests {
     fn test_match_finder_consistency() {
         let mut mf1 = MatchFinder::new();
         let mut mf2 = MatchFinder::new();
-        let data = b"abcdeabcdeabcde"; // Repeating pattern
+        let data = b"abcdeabcdeabcde";
         mf1.prepare(data.len());
         mf2.prepare(data.len());
 
         let max_depth = 10;
         let mut matches = Vec::new();
 
-        // Process first 5 bytes to populate hash table
         for i in 0..5 {
             mf1.find_match(data, i, max_depth);
 
-
             mf2.find_match(data, i, max_depth);
-
         }
 
-        // Now at pos 5 (second 'a')
-        // mf1 uses find_match
         let (len1, offset1) = mf1.find_match(data, 5, max_depth);
 
-        // mf2 uses find_matches
         let (len2, offset2) = mf2.find_matches(data, 5, max_depth, &mut matches);
 
         assert_eq!(len1, len2, "Lengths should match");
@@ -863,8 +856,11 @@ mod tests {
         assert_eq!(len1, 10, "Should find match of length 10");
         assert_eq!(offset1, 5, "Should find match at offset 5");
 
-        // matches should contain at least (10, 5)
         assert!(!matches.is_empty(), "Matches vector should not be empty");
-        assert_eq!(matches.last(), Some(&(10, 5)), "Last match should be best match");
+        assert_eq!(
+            matches.last(),
+            Some(&(10, 5)),
+            "Last match should be best match"
+        );
     }
 }

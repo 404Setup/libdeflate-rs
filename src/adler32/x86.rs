@@ -111,7 +111,7 @@ pub unsafe fn adler32_x86_avx2(adler: u32, p: &[u8]) -> u32 {
         let v_zero = _mm256_setzero_si256();
 
         let mut chunk_n = n;
-        
+
         let mut v_s2_a = _mm256_setzero_si256();
         let mut v_s2_b = _mm256_setzero_si256();
         let mut v_s2_c = _mm256_setzero_si256();
@@ -140,10 +140,8 @@ pub unsafe fn adler32_x86_avx2(adler: u32, p: &[u8]) -> u32 {
 
             v_s1_sums = _mm256_add_epi32(v_s1_sums, sad3);
 
-            let sum_sads = _mm256_add_epi32(
-                _mm256_add_epi32(sad1, sad2),
-                _mm256_add_epi32(sad3, sad4)
-            );
+            let sum_sads =
+                _mm256_add_epi32(_mm256_add_epi32(sad1, sad2), _mm256_add_epi32(sad3, sad4));
             v_s1 = _mm256_add_epi32(v_s1, sum_sads);
 
             let p1 = _mm256_maddubs_epi16(data_a_1, weights);
@@ -165,10 +163,10 @@ pub unsafe fn adler32_x86_avx2(adler: u32, p: &[u8]) -> u32 {
             data = &data[128..];
             chunk_n -= 128;
         }
-        
+
         let mut v_s2 = _mm256_add_epi32(
             _mm256_add_epi32(v_s2_a, v_s2_b),
-            _mm256_add_epi32(v_s2_c, v_s2_d)
+            _mm256_add_epi32(v_s2_c, v_s2_d),
         );
 
         while chunk_n >= 64 {

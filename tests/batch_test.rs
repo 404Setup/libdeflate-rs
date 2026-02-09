@@ -7,20 +7,17 @@ fn test_batch_compress_decompress_roundtrip() {
         b"Another test string.",
         b"Repeating pattern repeating pattern repeating pattern repeating pattern.",
         b"Short",
-        &[0u8; 1000], // Highly compressible
+        &[0u8; 1000],
     ];
 
-    // Create compressor with level 6 (default-ish)
     let compressor = BatchCompressor::new(6);
     let compressed_batch = compressor.compress_batch(&inputs);
 
     assert_eq!(compressed_batch.len(), inputs.len());
 
-    // Prepare for decompression
     let max_out_sizes: Vec<usize> = inputs.iter().map(|input| input.len()).collect();
     let compressed_refs: Vec<&[u8]> = compressed_batch.iter().map(|v| v.as_slice()).collect();
 
-    // Create decompressor
     let decompressor = BatchDecompressor::new();
     let decompressed_batch = decompressor.decompress_batch(&compressed_refs, &max_out_sizes);
 
@@ -29,8 +26,13 @@ fn test_batch_compress_decompress_roundtrip() {
     for (i, result) in decompressed_batch.iter().enumerate() {
         match result {
             Some(decompressed) => {
-                assert_eq!(decompressed.as_slice(), inputs[i], "Mismatch at index {}", i);
-            },
+                assert_eq!(
+                    decompressed.as_slice(),
+                    inputs[i],
+                    "Mismatch at index {}",
+                    i
+                );
+            }
             None => panic!("Decompression failed for input index {}", i),
         }
     }
@@ -54,7 +56,6 @@ fn test_batch_empty_input() {
     let compressed = compressor.compress_batch(&inputs);
 
     assert_eq!(compressed.len(), 2);
-    // Empty input should produce a valid DEFLATE stream (non-empty)
     assert!(!compressed[0].is_empty());
 
     let max_out_sizes = vec![0, 9];
@@ -70,7 +71,7 @@ fn test_batch_empty_input() {
 
 #[test]
 fn test_batch_decompress_error() {
-    let invalid_data = vec![0u8, 1, 2, 3, 4, 5]; // Not a valid deflate stream
+    let invalid_data = vec![0u8, 1, 2, 3, 4, 5];
     let inputs: Vec<&[u8]> = vec![&invalid_data];
     let max_out_sizes = vec![100];
 
@@ -89,7 +90,6 @@ fn test_batch_decompress_insufficient_buffer() {
 
     let compressed_refs: Vec<&[u8]> = compressed.iter().map(|v| v.as_slice()).collect();
 
-    // Buffer too small
     let max_out_sizes = vec![input.len() - 1];
 
     let decompressor = BatchDecompressor::new();

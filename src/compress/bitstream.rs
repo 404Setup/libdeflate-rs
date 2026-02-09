@@ -25,7 +25,7 @@ impl<'a> Bitstream<'a> {
         } else {
             (1u32 << count) - 1
         };
-        
+
         self.bitbuf |= ((bits & mask) as u64) << self.bitcount;
         self.bitcount += count;
 
@@ -33,8 +33,8 @@ impl<'a> Bitstream<'a> {
             if self.out_idx + 8 <= self.output.len() {
                 unsafe {
                     std::ptr::write_unaligned(
-                        self.output.as_mut_ptr().add(self.out_idx) as *mut u64, 
-                        self.bitbuf.to_le()
+                        self.output.as_mut_ptr().add(self.out_idx) as *mut u64,
+                        self.bitbuf.to_le(),
                     );
                 }
                 let bytes_written = (self.bitcount >> 3) as usize;

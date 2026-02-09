@@ -23,11 +23,8 @@ impl BatchCompressor {
                     unsafe {
                         buffer.set_len(bound);
                     }
-                    let (res, size, _) = compressor.compress(
-                        input,
-                        buffer,
-                        crate::compress::FlushMode::Finish,
-                    );
+                    let (res, size, _) =
+                        compressor.compress(input, buffer, crate::compress::FlushMode::Finish);
                     if res == CompressResult::Success {
                         unsafe {
                             buffer.set_len(size);
@@ -57,19 +54,16 @@ impl BatchDecompressor {
         inputs
             .par_iter()
             .zip(max_out_sizes.par_iter())
-            .map_init(
-                Decompressor::new,
-                |decompressor, (&input, &max_size)| {
-                    let mut output = vec![0u8; max_size];
-                    let (res, _, size) = decompressor.decompress(input, &mut output);
-                    if res == DecompressResult::Success {
-                        output.truncate(size);
-                        Some(output)
-                    } else {
-                        None
-                    }
-                },
-            )
+            .map_init(Decompressor::new, |decompressor, (&input, &max_size)| {
+                let mut output = vec![0u8; max_size];
+                let (res, _, size) = decompressor.decompress(input, &mut output);
+                if res == DecompressResult::Success {
+                    output.truncate(size);
+                    Some(output)
+                } else {
+                    None
+                }
+            })
             .collect()
     }
 }

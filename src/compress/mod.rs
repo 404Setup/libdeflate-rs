@@ -3,11 +3,11 @@ pub mod bitstream;
 mod huffman_comp;
 mod matchfinder;
 
-use rayon::prelude::*;
-use self::matchfinder::{BtMatchFinder, HtMatchFinder, MatchFinder, MatchFinderTrait};
 use self::bitstream::Bitstream;
 use self::huffman_comp::make_huffman_code;
+use self::matchfinder::{BtMatchFinder, HtMatchFinder, MatchFinder, MatchFinderTrait};
 use crate::common::*;
+use rayon::prelude::*;
 use std::cmp::min;
 use std::io;
 
@@ -48,7 +48,6 @@ struct BlockSplitStats {
     num_new_observations: u32,
     num_observations: u32,
 }
-
 
 impl BlockSplitStats {
     fn new() -> Self {
@@ -117,7 +116,7 @@ impl BlockSplitStats {
         }
         let mut old_bits = 0;
         let mut new_bits = 0;
-        
+
         let log2_num_obs = bsr32(self.num_observations);
         let log2_num_new_obs = bsr32(self.num_new_observations);
 
@@ -191,8 +190,6 @@ pub struct Compressor {
     dp_nodes: Vec<DPNode>,
     split_stats: BlockSplitStats,
 }
-
-
 
 impl Compressor {
     pub fn new(level: usize) -> Self {
@@ -305,7 +302,13 @@ impl Compressor {
 
         while in_idx < input.len() {
             let processed = if self.compression_level >= 10 {
-                self.compress_near_optimal_block(mf, input, in_idx, bs, flush_mode == FlushMode::Finish)
+                self.compress_near_optimal_block(
+                    mf,
+                    input,
+                    in_idx,
+                    bs,
+                    flush_mode == FlushMode::Finish,
+                )
             } else {
                 let lazy_depth = if self.compression_level >= 8 {
                     2
@@ -314,7 +317,14 @@ impl Compressor {
                 } else {
                     0
                 };
-                self.compress_greedy_block(mf, input, in_idx, bs, lazy_depth, flush_mode == FlushMode::Finish)
+                self.compress_greedy_block(
+                    mf,
+                    input,
+                    in_idx,
+                    bs,
+                    lazy_depth,
+                    flush_mode == FlushMode::Finish,
+                )
             };
 
             if processed == 0 {
@@ -325,37 +335,37 @@ impl Compressor {
         }
 
         if in_idx == 0 && flush_mode == FlushMode::Finish {
-             let start_out = bs.out_idx;
-             if self.compression_level >= 10 {
-                 self.compress_near_optimal_block(mf, input, 0, bs, true);
-             } else {
-                 self.compress_greedy_block(mf, input, 0, bs, 0, true);
-             }
-             if bs.out_idx == start_out {
-                  mf.advance(input.len());
-                  return (CompressResult::InsufficientSpace, 0, 0);
-             }
+            let start_out = bs.out_idx;
+            if self.compression_level >= 10 {
+                self.compress_near_optimal_block(mf, input, 0, bs, true);
+            } else {
+                self.compress_greedy_block(mf, input, 0, bs, 0, true);
+            }
+            if bs.out_idx == start_out {
+                mf.advance(input.len());
+                return (CompressResult::InsufficientSpace, 0, 0);
+            }
         }
 
         if flush_mode == FlushMode::Sync {
-             if !bs.write_bits(0, 3) {
-                 mf.advance(input.len());
-                 return (CompressResult::InsufficientSpace, 0, 0);
-             }
-             let (res, _) = bs.flush();
-             if !res {
-                 mf.advance(input.len());
-                 return (CompressResult::InsufficientSpace, 0, 0);
-             }
-             if bs.out_idx + 4 > bs.output.len() {
-                 mf.advance(input.len());
-                 return (CompressResult::InsufficientSpace, 0, 0);
-             }
-             bs.output[bs.out_idx] = 0;
-             bs.output[bs.out_idx + 1] = 0;
-             bs.output[bs.out_idx + 2] = 0xFF;
-             bs.output[bs.out_idx + 3] = 0xFF;
-             bs.out_idx += 4;
+            if !bs.write_bits(0, 3) {
+                mf.advance(input.len());
+                return (CompressResult::InsufficientSpace, 0, 0);
+            }
+            let (res, _) = bs.flush();
+            if !res {
+                mf.advance(input.len());
+                return (CompressResult::InsufficientSpace, 0, 0);
+            }
+            if bs.out_idx + 4 > bs.output.len() {
+                mf.advance(input.len());
+                return (CompressResult::InsufficientSpace, 0, 0);
+            }
+            bs.output[bs.out_idx] = 0;
+            bs.output[bs.out_idx + 1] = 0;
+            bs.output[bs.out_idx + 2] = 0xFF;
+            bs.output[bs.out_idx + 3] = 0xFF;
+            bs.out_idx += 4;
         }
 
         let (res, valid_bits) = bs.flush();
@@ -375,45 +385,58 @@ impl Compressor {
         flush_mode: FlushMode,
     ) -> (CompressResult, usize, u32) {
         if input.len() > 256 * 1024 {
-             let chunk_size = 256 * 1024;
-             let chunks: Vec<&[u8]> = input.chunks(chunk_size).collect();
-             
-             let compressed_chunks_res: Vec<io::Result<Vec<u8>>> = chunks.par_iter().enumerate().map_init(
-                  || (Compressor::new(self.compression_level), Vec::with_capacity(chunk_size + chunk_size / 2)),
-                  |(compressor, buf), (i, chunk)| {
-                       let is_last = i == chunks.len() - 1;
-                       let mode = if is_last { flush_mode } else { FlushMode::Sync };
-                       
-                       let bound = Self::deflate_compress_bound(chunk.len());
-                       if buf.capacity() < bound {
-                           buf.reserve(bound - buf.len());
-                       }
-                       unsafe { buf.set_len(bound); }
-                       
-                       let (res, size, _) = compressor.compress(chunk, buf, mode);
-                       if res == CompressResult::Success {
-                           unsafe { buf.set_len(size); }
-                           Ok(buf.clone())
-                       } else {
-                           Err(io::Error::new(io::ErrorKind::Other, "Compression failed"))
-                       }
-                  }
-             ).collect();
-             
-             let mut out_idx = 0;
-             for res in compressed_chunks_res {
-                 match res {
-                     Ok(data) => {
-                         if out_idx + data.len() > output.len() {
-                             return (CompressResult::InsufficientSpace, 0, 0);
-                         }
-                         output[out_idx..out_idx+data.len()].copy_from_slice(&data);
-                         out_idx += data.len();
-                     }
-                     Err(_) => return (CompressResult::InsufficientSpace, 0, 0),
-                 }
-             }
-             return (CompressResult::Success, out_idx, 0);
+            let chunk_size = 256 * 1024;
+            let chunks: Vec<&[u8]> = input.chunks(chunk_size).collect();
+
+            let compressed_chunks_res: Vec<io::Result<Vec<u8>>> = chunks
+                .par_iter()
+                .enumerate()
+                .map_init(
+                    || {
+                        (
+                            Compressor::new(self.compression_level),
+                            Vec::with_capacity(chunk_size + chunk_size / 2),
+                        )
+                    },
+                    |(compressor, buf), (i, chunk)| {
+                        let is_last = i == chunks.len() - 1;
+                        let mode = if is_last { flush_mode } else { FlushMode::Sync };
+
+                        let bound = Self::deflate_compress_bound(chunk.len());
+                        if buf.capacity() < bound {
+                            buf.reserve(bound - buf.len());
+                        }
+                        unsafe {
+                            buf.set_len(bound);
+                        }
+
+                        let (res, size, _) = compressor.compress(chunk, buf, mode);
+                        if res == CompressResult::Success {
+                            unsafe {
+                                buf.set_len(size);
+                            }
+                            Ok(buf.clone())
+                        } else {
+                            Err(io::Error::new(io::ErrorKind::Other, "Compression failed"))
+                        }
+                    },
+                )
+                .collect();
+
+            let mut out_idx = 0;
+            for res in compressed_chunks_res {
+                match res {
+                    Ok(data) => {
+                        if out_idx + data.len() > output.len() {
+                            return (CompressResult::InsufficientSpace, 0, 0);
+                        }
+                        output[out_idx..out_idx + data.len()].copy_from_slice(&data);
+                        out_idx += data.len();
+                    }
+                    Err(_) => return (CompressResult::InsufficientSpace, 0, 0),
+                }
+            }
+            return (CompressResult::Success, out_idx, 0);
         }
 
         if self.compression_level == 0 {
@@ -421,15 +444,15 @@ impl Compressor {
         }
 
         let mut bs = Bitstream::new(output);
-        
+
         let mut mf_enum = self.mf.take().unwrap();
-        
+
         let res = match &mut mf_enum {
             MatchFinderEnum::Chain(mf) => self.compress_loop(mf, input, &mut bs, flush_mode),
             MatchFinderEnum::Table(mf) => self.compress_loop(mf, input, &mut bs, flush_mode),
             MatchFinderEnum::Bt(mf) => self.compress_loop(mf, input, &mut bs, flush_mode),
         };
-        
+
         self.mf = Some(mf_enum);
         res
     }
@@ -470,8 +493,7 @@ impl Compressor {
                         self.split_stats.observe_match(len, offset);
                         p += len;
                         for i in 1..len {
-                            mf
-                                .skip_match(input, p - len + i, self.max_search_depth);
+                            mf.skip_match(input, p - len + i, self.max_search_depth);
                         }
                     } else {
                         self.split_stats.observe_literal(input[p]);
@@ -489,8 +511,7 @@ impl Compressor {
 
                 while cur_in_idx < block_input.len() {
                     let (len, offset) =
-                        mf
-                            .find_match(block_input, cur_in_idx, self.max_search_depth);
+                        mf.find_match(block_input, cur_in_idx, self.max_search_depth);
                     if len >= 3 {
                         self.sequences.push(Sequence {
                             litrunlen: 0,
@@ -501,11 +522,7 @@ impl Compressor {
                         self.offset_freqs[self.get_offset_slot(offset)] += 1;
                         cur_in_idx += len;
                         for i in 1..len {
-                            mf.skip_match(
-                                block_input,
-                                cur_in_idx - len + i,
-                                self.max_search_depth,
-                            );
+                            mf.skip_match(block_input, cur_in_idx - len + i, self.max_search_depth);
                         }
                     } else {
                         self.litlen_freqs[block_input[cur_in_idx] as usize] += 1;
@@ -557,8 +574,7 @@ impl Compressor {
                         };
                     }
 
-                    mf
-                        .find_matches(block_input, pos, self.max_search_depth, &mut matches);
+                    mf.find_matches(block_input, pos, self.max_search_depth, &mut matches);
                     for &(len, offset) in &matches {
                         let len = len as usize;
                         if pos + len > processed {
@@ -658,13 +674,13 @@ impl Compressor {
         }
 
         let mut mf_enum = self.mf.take().unwrap();
-        
+
         let res = match &mut mf_enum {
             MatchFinderEnum::Chain(mf) => self.compress_to_size_loop(mf, input, final_block),
             MatchFinderEnum::Table(mf) => self.compress_to_size_loop(mf, input, final_block),
             MatchFinderEnum::Bt(mf) => self.compress_to_size_loop(mf, input, final_block),
         };
-        
+
         self.mf = Some(mf_enum);
         res
     }
@@ -992,16 +1008,16 @@ impl Compressor {
             in_idx += block_len;
         }
         if flush_mode == FlushMode::Sync {
-             if bs.out_idx + 5 > bs.output.len() {
-                  return (CompressResult::InsufficientSpace, 0, 0);
-             }
-             bs.output[bs.out_idx] = 0;
-             bs.out_idx += 1;
-             bs.output[bs.out_idx] = 0;
-             bs.output[bs.out_idx + 1] = 0;
-             bs.output[bs.out_idx + 2] = 0xFF;
-             bs.output[bs.out_idx + 3] = 0xFF;
-             bs.out_idx += 4;
+            if bs.out_idx + 5 > bs.output.len() {
+                return (CompressResult::InsufficientSpace, 0, 0);
+            }
+            bs.output[bs.out_idx] = 0;
+            bs.out_idx += 1;
+            bs.output[bs.out_idx] = 0;
+            bs.output[bs.out_idx + 1] = 0;
+            bs.output[bs.out_idx + 2] = 0xFF;
+            bs.output[bs.out_idx + 3] = 0xFF;
+            bs.out_idx += 4;
         }
 
         (CompressResult::Success, bs.out_idx, 0)
@@ -1046,7 +1062,7 @@ impl Compressor {
         self.split_stats.reset();
 
         if input.len() <= 65536 {
-             while in_idx < input.len() {
+            while in_idx < input.len() {
                 let (len, offset) = mf.find_match(input, in_idx, self.max_search_depth);
                 if len >= 3 {
                     self.sequences.push(Sequence {
@@ -1063,7 +1079,7 @@ impl Compressor {
                     litrunlen += 1;
                     in_idx += 1;
                 }
-             }
+            }
         } else {
             while in_idx < input.len() {
                 let block_len = in_idx - start_pos;
@@ -1168,8 +1184,7 @@ impl Compressor {
         mf.reset();
 
         while cur_in_idx < block_input.len() {
-            let (len, offset) =
-                mf.find_match(block_input, cur_in_idx, self.max_search_depth);
+            let (len, offset) = mf.find_match(block_input, cur_in_idx, self.max_search_depth);
             if len >= 3 {
                 self.sequences.push(Sequence {
                     litrunlen,
@@ -1566,8 +1581,8 @@ impl Compressor {
     }
     fn get_match_cost(&self, len: usize, offset: usize) -> u32 {
         let len_slot = self.get_length_slot(len);
-        let len_cost = self.litlen_lens[257 + len_slot] as u32
-            + self.get_length_extra_bits(len_slot) as u32;
+        let len_cost =
+            self.litlen_lens[257 + len_slot] as u32 + self.get_length_extra_bits(len_slot) as u32;
         let off_slot = self.get_offset_slot(offset);
         let off_cost =
             self.offset_lens[off_slot] as u32 + self.get_offset_extra_bits(off_slot) as u32;
