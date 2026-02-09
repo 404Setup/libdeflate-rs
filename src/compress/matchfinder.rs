@@ -258,6 +258,112 @@ impl MatchFinder {
         self.base_offset += len;
     }
 
+    #[inline(always)]
+    unsafe fn find_match_impl<F>(
+        &mut self,
+        data: &[u8],
+        pos: usize,
+        max_depth: usize,
+        mut on_match: F,
+    ) -> (usize, usize)
+    where
+        F: FnMut(usize, usize),
+    {
+        if pos + 3 > data.len() {
+            return (0, 0);
+        }
+
+        let src = data.as_ptr().add(pos);
+        let src_val;
+
+        if pos + 4 <= data.len() {
+            src_val = (src as *const u32).read_unaligned() & 0xFFFFFF;
+        } else {
+            src_val = ((src.read() as u32) << 0)
+                | ((src.add(1).read() as u32) << 8)
+                | ((src.add(2).read() as u32) << 16);
+        }
+
+        let h = (src_val.wrapping_mul(0x1E35A7BD)) >> (32 - MATCHFINDER_HASH_ORDER);
+
+        let abs_pos = self.base_offset + pos;
+        let h_idx = h as usize;
+        let cur_pos = *self.hash_tab.get_unchecked(h_idx);
+        *self.hash_tab.get_unchecked_mut(h_idx) = abs_pos as i32;
+
+        if cur_pos == -1 || (cur_pos as usize) < self.base_offset {
+            *self
+                .prev_tab
+                .get_unchecked_mut(abs_pos & (MATCHFINDER_WINDOW_SIZE - 1)) = 0;
+            return (0, 0);
+        }
+
+        let prev_offset = abs_pos - (cur_pos as usize);
+        *self
+            .prev_tab
+            .get_unchecked_mut(abs_pos & (MATCHFINDER_WINDOW_SIZE - 1)) =
+            if prev_offset > 0xFFFF {
+                0
+            } else {
+                prev_offset as u16
+            };
+
+        let mut best_len = 0;
+        let mut best_offset = 0;
+        let mut depth = 0;
+        let mut cur_pos_i32 = cur_pos;
+
+        while cur_pos_i32 != -1 && depth < max_depth {
+            let p_abs = cur_pos_i32 as usize;
+            if p_abs < self.base_offset {
+                break;
+            }
+            let offset = abs_pos - p_abs;
+            if offset > DEFLATE_MAX_MATCH_OFFSET {
+                break;
+            }
+
+            let p_rel = p_abs - self.base_offset;
+            let match_ptr = data.as_ptr().add(p_rel);
+
+            let match_val;
+            if p_rel + 4 <= data.len() {
+                match_val = (match_ptr as *const u32).read_unaligned() & 0xFFFFFF;
+            } else {
+                match_val = ((match_ptr.read() as u32) << 0)
+                    | ((match_ptr.add(1).read() as u32) << 8)
+                    | ((match_ptr.add(2).read() as u32) << 16);
+            }
+
+            if pos + best_len < data.len() && match_val == src_val {
+                if best_len < 3 || *match_ptr.add(best_len) == *src.add(best_len) {
+                    let max_len = min(DEFLATE_MAX_MATCH_LEN, data.len() - pos);
+                    let len = match_len_ptr(match_ptr, src, max_len);
+
+                    if len > best_len {
+                        best_len = len;
+                        best_offset = offset;
+                        on_match(len, offset);
+                        if len == DEFLATE_MAX_MATCH_LEN {
+                            break;
+                        }
+                    }
+                }
+            }
+
+            let prev_offset_val = *self
+                .prev_tab
+                .get_unchecked(p_abs & (MATCHFINDER_WINDOW_SIZE - 1));
+            if prev_offset_val == 0 {
+                break;
+            }
+            cur_pos_i32 -= prev_offset_val as i32;
+            depth += 1;
+        }
+
+        (best_len, best_offset)
+    }
+
     pub fn find_matches(
         &mut self,
         data: &[u8],
@@ -266,184 +372,18 @@ impl MatchFinder {
         matches: &mut Vec<(u16, u16)>,
     ) -> (usize, usize) {
         matches.clear();
-        if pos + 3 > data.len() {
-            return (0, 0);
-        }
-
         unsafe {
-            let src = data.as_ptr().add(pos);
-            let h = (((src.read() as u32) << 16)
-                | ((src.add(1).read() as u32) << 8)
-                | (src.add(2).read() as u32))
-                .wrapping_mul(0x1E35A7BD);
-            let h = (h >> (32 - MATCHFINDER_HASH_ORDER)) as usize;
-
-            let abs_pos = self.base_offset + pos;
-            let cur_pos = *self.hash_tab.get_unchecked(h);
-            *self.hash_tab.get_unchecked_mut(h) = abs_pos as i32;
-
-            if cur_pos == -1 || (cur_pos as usize) < self.base_offset {
-                *self
-                    .prev_tab
-                    .get_unchecked_mut(abs_pos & (MATCHFINDER_WINDOW_SIZE - 1)) = 0;
-                return (0, 0);
-            }
-
-            let prev_offset = abs_pos - (cur_pos as usize);
-            *self
-                .prev_tab
-                .get_unchecked_mut(abs_pos & (MATCHFINDER_WINDOW_SIZE - 1)) =
-                if prev_offset > 0xFFFF {
-                    0
-                } else {
-                    prev_offset as u16
-                };
-
-            let mut best_len = 0;
-            let mut best_offset = 0;
-            let mut depth = 0;
-            let mut cur_pos_i32 = cur_pos;
-
-            while cur_pos_i32 != -1 && depth < max_depth {
-                let p_abs = cur_pos_i32 as usize;
-                if p_abs < self.base_offset {
-                    break;
+            self.find_match_impl(data, pos, max_depth, |len, offset| {
+                if len >= 3 {
+                    matches.push((len as u16, offset as u16));
                 }
-                let offset = abs_pos - p_abs;
-                if offset > DEFLATE_MAX_MATCH_OFFSET {
-                    break;
-                }
-
-                let p_rel = p_abs - self.base_offset;
-                let match_ptr = data.as_ptr().add(p_rel);
-
-                if pos + best_len < data.len() && *match_ptr.add(best_len) == *src.add(best_len) {
-                    let max_len = min(DEFLATE_MAX_MATCH_LEN, data.len() - pos);
-                    let len = match_len_ptr(match_ptr, src, max_len);
-
-                    if len > best_len {
-                        best_len = len;
-                        best_offset = offset;
-                        if len >= 3 {
-                            matches.push((len as u16, offset as u16));
-                        }
-                        if len == DEFLATE_MAX_MATCH_LEN {
-                            break;
-                        }
-                    }
-                }
-
-                let prev_offset_val = *self
-                    .prev_tab
-                    .get_unchecked(p_abs & (MATCHFINDER_WINDOW_SIZE - 1));
-                if prev_offset_val == 0 {
-                    break;
-                }
-                cur_pos_i32 -= prev_offset_val as i32;
-                depth += 1;
-            }
-
-            (best_len, best_offset)
+            })
         }
     }
 
     pub fn find_match(&mut self, data: &[u8], pos: usize, max_depth: usize) -> (usize, usize) {
-        if pos + 3 > data.len() {
-            return (0, 0);
-        }
-
-        unsafe {
-            let src = data.as_ptr().add(pos);
-            let src_val;
-
-            if pos + 4 <= data.len() {
-                src_val = (src as *const u32).read_unaligned() & 0xFFFFFF;
-            } else {
-                src_val = ((src.read() as u32) << 0)
-                    | ((src.add(1).read() as u32) << 8)
-                    | ((src.add(2).read() as u32) << 16);
-            }
-
-            let h = (src_val.wrapping_mul(0x1E35A7BD)) >> (32 - MATCHFINDER_HASH_ORDER);
-
-            let abs_pos = self.base_offset + pos;
-            let h_idx = h as usize;
-            let cur_pos = *self.hash_tab.get_unchecked(h_idx);
-            *self.hash_tab.get_unchecked_mut(h_idx) = abs_pos as i32;
-
-            if cur_pos == -1 || (cur_pos as usize) < self.base_offset {
-                *self
-                    .prev_tab
-                    .get_unchecked_mut(abs_pos & (MATCHFINDER_WINDOW_SIZE - 1)) = 0;
-                return (0, 0);
-            }
-
-            let prev_offset = abs_pos - (cur_pos as usize);
-            *self
-                .prev_tab
-                .get_unchecked_mut(abs_pos & (MATCHFINDER_WINDOW_SIZE - 1)) =
-                if prev_offset > 0xFFFF {
-                    0
-                } else {
-                    prev_offset as u16
-                };
-
-            let mut best_len = 0;
-            let mut best_offset = 0;
-            let mut depth = 0;
-            let mut cur_pos_i32 = cur_pos;
-
-            while cur_pos_i32 != -1 && depth < max_depth {
-                let p_abs = cur_pos_i32 as usize;
-                if p_abs < self.base_offset {
-                    break;
-                }
-                let offset = abs_pos - p_abs;
-                if offset > DEFLATE_MAX_MATCH_OFFSET {
-                    break;
-                }
-
-                let p_rel = p_abs - self.base_offset;
-                let match_ptr = data.as_ptr().add(p_rel);
-
-                let match_val;
-                if p_rel + 4 <= data.len() {
-                    match_val = (match_ptr as *const u32).read_unaligned() & 0xFFFFFF;
-                } else {
-                    match_val = ((match_ptr.read() as u32) << 0)
-                        | ((match_ptr.add(1).read() as u32) << 8)
-                        | ((match_ptr.add(2).read() as u32) << 16);
-                }
-
-                if pos + best_len < data.len() && match_val == src_val {
-                    if best_len < 3 || *match_ptr.add(best_len) == *src.add(best_len) {
-                        let max_len = min(DEFLATE_MAX_MATCH_LEN, data.len() - pos);
-                        let len = match_len_ptr(match_ptr, src, max_len);
-
-                        if len > best_len {
-                            best_len = len;
-                            best_offset = offset;
-                            if len == DEFLATE_MAX_MATCH_LEN {
-                                break;
-                            }
-                        }
-                    }
-                }
-
-                let prev_offset_val = *self
-                    .prev_tab
-                    .get_unchecked(p_abs & (MATCHFINDER_WINDOW_SIZE - 1));
-                if prev_offset_val == 0 {
-                    break;
-                }
-                cur_pos_i32 -= prev_offset_val as i32;
-                depth += 1;
-            }
-
-            (best_len, best_offset)
-        }
+        unsafe { self.find_match_impl(data, pos, max_depth, |_, _| {}) }
     }
-
     pub fn skip_match(&mut self, data: &[u8], pos: usize) {
         if pos + 3 > data.len() {
             return;
@@ -884,5 +824,47 @@ impl BtMatchFinder {
                 }
             }
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_match_finder_consistency() {
+        let mut mf1 = MatchFinder::new();
+        let mut mf2 = MatchFinder::new();
+        let data = b"abcdeabcdeabcde"; // Repeating pattern
+        mf1.prepare(data.len());
+        mf2.prepare(data.len());
+
+        let max_depth = 10;
+        let mut matches = Vec::new();
+
+        // Process first 5 bytes to populate hash table
+        for i in 0..5 {
+            mf1.find_match(data, i, max_depth);
+
+
+            mf2.find_match(data, i, max_depth);
+
+        }
+
+        // Now at pos 5 (second 'a')
+        // mf1 uses find_match
+        let (len1, offset1) = mf1.find_match(data, 5, max_depth);
+
+        // mf2 uses find_matches
+        let (len2, offset2) = mf2.find_matches(data, 5, max_depth, &mut matches);
+
+        assert_eq!(len1, len2, "Lengths should match");
+        assert_eq!(offset1, offset2, "Offsets should match");
+        assert_eq!(len1, 10, "Should find match of length 10");
+        assert_eq!(offset1, 5, "Should find match at offset 5");
+
+        // matches should contain at least (10, 5)
+        assert!(!matches.is_empty(), "Matches vector should not be empty");
+        assert_eq!(matches.last(), Some(&(10, 5)), "Last match should be best match");
     }
 }
