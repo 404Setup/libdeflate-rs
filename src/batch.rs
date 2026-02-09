@@ -15,18 +15,24 @@ impl BatchCompressor {
         inputs
             .par_iter()
             .map_init(
-                || Compressor::new(self.level),
-                |compressor, &input| {
+                || (Compressor::new(self.level), Vec::new()),
+                |(compressor, buffer), &input| {
                     let bound = Compressor::deflate_compress_bound(input.len());
-                    let mut output = vec![0u8; bound];
+                    buffer.clear();
+                    buffer.reserve(bound);
+                    unsafe {
+                        buffer.set_len(bound);
+                    }
                     let (res, size, _) = compressor.compress(
                         input,
-                        &mut output,
+                        buffer,
                         crate::compress::FlushMode::Finish,
                     );
                     if res == CompressResult::Success {
-                        output.truncate(size);
-                        output
+                        unsafe {
+                            buffer.set_len(size);
+                        }
+                        buffer.to_vec()
                     } else {
                         Vec::new()
                     }
