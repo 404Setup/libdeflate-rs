@@ -4,6 +4,13 @@ use rayon::prelude::*;
 use std::cmp::min;
 use std::io::{self, Read, Write};
 
+/// A streaming encoder that compresses data using the DEFLATE algorithm.
+///
+/// # Warning
+///
+/// If the encoder is dropped without calling [`finish()`](Self::finish), the internal buffer will be
+/// flushed, but any I/O errors that occur during this process will be silently ignored.
+/// To ensure data integrity and handle errors, always call `finish()` explicitly.
 pub struct DeflateEncoder<W: Write + Send> {
     writer: Option<W>,
     buffer: Vec<u8>,
@@ -90,6 +97,11 @@ impl<W: Write + Send> DeflateEncoder<W> {
         Ok(())
     }
 
+    /// Flushes the internal buffer, finishes the compression stream, and returns the underlying writer.
+    ///
+    /// This method must be called to complete the compression process and handle any potential I/O errors.
+    /// If this method is not called, the `Drop` implementation will attempt to finish the stream,
+    /// but will silently ignore any errors.
     pub fn finish(mut self) -> io::Result<W> {
         self.flush_buffer(true)?;
         Ok(self.writer.take().unwrap())
@@ -117,6 +129,9 @@ impl<W: Write + Send> Write for DeflateEncoder<W> {
 impl<W: Write + Send> Drop for DeflateEncoder<W> {
     fn drop(&mut self) {
         if self.writer.is_some() {
+            // Attempt to flush the buffer.
+            // Note: Errors are ignored here because we cannot return them from drop,
+            // and panicking is discouraged. Users should call `finish()` to handle errors.
             let _ = self.flush_buffer(true);
         }
     }
