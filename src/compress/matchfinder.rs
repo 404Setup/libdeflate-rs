@@ -269,7 +269,7 @@ impl MatchFinder {
     where
         F: FnMut(usize, usize),
     {
-        if pos + 3 > data.len() {
+        if data.len() < 3 || pos > data.len() - 3 {
             return (0, 0);
         }
 
@@ -384,7 +384,7 @@ impl MatchFinder {
         unsafe { self.find_match_impl(data, pos, max_depth, |_, _| {}) }
     }
     pub fn skip_match(&mut self, data: &[u8], pos: usize) {
-        if pos + 3 > data.len() {
+        if data.len() < 3 || pos > data.len() - 3 {
             return;
         }
         unsafe {
@@ -452,7 +452,7 @@ impl HtMatchFinder {
     }
 
     pub fn find_match(&mut self, data: &[u8], pos: usize) -> (usize, usize) {
-        if pos + 3 > data.len() {
+        if data.len() < 3 || pos > data.len() - 3 {
             return (0, 0);
         }
 
@@ -509,7 +509,7 @@ impl HtMatchFinder {
     }
 
     pub fn skip_match(&mut self, data: &[u8], pos: usize) {
-        if pos + 3 > data.len() {
+        if data.len() < 3 || pos > data.len() - 3 {
             return;
         }
         unsafe {
@@ -565,7 +565,7 @@ impl BtMatchFinder {
     }
 
     pub fn find_match(&mut self, data: &[u8], pos: usize, max_depth: usize) -> (usize, usize) {
-        if pos + 4 > data.len() {
+        if data.len() < 4 || pos > data.len() - 4 {
             return (0, 0);
         }
 
@@ -699,7 +699,7 @@ impl BtMatchFinder {
         matches: &mut Vec<(u16, u16)>,
         record_matches: bool,
     ) {
-        if pos + 4 > data.len() {
+        if data.len() < 4 || pos > data.len() - 4 {
             return;
         }
 
@@ -862,5 +862,15 @@ mod tests {
             Some(&(10, 5)),
             "Last match should be best match"
         );
+    }
+
+    #[test]
+    fn test_skip_match_overflow() {
+        let mut mf = HtMatchFinder::new();
+        let data = vec![0u8; 10];
+        mf.prepare(data.len());
+        mf.skip_match(&data, usize::MAX);
+        mf.skip_match(&data, usize::MAX - 1);
+        mf.skip_match(&data, usize::MAX - 2);
     }
 }
