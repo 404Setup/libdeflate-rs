@@ -28,12 +28,10 @@ impl Compressor {
     }
 
     pub fn compress_deflate_into(&mut self, data: &[u8], output: &mut [u8]) -> io::Result<usize> {
-        let (res, size, _) = self.inner.compress(data, output, FlushMode::Finish);
-        if res == CompressResult::Success {
-            Ok(size)
-        } else {
-            Err(io::Error::new(io::ErrorKind::Other, "Insufficient space"))
-        }
+        self.compress_into_helper(data, output, "Insufficient space", |c, data, out| {
+            let (res, size, _) = c.compress(data, out, FlushMode::Finish);
+            (res, size)
+        })
     }
 
     pub fn compress_zlib(&mut self, data: &[u8]) -> io::Result<Vec<u8>> {
@@ -42,12 +40,12 @@ impl Compressor {
     }
 
     pub fn compress_zlib_into(&mut self, data: &[u8], output: &mut [u8]) -> io::Result<usize> {
-        let (res, size) = self.inner.compress_zlib(data, output);
-        if res == CompressResult::Success {
-            Ok(size)
-        } else {
-            Err(io::Error::new(io::ErrorKind::Other, "Compression failed"))
-        }
+        self.compress_into_helper(
+            data,
+            output,
+            "Compression failed",
+            |c, data, out| c.compress_zlib(data, out),
+        )
     }
 
     pub fn compress_gzip(&mut self, data: &[u8]) -> io::Result<Vec<u8>> {
@@ -56,12 +54,12 @@ impl Compressor {
     }
 
     pub fn compress_gzip_into(&mut self, data: &[u8], output: &mut [u8]) -> io::Result<usize> {
-        let (res, size) = self.inner.compress_gzip(data, output);
-        if res == CompressResult::Success {
-            Ok(size)
-        } else {
-            Err(io::Error::new(io::ErrorKind::Other, "Compression failed"))
-        }
+        self.compress_into_helper(
+            data,
+            output,
+            "Compression failed",
+            |c, data, out| c.compress_gzip(data, out),
+        )
     }
 
     pub fn deflate_compress_bound(&mut self, size: usize) -> usize {
@@ -97,6 +95,24 @@ impl Compressor {
             }
         }
     }
+
+    fn compress_into_helper<F>(
+        &mut self,
+        data: &[u8],
+        output: &mut [u8],
+        error_msg: &str,
+        f: F,
+    ) -> io::Result<usize>
+    where
+        F: FnOnce(&mut InternalCompressor, &[u8], &mut [u8]) -> (CompressResult, usize),
+    {
+        let (res, size) = f(&mut self.inner, data, output);
+        if res == CompressResult::Success {
+            Ok(size)
+        } else {
+            Err(io::Error::new(io::ErrorKind::Other, error_msg))
+        }
+    }
 }
 
 pub struct Decompressor {
@@ -115,15 +131,7 @@ impl Decompressor {
     }
 
     pub fn decompress_deflate_into(&mut self, data: &[u8], output: &mut [u8]) -> io::Result<usize> {
-        let (res, _, size) = self.inner.decompress(data, output);
-        if res == crate::decompress::DecompressResult::Success {
-            Ok(size)
-        } else {
-            Err(io::Error::new(
-                io::ErrorKind::InvalidData,
-                "Decompression failed",
-            ))
-        }
+        self.decompress_into_helper(data, output, |d, data, out| d.decompress(data, out))
     }
 
     pub fn decompress_zlib(&mut self, data: &[u8], expected_size: usize) -> io::Result<Vec<u8>> {
@@ -133,15 +141,7 @@ impl Decompressor {
     }
 
     pub fn decompress_zlib_into(&mut self, data: &[u8], output: &mut [u8]) -> io::Result<usize> {
-        let (res, _, size) = self.inner.decompress_zlib(data, output);
-        if res == crate::decompress::DecompressResult::Success {
-            Ok(size)
-        } else {
-            Err(io::Error::new(
-                io::ErrorKind::InvalidData,
-                "Decompression failed",
-            ))
-        }
+        self.decompress_into_helper(data, output, |d, data, out| d.decompress_zlib(data, out))
     }
 
     pub fn decompress_gzip(&mut self, data: &[u8], expected_size: usize) -> io::Result<Vec<u8>> {
@@ -151,15 +151,7 @@ impl Decompressor {
     }
 
     pub fn decompress_gzip_into(&mut self, data: &[u8], output: &mut [u8]) -> io::Result<usize> {
-        let (res, _, size) = self.inner.decompress_gzip(data, output);
-        if res == crate::decompress::DecompressResult::Success {
-            Ok(size)
-        } else {
-            Err(io::Error::new(
-                io::ErrorKind::InvalidData,
-                "Decompression failed",
-            ))
-        }
+        self.decompress_into_helper(data, output, |d, data, out| d.decompress_gzip(data, out))
     }
 
     fn decompress_helper<F>(
@@ -183,6 +175,30 @@ impl Decompressor {
         if res == crate::decompress::DecompressResult::Success {
             output.truncate(size);
             Ok(output)
+        } else {
+            Err(io::Error::new(
+                io::ErrorKind::InvalidData,
+                "Decompression failed",
+            ))
+        }
+    }
+
+    fn decompress_into_helper<F>(
+        &mut self,
+        data: &[u8],
+        output: &mut [u8],
+        f: F,
+    ) -> io::Result<usize>
+    where
+        F: FnOnce(
+            &mut InternalDecompressor,
+            &[u8],
+            &mut [u8],
+        ) -> (crate::decompress::DecompressResult, usize, usize),
+    {
+        let (res, _, size) = f(&mut self.inner, data, output);
+        if res == crate::decompress::DecompressResult::Success {
+            Ok(size)
         } else {
             Err(io::Error::new(
                 io::ErrorKind::InvalidData,
