@@ -623,32 +623,9 @@ impl HtMatchFinder {
         }
     }
 
-    pub fn skip_positions(&mut self, data: &[u8], pos: usize, count: usize) {
-        if count == 0 {
-            return;
-        }
-        if pos.checked_add(count + 3).map_or(true, |end| end > data.len()) {
-            for i in 0..count {
-                self.skip_match(data, pos + i);
-            }
-            return;
-        }
-
-        unsafe {
-            let mut ptr = data.as_ptr().add(pos);
-            let end_ptr = ptr.add(count);
-            let mut abs_pos = self.base_offset + pos;
-
-            while ptr < end_ptr {
-                let src_val = (ptr as *const u32).read_unaligned() & 0xFFFFFF;
-                let h = (src_val.wrapping_mul(0x1E35A7BD)) >> (32 - MATCHFINDER_HASH_ORDER);
-
-                *self.hash_tab.get_unchecked_mut(h as usize) = abs_pos as i32;
-
-                ptr = ptr.add(1);
-                abs_pos += 1;
-            }
-        }
+    pub fn skip_positions(&mut self, _data: &[u8], _pos: usize, _count: usize) {
+        // For HtMatchFinder (Level 1), skipping hash updates inside matches provides
+        // a massive speed boost with minimal compression loss.
     }
 }
 
