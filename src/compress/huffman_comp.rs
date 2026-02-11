@@ -6,7 +6,7 @@ const SYMBOL_MASK: u32 = (1 << NUM_SYMBOL_BITS) - 1;
 const FREQ_MASK: u32 = !SYMBOL_MASK;
 
 fn sort_symbols(num_syms: usize, freqs: &[u32], lens: &mut [u8], symout: &mut [u32]) -> usize {
-    let mut counters = vec![0u32; num_syms];
+    let mut counters = [0u32; DEFLATE_MAX_NUM_SYMS];
     for sym in 0..num_syms {
         counters[min(freqs[sym] as usize, num_syms - 1)] += 1;
     }
