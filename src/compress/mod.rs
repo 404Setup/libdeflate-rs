@@ -1341,50 +1341,57 @@ impl Compressor {
         }
         bs.write_bits((num_litlen_syms - 257) as u32, 5);
         bs.write_bits((num_offset_syms - 1) as u32, 5);
-        let mut lens = Vec::new();
-        lens.extend_from_slice(&self.litlen_lens[..num_litlen_syms]);
-        lens.extend_from_slice(&self.offset_lens[..num_offset_syms]);
+        let mut lens = [0u8; DEFLATE_NUM_LITLEN_SYMS + DEFLATE_NUM_OFFSET_SYMS];
+        let lens_len = num_litlen_syms + num_offset_syms;
+        lens[..num_litlen_syms].copy_from_slice(&self.litlen_lens[..num_litlen_syms]);
+        lens[num_litlen_syms..lens_len].copy_from_slice(&self.offset_lens[..num_offset_syms]);
+
         let mut precode_freqs = [0u32; 19];
-        let mut precode_items = Vec::new();
+        let mut precode_items = [0u16; DEFLATE_NUM_LITLEN_SYMS + DEFLATE_NUM_OFFSET_SYMS];
+        let mut num_precode_items = 0;
         let mut i = 0;
-        while i < lens.len() {
+        while i < lens_len {
             let len = lens[i];
-            let mut run = 1;
-            while i + run < lens.len() && lens[i + run] == len {
-                run += 1;
-            }
+            let total_run = lens[i..lens_len].iter().take_while(|&&l| l == len).count();
+            let mut run = total_run;
+
             if len == 0 {
                 while run >= 11 {
                     let c = min(run, 138);
-                    precode_items.push((18, c - 11));
+                    precode_items[num_precode_items] = (18 << 8) | ((c - 11) as u16);
+                    num_precode_items += 1;
                     precode_freqs[18] += 1;
                     run -= c;
                 }
                 if run >= 3 {
                     let c = min(run, 10);
-                    precode_items.push((17, c - 3));
+                    precode_items[num_precode_items] = (17 << 8) | ((c - 3) as u16);
+                    num_precode_items += 1;
                     precode_freqs[17] += 1;
                     run -= c;
                 }
             } else {
                 if run >= 4 {
-                    precode_items.push((len as usize, 0));
+                    precode_items[num_precode_items] = (len as u16) << 8;
+                    num_precode_items += 1;
                     precode_freqs[len as usize] += 1;
                     run -= 1;
                     while run >= 3 {
                         let c = min(run, 6);
-                        precode_items.push((16, c - 3));
+                        precode_items[num_precode_items] = (16 << 8) | ((c - 3) as u16);
+                        num_precode_items += 1;
                         precode_freqs[16] += 1;
                         run -= c;
                     }
                 }
             }
             while run > 0 {
-                precode_items.push((len as usize, 0));
+                precode_items[num_precode_items] = (len as u16) << 8;
+                num_precode_items += 1;
                 precode_freqs[len as usize] += 1;
                 run -= 1;
             }
-            i += lens[i..].iter().take_while(|&&l| l == len).count();
+            i += total_run;
         }
         let mut precode_lens = [0u8; 19];
         let mut precode_codewords = [0u32; 19];
@@ -1406,14 +1413,16 @@ impl Compressor {
         for j in 0..num_precode_syms {
             bs.write_bits(precode_lens[permutation[j]] as u32, 3);
         }
-        for (sym, extra) in precode_items {
+        for &item in precode_items[..num_precode_items].iter() {
+            let sym = (item >> 8) as usize;
+            let extra = (item & 0xFF) as u32;
             bs.write_bits(precode_codewords[sym], precode_lens[sym] as u32);
             if sym == 16 {
-                bs.write_bits(extra as u32, 2);
+                bs.write_bits(extra, 2);
             } else if sym == 17 {
-                bs.write_bits(extra as u32, 3);
+                bs.write_bits(extra, 3);
             } else if sym == 18 {
-                bs.write_bits(extra as u32, 7);
+                bs.write_bits(extra, 7);
             }
         }
     }
