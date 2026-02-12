@@ -471,7 +471,7 @@ pub unsafe fn adler32_x86_avx512_vnni(adler: u32, p: &[u8]) -> u32 {
 
         // Optimization: Unrolled loop for larger chunks (512 bytes per iter).
         // This breaks dependency chains and increases instruction level parallelism.
-        if chunk_n >= 2048 {
+        if chunk_n >= 512 {
             let mut ptr = data.as_ptr();
             let mut v_s2_a = _mm512_setzero_si512();
             let mut v_s2_b = _mm512_setzero_si512();
@@ -630,11 +630,7 @@ pub unsafe fn adler32_x86_avx512_vnni(adler: u32, p: &[u8]) -> u32 {
         s2 %= DIVISOR;
     }
 
-    if data.len() >= 32 {
-        let res = adler32_x86_avx2((s2 << 16) | s1, data);
-        s1 = res & 0xFFFF;
-        s2 = res >> 16;
-    } else if data.len() >= 16 {
+    if data.len() >= 16 {
         let res = adler32_x86_sse2((s2 << 16) | s1, data);
         s1 = res & 0xFFFF;
         s2 = res >> 16;
