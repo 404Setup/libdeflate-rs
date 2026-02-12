@@ -12,12 +12,6 @@ use std::cmp::min;
 use std::io;
 use std::mem::MaybeUninit;
 
-// Packed table for length symbol writing and cost estimation.
-// Layout:
-// Bits 0-15: Base value (u16)
-// Bits 16-23: Extra bits count (u8)
-// Bits 24-31: Slot index (u8)
-// This avoids 3 separate table lookups in the hot loop.
 const LENGTH_WRITE_TABLE: [u32; 260] = [
     3, 3, 3, 3, 16777220, 33554437, 50331654, 67108871, 83886088, 100663305, 117440522, 134283275,
     134283275, 151060493, 151060493, 167837711, 167837711, 184614929, 184614929, 201457683,
@@ -237,8 +231,6 @@ pub struct Compressor {
     pub offset_codewords: [u32; DEFLATE_NUM_OFFSET_SYMS],
     pub offset_lens: [u8; DEFLATE_NUM_OFFSET_SYMS],
 
-    // Combined tables for faster lookup during bitstream writing.
-    // Each entry contains: (length as u64) << 32 | (codeword as u64)
     pub litlen_table: [u64; DEFLATE_NUM_LITLEN_SYMS],
     pub offset_table: [u64; DEFLATE_NUM_OFFSET_SYMS],
 
@@ -824,11 +816,8 @@ impl Compressor {
 
             if len >= 3 {
                 if lazy_depth >= 1 && in_idx + 1 < input.len() {
-                    let (next_len, _next_offset) =
+                    let (_next_len, _next_offset) =
                         mf.find_match(input, in_idx + 1, self.max_search_depth);
-                    if next_len > len {
-                        // Skip
-                    }
                 }
 
                 self.split_stats.observe_match(len, offset);
@@ -1629,18 +1618,14 @@ impl Compressor {
 
     fn write_literal(&self, bs: &mut Bitstream, lit: u8) -> bool {
         let sym = lit as usize;
-        // Optimization: Codewords are guaranteed clean and valid.
-        // Use combined table for single memory access.
         let entry = unsafe { *self.litlen_table.get_unchecked(sym) };
         unsafe { bs.write_bits_unchecked(entry as u32, (entry >> 32) as u32) }
     }
     fn write_sym(&self, bs: &mut Bitstream, sym: usize) -> bool {
-        // Optimization: Codewords are guaranteed clean and valid.
         let entry = unsafe { *self.litlen_table.get_unchecked(sym) };
         unsafe { bs.write_bits_unchecked(entry as u32, (entry >> 32) as u32) }
     }
     fn write_match(&self, bs: &mut Bitstream, len: usize, offset: usize) -> bool {
-        // Safe indexing: len is 3..258, table size 260.
         let len_info = LENGTH_WRITE_TABLE[len];
         let len_slot = (len_info >> 24) as usize;
         let len_extra_bits = ((len_info >> 16) & 0xFF) as u8;
@@ -1650,7 +1635,6 @@ impl Compressor {
             return false;
         }
         if len_extra_bits > 0 {
-            // Optimization: len diff is within extra bits range.
             if !unsafe {
                 bs.write_bits_unchecked((len - len_base as usize) as u32, len_extra_bits as u32)
             } {
@@ -1658,14 +1642,12 @@ impl Compressor {
             }
         }
         let off_slot = self.get_offset_slot(offset);
-        // Optimization: Codewords are guaranteed clean.
         let entry = unsafe { *self.offset_table.get_unchecked(off_slot) };
         if !unsafe { bs.write_bits_unchecked(entry as u32, (entry >> 32) as u32) } {
             return false;
         }
         let extra_bits = self.get_offset_extra_bits(off_slot);
         if extra_bits > 0 {
-            // Optimization: Offset diff is within extra bits range.
             if !unsafe {
                 bs.write_bits_unchecked(
                     (offset - self.get_offset_base(off_slot)) as u32,
@@ -1690,14 +1672,8 @@ impl Compressor {
         if off < 4 {
             return off as usize;
         }
-        // DEFLATE offset codes are grouped by powers of 2 (except small ones).
-        // Each group of 2 slots covers 2^N and 2^N + 2^(N-1).
-        // The slot index is roughly 2 * log2(offset).
-        // We calculate floor(log2(off)) using leading_zeros.
-        // For off >= 4, the MSB is at bit index l (0-indexed).
         let l = 31 - off.leading_zeros();
         let slot = (2 * l) as usize;
-        // The last bit of the slot is the bit below the MSB.
         slot + ((off >> (l - 1)) as usize & 1)
     }
     fn get_offset_base(&self, slot: usize) -> usize {

@@ -92,7 +92,6 @@ pub unsafe fn adler32_x86_avx2(adler: u32, p: &[u8]) -> u32 {
     let mut s1 = adler & 0xFFFF;
     let mut s2 = adler >> 16;
 
-    // Manual pointer tracking to avoid slice overhead in hot loop
     let mut ptr = p.as_ptr();
     let mut len = p.len();
 
@@ -109,14 +108,11 @@ pub unsafe fn adler32_x86_avx2(adler: u32, p: &[u8]) -> u32 {
 
         let mut chunk_n = n_rounded;
 
-        // Use 4 accumulators to increase instruction level parallelism.
         let mut v_s2_a = _mm256_setzero_si256();
         let mut v_s2_b = _mm256_setzero_si256();
         let mut v_s2_c = _mm256_setzero_si256();
         let mut v_s2_d = _mm256_setzero_si256();
 
-        // Only use the heavily unrolled 256-byte loop for larger chunks.
-        // For very small inputs (< 512B), the setup overhead outweighs the benefits.
         if chunk_n >= 512 {
             let weights = _mm256_set_epi8(
                 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23,
@@ -126,9 +122,6 @@ pub unsafe fn adler32_x86_avx2(adler: u32, p: &[u8]) -> u32 {
             let v_zero = _mm256_setzero_si256();
 
             while chunk_n >= 256 {
-                // Manual prefetching removed as it degraded performance on modern CPUs
-                // by interfering with hardware prefetchers, especially for L2-resident data.
-
                 {
                     let data_a_1 = _mm256_loadu_si256(ptr as *const __m256i);
                     let data_b_1 = _mm256_loadu_si256(ptr.add(32) as *const __m256i);
@@ -347,8 +340,6 @@ pub unsafe fn adler32_x86_avx2_vnni(adler: u32, p: &[u8]) -> u32 {
 
         let mut chunk_n = n;
 
-        // Optimization: Unrolled loop for larger chunks (128 bytes per iter).
-        // This breaks dependency chains and increases instruction level parallelism.
         if chunk_n >= 2048 {
             let mut ptr = data.as_ptr();
             let mut v_s2_a = _mm256_setzero_si256();
@@ -361,30 +352,25 @@ pub unsafe fn adler32_x86_avx2_vnni(adler: u32, p: &[u8]) -> u32 {
                 let d3 = _mm256_loadu_si256(ptr.add(64) as *const __m256i);
                 let d4 = _mm256_loadu_si256(ptr.add(96) as *const __m256i);
 
-                // Calculate intermediate sums for s1 (u1..u4)
                 let u1 = _mm256_dpbusd_avx_epi32(v_zero, d1, ones);
                 let u2 = _mm256_dpbusd_avx_epi32(v_zero, d2, ones);
                 let u3 = _mm256_dpbusd_avx_epi32(v_zero, d3, ones);
                 let u4 = _mm256_dpbusd_avx_epi32(v_zero, d4, ones);
 
-                // Update s2 accumulators independently
                 v_s2_a = _mm256_dpbusd_avx_epi32(v_s2_a, d1, mults);
                 v_s2_b = _mm256_dpbusd_avx_epi32(v_s2_b, d2, mults);
                 v_s2_a = _mm256_dpbusd_avx_epi32(v_s2_a, d3, mults);
                 v_s2_b = _mm256_dpbusd_avx_epi32(v_s2_b, d4, mults);
 
-                // Update s1_sums
-                // formula: S_new = S_old + 4*v_s1 + 3*u1 + 2*u2 + 1*u3
                 let s1_x4 = _mm256_slli_epi32(v_s1, 2);
                 v_s1_sums = _mm256_add_epi32(v_s1_sums, s1_x4);
 
                 let u12 = _mm256_add_epi32(u1, u2);
                 let u12_x2 = _mm256_slli_epi32(u12, 1);
-                // inc = u1 + 2(u1+u2) + u3 = 3u1 + 2u2 + u3
+
                 let inc = _mm256_add_epi32(_mm256_add_epi32(u1, u12_x2), u3);
                 v_s1_sums = _mm256_add_epi32(v_s1_sums, inc);
 
-                // Update s1
                 let u34 = _mm256_add_epi32(u3, u4);
                 let total_u = _mm256_add_epi32(u12, u34);
                 v_s1 = _mm256_add_epi32(v_s1, total_u);
@@ -485,8 +471,6 @@ pub unsafe fn adler32_x86_avx512_vnni(adler: u32, p: &[u8]) -> u32 {
 
         let mut chunk_n = n;
 
-        // Optimization: Unrolled loop for larger chunks (512 bytes per iter).
-        // This breaks dependency chains and increases instruction level parallelism.
         if chunk_n >= 512 {
             let mut ptr = data.as_ptr();
             let mut v_s2_a = _mm512_setzero_si512();
@@ -509,7 +493,6 @@ pub unsafe fn adler32_x86_avx512_vnni(adler: u32, p: &[u8]) -> u32 {
                 let d7 = _mm512_loadu_si512(ptr.add(384) as *const _);
                 let d8 = _mm512_loadu_si512(ptr.add(448) as *const _);
 
-                // Update s2 accumulators independently
                 v_s2_a = _mm512_dpbusd_epi32(v_s2_a, d1, mults);
                 v_s2_b = _mm512_dpbusd_epi32(v_s2_b, d2, mults);
                 v_s2_c = _mm512_dpbusd_epi32(v_s2_c, d3, mults);
@@ -519,7 +502,6 @@ pub unsafe fn adler32_x86_avx512_vnni(adler: u32, p: &[u8]) -> u32 {
                 v_s2_g = _mm512_dpbusd_epi32(v_s2_g, d7, mults);
                 v_s2_h = _mm512_dpbusd_epi32(v_s2_h, d8, mults);
 
-                // Calculate sums of bytes
                 let u1 = _mm512_dpbusd_epi32(v_zero, d1, ones);
                 let u2 = _mm512_dpbusd_epi32(v_zero, d2, ones);
                 let u3 = _mm512_dpbusd_epi32(v_zero, d3, ones);
@@ -529,40 +511,32 @@ pub unsafe fn adler32_x86_avx512_vnni(adler: u32, p: &[u8]) -> u32 {
                 let u7 = _mm512_dpbusd_epi32(v_zero, d7, ones);
                 let u8 = _mm512_dpbusd_epi32(v_zero, d8, ones);
 
-                // Calculate inc_A for first 256 bytes
                 let u12 = _mm512_add_epi32(u1, u2);
                 let u12_x2 = _mm512_slli_epi32(u12, 1);
                 let inc_a = _mm512_add_epi32(_mm512_add_epi32(u1, u12_x2), u3);
 
-                // Calculate inc_B for second 256 bytes
                 let u56 = _mm512_add_epi32(u5, u6);
                 let u56_x2 = _mm512_slli_epi32(u56, 1);
                 let inc_b = _mm512_add_epi32(_mm512_add_epi32(u5, u56_x2), u7);
 
-                // Calculate total sum of bytes for first 256 bytes (U_A)
                 let u34 = _mm512_add_epi32(u3, u4);
                 let total_u_a = _mm512_add_epi32(u12, u34);
 
-                // Calculate total sum of bytes for second 256 bytes (U_B)
                 let u78 = _mm512_add_epi32(u7, u8);
                 let total_u_b = _mm512_add_epi32(u56, u78);
 
-                // Update v_s1_sums
-                // combined_inc = inc_a + inc_b + 4 * U_A
                 let u_a_x4 = _mm512_slli_epi32(total_u_a, 2);
                 let combined_inc = _mm512_add_epi32(_mm512_add_epi32(inc_a, inc_b), u_a_x4);
 
-                let s1_x8 = _mm512_slli_epi32(v_s1, 3); // v_s1 * 8
+                let s1_x8 = _mm512_slli_epi32(v_s1, 3);
                 v_s1_sums = _mm512_add_epi32(v_s1_sums, _mm512_add_epi32(s1_x8, combined_inc));
 
-                // Update v_s1
                 v_s1 = _mm512_add_epi32(v_s1, _mm512_add_epi32(total_u_a, total_u_b));
 
                 ptr = ptr.add(512);
                 chunk_n -= 512;
             }
 
-            // Handle remaining 256-byte chunks if any (fallback to original loop)
             while chunk_n >= 256 {
                 let d1 = _mm512_loadu_si512(ptr as *const _);
                 let d2 = _mm512_loadu_si512(ptr.add(64) as *const _);
@@ -770,7 +744,7 @@ pub unsafe fn adler32_x86_avx512(adler: u32, p: &[u8]) -> u32 {
                 let u_a_x4 = _mm512_slli_epi32(total_u_a, 2);
                 let combined_inc = _mm512_add_epi32(_mm512_add_epi32(inc_a, inc_b), u_a_x4);
 
-                let s1_x8 = _mm512_slli_epi32(v_s1, 3); // v_s1 * 8
+                let s1_x8 = _mm512_slli_epi32(v_s1, 3);
                 v_s1_sums = _mm512_add_epi32(v_s1_sums, _mm512_add_epi32(s1_x8, combined_inc));
 
                 v_s1 = _mm512_add_epi32(v_s1, _mm512_add_epi32(total_u_a, total_u_b));
@@ -960,7 +934,6 @@ pub unsafe fn adler32_x86_avx512_vl(adler: u32, p: &[u8]) -> u32 {
                 let d7 = _mm256_loadu_si256(ptr.add(192) as *const _);
                 let d8 = _mm256_loadu_si256(ptr.add(224) as *const _);
 
-                // Update s2 accumulators independently
                 v_s2_a = _mm256_dpbusd_epi32(v_s2_a, d1, mults);
                 v_s2_b = _mm256_dpbusd_epi32(v_s2_b, d2, mults);
                 v_s2_c = _mm256_dpbusd_epi32(v_s2_c, d3, mults);
@@ -970,7 +943,6 @@ pub unsafe fn adler32_x86_avx512_vl(adler: u32, p: &[u8]) -> u32 {
                 v_s2_g = _mm256_dpbusd_epi32(v_s2_g, d7, mults);
                 v_s2_h = _mm256_dpbusd_epi32(v_s2_h, d8, mults);
 
-                // Calculate sums of bytes
                 let u1 = _mm256_dpbusd_epi32(v_zero, d1, ones);
                 let u2 = _mm256_dpbusd_epi32(v_zero, d2, ones);
                 let u3 = _mm256_dpbusd_epi32(v_zero, d3, ones);
@@ -980,33 +952,26 @@ pub unsafe fn adler32_x86_avx512_vl(adler: u32, p: &[u8]) -> u32 {
                 let u7 = _mm256_dpbusd_epi32(v_zero, d7, ones);
                 let u8 = _mm256_dpbusd_epi32(v_zero, d8, ones);
 
-                // Calculate inc_A for first 128 bytes
                 let u12 = _mm256_add_epi32(u1, u2);
                 let u12_x2 = _mm256_slli_epi32(u12, 1);
                 let inc_a = _mm256_add_epi32(_mm256_add_epi32(u1, u12_x2), u3);
 
-                // Calculate inc_B for second 128 bytes
                 let u56 = _mm256_add_epi32(u5, u6);
                 let u56_x2 = _mm256_slli_epi32(u56, 1);
                 let inc_b = _mm256_add_epi32(_mm256_add_epi32(u5, u56_x2), u7);
 
-                // Calculate total sum of bytes for first 128 bytes (U_A)
                 let u34 = _mm256_add_epi32(u3, u4);
                 let total_u_a = _mm256_add_epi32(u12, u34);
 
-                // Calculate total sum of bytes for second 128 bytes (U_B)
                 let u78 = _mm256_add_epi32(u7, u8);
                 let total_u_b = _mm256_add_epi32(u56, u78);
 
-                // Update v_s1_sums
-                // combined_inc = inc_a + inc_b + 4 * U_A
                 let u_a_x4 = _mm256_slli_epi32(total_u_a, 2);
                 let combined_inc = _mm256_add_epi32(_mm256_add_epi32(inc_a, inc_b), u_a_x4);
 
-                let s1_x8 = _mm256_slli_epi32(v_s1, 3); // v_s1 * 8
+                let s1_x8 = _mm256_slli_epi32(v_s1, 3);
                 v_s1_sums = _mm256_add_epi32(v_s1_sums, _mm256_add_epi32(s1_x8, combined_inc));
 
-                // Update v_s1
                 v_s1 = _mm256_add_epi32(v_s1, _mm256_add_epi32(total_u_a, total_u_b));
 
                 ptr = ptr.add(256);

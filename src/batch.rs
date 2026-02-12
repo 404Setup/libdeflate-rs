@@ -21,7 +21,6 @@ impl BatchCompressor {
                     buffer.clear();
                     buffer.reserve(bound);
                     let buf_uninit = buffer.spare_capacity_mut();
-                    // Safe because we reserved enough capacity
                     let buf_slice = &mut buf_uninit[..bound];
 
                     let (res, size, _) =

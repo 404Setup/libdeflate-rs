@@ -7,13 +7,6 @@ A complete Rust port of libdeflate, without C code.
 - Includes streaming processing API
 - Includes batch processing API
 - A highly optimized implementation, faster than C binding
-- Support full concurrency, greatly improving processing speed
-
-## Bug
-
-- Adler32 poor performance
-- Compress/S-level performance is poor
-- Decompress/S-level poor performance at the beginning of the level
 
 ## Usage
 
@@ -28,24 +21,15 @@ libdeflate = "0.1.0"
 
 See [examples](examples)
 
-## SIMD
-
-Currently, the instruction set support is the same as libdeflate.
-
-For architectures/instruction sets that are not supported, a fallback to the slower
-implementation will be implemented.
-
 ## Environment
 
 - Rust 1.93
 
 ## Run Benchmark
 
-**"Full concurrency" is the basic capability of libdeflate-rs, and it is not only effective in Benchmark.**
-
 ```bash
 py3 gen_bench_data.py
-cargo bench
+cargo test && cargo bench
 ```
 
 ## License

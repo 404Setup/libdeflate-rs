@@ -112,8 +112,6 @@ mod arm;
 type Adler32Fn = unsafe fn(u32, &[u8]) -> u32;
 
 pub fn adler32(adler: u32, slice: &[u8]) -> u32 {
-    // Optimization: Use `std::sync::OnceLock` to cache the best implementation function pointer.
-    // This avoids repeated CPU feature detection overhead on every call, which is beneficial for small inputs.
     static IMPL: OnceLock<Adler32Fn> = OnceLock::new();
     let func = IMPL.get_or_init(|| {
         #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]

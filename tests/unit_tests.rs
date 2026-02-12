@@ -1,4 +1,4 @@
-use libdeflate::{Compressor, Decompressor, adler32, crc32};
+use libdeflate::{adler32, crc32, Compressor, Decompressor};
 
 #[test]
 fn test_adler32_empty() {
@@ -187,7 +187,7 @@ fn test_compress_gzip_into_insufficient_space() {
     let mut compressor = Compressor::new(6).unwrap();
     let data = b"Hello world! This is a test string for gzip compression.";
 
-    let mut output = vec![0u8; 10]; // Intentionally too small
+    let mut output = vec![0u8; 10];
     let result = compressor.compress_gzip_into(data, &mut output);
     assert!(result.is_err());
 }
@@ -216,16 +216,14 @@ fn test_new_compressor_invalid_level() {
 #[test]
 fn test_compress_insufficient_space_panic_prevention() {
     let mut compressor = Compressor::new(1).unwrap();
-    let data = vec![0u8; 10000]; // Highly compressible
-    let mut output = vec![0u8; 1]; // Extremely small, triggers bitstream overflow path if not handled
+    let data = vec![0u8; 10000];
+    let mut output = vec![0u8; 1];
 
-    // This should return InsufficientSpace, not panic
     let res = compressor.compress_deflate_into(&data, &mut output);
     assert!(res.is_err());
     assert_eq!(res.unwrap_err().kind(), std::io::ErrorKind::Other);
 }
 
-// Helper to write bits to a buffer for manual DEFLATE stream construction
 struct BitWriter {
     data: Vec<u8>,
     bit_buffer: u32,
@@ -252,7 +250,6 @@ impl BitWriter {
     }
 
     fn write_huffman(&mut self, code: u32, len: u32) {
-        // Huffman codes are packed MSB first.
         for i in (0..len).rev() {
             let bit = (code >> i) & 1;
             self.write_bits(bit, 1);
@@ -271,34 +268,23 @@ impl BitWriter {
 fn test_offset_3_bug() {
     let mut writer = BitWriter::new();
 
-    // Header: Final=1, Type=1 (Fixed Huffman) -> 011 binary = 3
     writer.write_bits(3, 3);
 
-    // Literal 'A' (65): 01110001 (8 bits)
     writer.write_huffman(0b01110001, 8);
 
-    // Literal 'B' (66): 01110010 (8 bits)
     writer.write_huffman(0b01110010, 8);
 
-    // Literal 'C' (67): 01110011 (8 bits)
     writer.write_huffman(0b01110011, 8);
 
-    // Match: Length 10. Code 264 (0001000, 7 bits).
     writer.write_huffman(0b0001000, 7);
 
-    // Distance 3. Code 2 (00010, 5 bits).
     writer.write_huffman(0b00010, 5);
 
-    // End of Block. Code 256 (0000000, 7 bits).
     writer.write_huffman(0b0000000, 7);
 
     let input = writer.flush();
 
     let mut decompressor = Decompressor::new();
-    // Expected output: "ABC" + (len 10, dist 3)
-    // "ABC" -> dist 1='C', dist 2='B', dist 3='A'.
-    // Match 10: "ABCABCABCA"
-    // Total: "ABCABCABCABCA" (13 bytes)
     let mut expected = b"ABC".to_vec();
     expected.extend_from_slice(b"ABCABCABCA");
 
@@ -320,38 +306,22 @@ fn test_offset_3_bug() {
 fn test_offset_3_large_match() {
     let mut writer = BitWriter::new();
 
-    // Header: Final=1, Type=1 (Fixed Huffman) -> 011 binary = 3
     writer.write_bits(3, 3);
 
-    // Literal 'A' (65): 01110001 (8 bits)
     writer.write_huffman(0b01110001, 8);
-    // Literal 'B' (66): 01110010 (8 bits)
     writer.write_huffman(0b01110010, 8);
-    // Literal 'C' (67): 01110011 (8 bits)
     writer.write_huffman(0b01110011, 8);
 
-    // Match: Length 30.
-    // Code 271: 0001111 (7 bits).
     writer.write_huffman(0b0001111, 7);
-    // Write Extra Bits 3 (11 binary, 2 bits)
-    // Extra bits are written LSB first.
     writer.write_bits(3, 2);
 
-    // Distance 3. Code 2 (00010, 5 bits).
     writer.write_huffman(0b00010, 5);
-    // No extra bits for distance 3.
 
-    // End of Block. Code 256 (0000000, 7 bits).
     writer.write_huffman(0b0000000, 7);
 
     let input = writer.flush();
 
     let mut decompressor = Decompressor::new();
-    // Expected output: "ABC" + (len 30, dist 3)
-    // "ABC" -> dist 3='A', dist 2='B', dist 1='C'.
-    // Match 30: "ABC" repeated 10 times.
-    // Total: "ABC" + "ABC"*10 = "ABC"*11.
-    // Total length 33.
     let mut expected = b"ABC".to_vec();
     for _ in 0..10 {
         expected.extend_from_slice(b"ABC");
@@ -362,10 +332,12 @@ fn test_offset_3_large_match() {
     match result {
         Ok(output) => {
             if output != expected {
-                // Show mismatch location
                 for (i, (a, b)) in output.iter().zip(expected.iter()).enumerate() {
                     if a != b {
-                        println!("Mismatch at index {}: got {}, expected {}", i, *a as char, *b as char);
+                        println!(
+                            "Mismatch at index {}: got {}, expected {}",
+                            i, *a as char, *b as char
+                        );
                         break;
                     }
                 }

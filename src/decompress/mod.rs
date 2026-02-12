@@ -578,7 +578,7 @@ impl Decompressor {
                     let mut length = (entry >> 16) as usize;
                     let total_bits = entry & 0xFF;
                     let extra_bits = total_bits - len;
-                    
+
                     if extra_bits > 0 {
                         length += (bitbuf as usize) & ((1 << extra_bits) - 1);
                         bitbuf >>= extra_bits;
@@ -599,19 +599,18 @@ impl Decompressor {
                         .get_unchecked((bitbuf as usize) & ((1 << OFFSET_TABLEBITS) - 1));
 
                     if off_entry & HUFFDEC_EXCEPTIONAL != 0 {
-                         if off_entry & HUFFDEC_SUBTABLE_POINTER != 0 {
+                        if off_entry & HUFFDEC_SUBTABLE_POINTER != 0 {
                             let main_bits = off_entry & 0xFF;
                             bitbuf >>= main_bits;
                             bitsleft -= main_bits;
                             let subtable_idx = (off_entry >> 16) as usize;
                             let subtable_bits = (off_entry >> 8) & 0x3F;
                             off_entry = *self.offset_decode_table.get_unchecked(
-                                subtable_idx
-                                    + ((bitbuf as usize) & ((1 << subtable_bits) - 1)),
+                                subtable_idx + ((bitbuf as usize) & ((1 << subtable_bits) - 1)),
                             );
-                         } else {
-                             break;
-                         }
+                        } else {
+                            break;
+                        }
                     }
 
                     let len_off = (off_entry >> 8) & 0xFF;
@@ -621,17 +620,16 @@ impl Decompressor {
                     let mut offset = (off_entry >> 16) as usize;
                     let total_bits_off = off_entry & 0xFF;
                     let extra_bits_off = total_bits_off - len_off;
-                    
+
                     if extra_bits_off > 0 {
-                        offset +=
-                            (bitbuf as usize) & ((1 << extra_bits_off) - 1);
-                         bitbuf >>= extra_bits_off;
-                         bitsleft -= extra_bits_off;
+                        offset += (bitbuf as usize) & ((1 << extra_bits_off) - 1);
+                        bitbuf >>= extra_bits_off;
+                        bitsleft -= extra_bits_off;
                     }
 
                     let current_out_idx = out_next.offset_from(out_ptr_start) as usize;
                     if offset > current_out_idx {
-                        break; 
+                        break;
                     }
 
                     let src = out_next.sub(offset);
@@ -683,9 +681,9 @@ impl Decompressor {
                         }
                     } else {
                         if offset >= length {
-                             std::ptr::copy_nonoverlapping(src, out_next, length);
+                            std::ptr::copy_nonoverlapping(src, out_next, length);
                         } else {
-                             let mut copied = 0;
+                            let mut copied = 0;
                             while copied < length {
                                 let copy_len = min(offset, length - copied);
                                 std::ptr::copy_nonoverlapping(
@@ -701,7 +699,7 @@ impl Decompressor {
                 }
             }
         }
-        
+
         self.bitbuf = bitbuf;
         self.bitsleft = bitsleft;
         *in_idx = unsafe { in_next.offset_from(in_ptr_start) as usize };
@@ -811,7 +809,8 @@ impl Decompressor {
                                         pattern = b.wrapping_mul(0x0101010101010101);
                                     }
                                     2 => {
-                                        let w = std::ptr::read_unaligned(src_ptr as *const u16) as u64;
+                                        let w =
+                                            std::ptr::read_unaligned(src_ptr as *const u16) as u64;
                                         pattern = w | (w << 16) | (w << 32) | (w << 48);
                                     }
                                     3 => {
@@ -828,7 +827,8 @@ impl Decompressor {
                                             | (b1 << 56);
                                     }
                                     4 => {
-                                        let w = std::ptr::read_unaligned(src_ptr as *const u32) as u64;
+                                        let w =
+                                            std::ptr::read_unaligned(src_ptr as *const u32) as u64;
                                         pattern = w | (w << 32);
                                     }
                                     _ => {
@@ -836,7 +836,8 @@ impl Decompressor {
                                             pattern |= (*src_ptr.add(i) as u64) << (i * 8);
                                         }
                                         for i in 0..(8 - offset) {
-                                            pattern |= (*src_ptr.add(i) as u64) << ((offset + i) * 8);
+                                            pattern |=
+                                                (*src_ptr.add(i) as u64) << ((offset + i) * 8);
                                         }
                                     }
                                 }
