@@ -536,6 +536,177 @@ impl Decompressor {
             self.state = DecompressorState::BlockBody;
         }
 
+        let mut bitbuf = self.bitbuf;
+        let mut bitsleft = self.bitsleft;
+        let in_ptr_start = input.as_ptr();
+        let in_ptr_end = unsafe { in_ptr_start.add(input.len()) };
+        let mut in_next = unsafe { in_ptr_start.add(*in_idx) };
+        let out_ptr_start = output.as_mut_ptr();
+        let out_ptr_end = unsafe { out_ptr_start.add(output.len()) };
+        let mut out_next = unsafe { out_ptr_start.add(*out_idx) };
+
+        unsafe {
+            while in_next.add(15) <= in_ptr_end && out_next.add(258) <= out_ptr_end {
+                if bitsleft < 32 {
+                    let word = (in_next as *const u64).read_unaligned();
+                    let word = u64::from_le(word);
+                    bitbuf |= word << bitsleft;
+                    let consumed = (63 - bitsleft) >> 3;
+                    in_next = in_next.add(consumed as usize);
+                    bitsleft |= 56;
+                }
+
+                let entry = *self
+                    .litlen_decode_table
+                    .get_unchecked((bitbuf as usize) & litlen_tablemask);
+
+                if entry & HUFFDEC_EXCEPTIONAL != 0 {
+                    break;
+                }
+
+                if entry & HUFFDEC_LITERAL != 0 {
+                    let total_bits = entry & 0xFF;
+                    bitbuf >>= total_bits;
+                    bitsleft -= total_bits;
+                    *out_next = (entry >> 16) as u8;
+                    out_next = out_next.add(1);
+                } else {
+                    let len = (entry >> 8) & 0xFF;
+                    bitbuf >>= len;
+                    bitsleft -= len;
+
+                    let mut length = (entry >> 16) as usize;
+                    let total_bits = entry & 0xFF;
+                    let extra_bits = total_bits - len;
+                    
+                    if extra_bits > 0 {
+                        length += (bitbuf as usize) & ((1 << extra_bits) - 1);
+                        bitbuf >>= extra_bits;
+                        bitsleft -= extra_bits;
+                    }
+
+                    if bitsleft < 32 {
+                        let word = (in_next as *const u64).read_unaligned();
+                        let word = u64::from_le(word);
+                        bitbuf |= word << bitsleft;
+                        let consumed = (63 - bitsleft) >> 3;
+                        in_next = in_next.add(consumed as usize);
+                        bitsleft |= 56;
+                    }
+
+                    let mut off_entry = *self
+                        .offset_decode_table
+                        .get_unchecked((bitbuf as usize) & ((1 << OFFSET_TABLEBITS) - 1));
+
+                    if off_entry & HUFFDEC_EXCEPTIONAL != 0 {
+                         if off_entry & HUFFDEC_SUBTABLE_POINTER != 0 {
+                            let main_bits = off_entry & 0xFF;
+                            bitbuf >>= main_bits;
+                            bitsleft -= main_bits;
+                            let subtable_idx = (off_entry >> 16) as usize;
+                            let subtable_bits = (off_entry >> 8) & 0x3F;
+                            off_entry = *self.offset_decode_table.get_unchecked(
+                                subtable_idx
+                                    + ((bitbuf as usize) & ((1 << subtable_bits) - 1)),
+                            );
+                         } else {
+                             break;
+                         }
+                    }
+
+                    let len_off = (off_entry >> 8) & 0xFF;
+                    bitbuf >>= len_off;
+                    bitsleft -= len_off;
+
+                    let mut offset = (off_entry >> 16) as usize;
+                    let total_bits_off = off_entry & 0xFF;
+                    let extra_bits_off = total_bits_off - len_off;
+                    
+                    if extra_bits_off > 0 {
+                        offset +=
+                            (bitbuf as usize) & ((1 << extra_bits_off) - 1);
+                         bitbuf >>= extra_bits_off;
+                         bitsleft -= extra_bits_off;
+                    }
+
+                    let current_out_idx = out_next.offset_from(out_ptr_start) as usize;
+                    if offset > current_out_idx {
+                        break; 
+                    }
+
+                    let src = out_next.sub(offset);
+                    if offset < 8 {
+                        let mut pattern = 0u64;
+                        match offset {
+                            1 => {
+                                let b = *src as u64;
+                                pattern = b.wrapping_mul(0x0101010101010101);
+                            }
+                            2 => {
+                                let w = (src as *const u16).read_unaligned() as u64;
+                                pattern = w | (w << 16) | (w << 32) | (w << 48);
+                            }
+                            3 => {
+                                let b0 = *src as u64;
+                                let b1 = *src.add(1) as u64;
+                                let b2 = *src.add(2) as u64;
+                                pattern = b0
+                                    | (b1 << 8)
+                                    | (b2 << 16)
+                                    | (b0 << 24)
+                                    | (b1 << 32)
+                                    | (b2 << 40)
+                                    | (b0 << 48)
+                                    | (b1 << 56);
+                            }
+                            4 => {
+                                let w = (src as *const u32).read_unaligned() as u64;
+                                pattern = w | (w << 32);
+                            }
+                            _ => {
+                                for i in 0..offset {
+                                    pattern |= (*src.add(i) as u64) << (i * 8);
+                                }
+                                for i in 0..(8 - offset) {
+                                    pattern |= (*src.add(i) as u64) << ((offset + i) * 8);
+                                }
+                            }
+                        }
+                        let mut i = 0;
+                        while i + 8 <= length {
+                            (out_next.add(i) as *mut u64).write_unaligned(pattern);
+                            i += 8;
+                        }
+                        while i < length {
+                            *out_next.add(i) = (pattern >> ((i & 7) * 8)) as u8;
+                            i += 1;
+                        }
+                    } else {
+                        if offset >= length {
+                             std::ptr::copy_nonoverlapping(src, out_next, length);
+                        } else {
+                             let mut copied = 0;
+                            while copied < length {
+                                let copy_len = min(offset, length - copied);
+                                std::ptr::copy_nonoverlapping(
+                                    src.add(copied),
+                                    out_next.add(copied),
+                                    copy_len,
+                                );
+                                copied += copy_len;
+                            }
+                        }
+                    }
+                    out_next = out_next.add(length);
+                }
+            }
+        }
+        
+        self.bitbuf = bitbuf;
+        self.bitsleft = bitsleft;
+        *in_idx = unsafe { in_next.offset_from(in_ptr_start) as usize };
+        *out_idx = unsafe { out_next.offset_from(out_ptr_start) as usize };
+
         loop {
             while *in_idx + 15 < input.len() && *out_idx + 258 < output.len() {
                 if self.bitsleft < 32 {
@@ -622,73 +793,77 @@ impl Decompressor {
                             ((saved_bitbuf_off >> len_off) as usize) & ((1 << extra_bits_off) - 1);
                     }
 
-                    let src = *out_idx - offset;
-                    let dest = *out_idx;
+                    if offset > *out_idx {
+                        return DecompressResult::BadData;
+                    } else {
+                        let src = *out_idx - offset;
+                        let dest = *out_idx;
 
-                    unsafe {
-                        let out_ptr = output.as_mut_ptr();
-                        if offset < 8 {
-                            let src_ptr = out_ptr.add(src);
-                            let dest_ptr = out_ptr.add(dest);
-                            let mut pattern = 0u64;
-                            match offset {
-                                1 => {
-                                    let b = *src_ptr as u64;
-                                    pattern = b.wrapping_mul(0x0101010101010101);
-                                }
-                                2 => {
-                                    let w = std::ptr::read_unaligned(src_ptr as *const u16) as u64;
-                                    pattern = w | (w << 16) | (w << 32) | (w << 48);
-                                }
-                                3 => {
-                                    let b0 = *src_ptr as u64;
-                                    let b1 = *src_ptr.add(1) as u64;
-                                    let b2 = *src_ptr.add(2) as u64;
-                                    pattern = b0
-                                        | (b1 << 8)
-                                        | (b2 << 16)
-                                        | (b0 << 24)
-                                        | (b1 << 32)
-                                        | (b2 << 40)
-                                        | (b0 << 48)
-                                        | (b1 << 56);
-                                }
-                                4 => {
-                                    let w = std::ptr::read_unaligned(src_ptr as *const u32) as u64;
-                                    pattern = w | (w << 32);
-                                }
-                                _ => {
-                                    for i in 0..offset {
-                                        pattern |= (*src_ptr.add(i) as u64) << (i * 8);
+                        unsafe {
+                            let out_ptr = output.as_mut_ptr();
+                            if offset < 8 {
+                                let src_ptr = out_ptr.add(src);
+                                let dest_ptr = out_ptr.add(dest);
+                                let mut pattern = 0u64;
+                                match offset {
+                                    1 => {
+                                        let b = *src_ptr as u64;
+                                        pattern = b.wrapping_mul(0x0101010101010101);
                                     }
-                                    for i in 0..(8 - offset) {
-                                        pattern |= (*src_ptr.add(i) as u64) << ((offset + i) * 8);
+                                    2 => {
+                                        let w = std::ptr::read_unaligned(src_ptr as *const u16) as u64;
+                                        pattern = w | (w << 16) | (w << 32) | (w << 48);
+                                    }
+                                    3 => {
+                                        let b0 = *src_ptr as u64;
+                                        let b1 = *src_ptr.add(1) as u64;
+                                        let b2 = *src_ptr.add(2) as u64;
+                                        pattern = b0
+                                            | (b1 << 8)
+                                            | (b2 << 16)
+                                            | (b0 << 24)
+                                            | (b1 << 32)
+                                            | (b2 << 40)
+                                            | (b0 << 48)
+                                            | (b1 << 56);
+                                    }
+                                    4 => {
+                                        let w = std::ptr::read_unaligned(src_ptr as *const u32) as u64;
+                                        pattern = w | (w << 32);
+                                    }
+                                    _ => {
+                                        for i in 0..offset {
+                                            pattern |= (*src_ptr.add(i) as u64) << (i * 8);
+                                        }
+                                        for i in 0..(8 - offset) {
+                                            pattern |= (*src_ptr.add(i) as u64) << ((offset + i) * 8);
+                                        }
                                     }
                                 }
-                            }
-                            let mut i = 0;
-                            while i + 8 <= length {
-                                std::ptr::write_unaligned(dest_ptr.add(i) as *mut u64, pattern);
-                                i += 8;
-                            }
-                            while i < length {
-                                *dest_ptr.add(i) = (pattern >> ((i & 7) * 8)) as u8;
-                                i += 1;
-                            }
-                        } else {
-                            let mut copied = 0;
-                            while copied < length {
-                                let copy_len = std::cmp::min(offset, length - copied);
-                                std::ptr::copy_nonoverlapping(
-                                    out_ptr.add(src + copied),
-                                    out_ptr.add(dest + copied),
-                                    copy_len,
-                                );
-                                copied += copy_len;
+                                let mut i = 0;
+                                while i + 8 <= length {
+                                    std::ptr::write_unaligned(dest_ptr.add(i) as *mut u64, pattern);
+                                    i += 8;
+                                }
+                                while i < length {
+                                    *dest_ptr.add(i) = (pattern >> ((i & 7) * 8)) as u8;
+                                    i += 1;
+                                }
+                            } else {
+                                let mut copied = 0;
+                                while copied < length {
+                                    let copy_len = min(offset, length - copied);
+                                    std::ptr::copy_nonoverlapping(
+                                        out_ptr.add(src + copied),
+                                        out_ptr.add(dest + copied),
+                                        copy_len,
+                                    );
+                                    copied += copy_len;
+                                }
                             }
                         }
+                        *out_idx += length;
                     }
-                    *out_idx += length;
                 }
             }
 
