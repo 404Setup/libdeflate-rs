@@ -32,6 +32,25 @@ fn bench_crc32_slice8(c: &mut Criterion) {
     group.finish();
 }
 
+fn bench_adler32_micro(c: &mut Criterion) {
+    let sizes = [128, 512, 1024, 2048, 4096, 8192];
+    let mut group = c.benchmark_group("Adler32 Micro");
+
+    for size in sizes {
+        let data = vec![0u8; size];
+        group.throughput(Throughput::Bytes(size as u64));
+
+        group.bench_with_input(BenchmarkId::new("libdeflate-rs", size), &size, |b, &_size| {
+            b.iter(|| adler32(1, &data));
+        });
+
+        group.bench_with_input(BenchmarkId::new("libdeflater", size), &size, |b, &_size| {
+            b.iter(|| libdeflater::adler32(&data));
+        });
+    }
+    group.finish();
+}
+
 fn bench_checksums(c: &mut Criterion) {
     let files = [
         ("XXS", "bench_data/data_XXS.bin"),
@@ -309,5 +328,6 @@ criterion_group!(
     bench_stream,
     bench_batch,
     bench_parallel_alloc,
+    bench_adler32_micro,
 );
 criterion_main!(benches);
