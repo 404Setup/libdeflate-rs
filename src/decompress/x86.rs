@@ -251,6 +251,30 @@ pub unsafe fn decompress_bmi2(
                                     );
                                     copied += 4;
                                 }
+                            } else if offset == 2 {
+                                let w = std::ptr::read_unaligned(out_ptr.add(src) as *const u16) as u64;
+                                let pattern = w | (w << 16) | (w << 32) | (w << 48);
+                                while copied + 8 <= length {
+                                    std::ptr::write_unaligned(
+                                        out_ptr.add(dest + copied) as *mut u64,
+                                        pattern,
+                                    );
+                                    copied += 8;
+                                }
+                            } else if offset == 3 {
+                                let b0 = *out_ptr.add(src) as u64;
+                                let b1 = *out_ptr.add(src + 1) as u64;
+                                let b2 = *out_ptr.add(src + 2) as u64;
+                                let pattern = b0 | (b1 << 8) | (b2 << 16)
+                                        | (b0 << 24) | (b1 << 32) | (b2 << 40)
+                                        | (b0 << 48) | (b1 << 56);
+                                while copied + 8 <= length {
+                                    std::ptr::write_unaligned(
+                                        out_ptr.add(dest + copied) as *mut u64,
+                                        pattern,
+                                    );
+                                    copied += 8;
+                                }
                             }
                             while copied < length {
                                 *out_ptr.add(dest + copied) = *out_ptr.add(src + copied);
