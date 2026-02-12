@@ -311,7 +311,67 @@ fn test_offset_3_bug() {
                 println!("Expect: {:?}", String::from_utf8_lossy(&expected));
                 panic!("Decompression mismatch");
             }
-        },
+        }
+        Err(e) => panic!("Decompression failed: {}", e),
+    }
+}
+
+#[test]
+fn test_offset_3_large_match() {
+    let mut writer = BitWriter::new();
+
+    // Header: Final=1, Type=1 (Fixed Huffman) -> 011 binary = 3
+    writer.write_bits(3, 3);
+
+    // Literal 'A' (65): 01110001 (8 bits)
+    writer.write_huffman(0b01110001, 8);
+    // Literal 'B' (66): 01110010 (8 bits)
+    writer.write_huffman(0b01110010, 8);
+    // Literal 'C' (67): 01110011 (8 bits)
+    writer.write_huffman(0b01110011, 8);
+
+    // Match: Length 30.
+    // Code 271: 0001111 (7 bits).
+    writer.write_huffman(0b0001111, 7);
+    // Write Extra Bits 3 (11 binary, 2 bits)
+    // Extra bits are written LSB first.
+    writer.write_bits(3, 2);
+
+    // Distance 3. Code 2 (00010, 5 bits).
+    writer.write_huffman(0b00010, 5);
+    // No extra bits for distance 3.
+
+    // End of Block. Code 256 (0000000, 7 bits).
+    writer.write_huffman(0b0000000, 7);
+
+    let input = writer.flush();
+
+    let mut decompressor = Decompressor::new();
+    // Expected output: "ABC" + (len 30, dist 3)
+    // "ABC" -> dist 3='A', dist 2='B', dist 1='C'.
+    // Match 30: "ABC" repeated 10 times.
+    // Total: "ABC" + "ABC"*10 = "ABC"*11.
+    // Total length 33.
+    let mut expected = b"ABC".to_vec();
+    for _ in 0..10 {
+        expected.extend_from_slice(b"ABC");
+    }
+
+    let result = decompressor.decompress_deflate(&input, 1024);
+
+    match result {
+        Ok(output) => {
+            if output != expected {
+                // Show mismatch location
+                for (i, (a, b)) in output.iter().zip(expected.iter()).enumerate() {
+                    if a != b {
+                        println!("Mismatch at index {}: got {}, expected {}", i, *a as char, *b as char);
+                        break;
+                    }
+                }
+                panic!("Decompression mismatch");
+            }
+        }
         Err(e) => panic!("Decompression failed: {}", e),
     }
 }

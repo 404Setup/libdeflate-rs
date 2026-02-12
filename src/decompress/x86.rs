@@ -242,56 +242,108 @@ pub unsafe fn decompress_bmi2(
                                     i += 1;
                                 }
                             } else {
-                                let mut pat_buf = [0u8; 16];
-                                for j in 0..offset {
-                                    pat_buf[j] = *src_ptr.add(j);
-                                }
-                                for j in offset..16 {
-                                    pat_buf[j] = pat_buf[j - offset];
-                                }
+                                match offset {
+                                    3 => {
+                                        let b0 = *src_ptr as u64;
+                                        let b1 = *src_ptr.add(1) as u64;
+                                        let b2 = *src_ptr.add(2) as u64;
+                                        let pat0 = b0 | (b1 << 8) | (b2 << 16) | (b0 << 24) | (b1 << 32) | (b2 << 40) | (b0 << 48) | (b1 << 56);
+                                        let pat1 = b2 | (b0 << 8) | (b1 << 16) | (b2 << 24) | (b0 << 32) | (b1 << 40) | (b2 << 48) | (b0 << 56);
+                                        let pat2 = b1 | (b2 << 8) | (b0 << 16) | (b1 << 24) | (b2 << 32) | (b0 << 40) | (b1 << 48) | (b2 << 56);
 
-                                let mut patterns = [0u64; 7];
-                                let period = match offset {
-                                    3 => 3,
-                                    5 => 5,
-                                    6 => 3,
-                                    7 => 7,
-                                    _ => unreachable!(),
-                                };
-
-                                for j in 0..period {
-                                    patterns[j] = std::ptr::read_unaligned(
-                                        pat_buf.as_ptr().add((j * 8) % offset) as *const u64,
-                                    );
-                                }
-
-                                let mut i = 0;
-                                while i + 8 * period <= length {
-                                    for j in 0..period {
-                                        std::ptr::write_unaligned(
-                                            dest_ptr.add(i + j * 8) as *mut u64,
-                                            patterns[j],
-                                        );
+                                        let mut copied = 0;
+                                        while copied + 24 <= length {
+                                            std::ptr::write_unaligned(dest_ptr.add(copied) as *mut u64, pat0);
+                                            std::ptr::write_unaligned(dest_ptr.add(copied + 8) as *mut u64, pat1);
+                                            std::ptr::write_unaligned(dest_ptr.add(copied + 16) as *mut u64, pat2);
+                                            copied += 24;
+                                        }
+                                        while copied < length {
+                                            *dest_ptr.add(copied) = *src_ptr.add(copied);
+                                            copied += 1;
+                                        }
                                     }
-                                    i += 8 * period;
-                                }
+                                    5 => {
+                                        let mut b = [0u64; 5];
+                                        for i in 0..5 { b[i] = *src_ptr.add(i) as u64; }
+                                        let pat0 = b[0] | (b[1] << 8) | (b[2] << 16) | (b[3] << 24) | (b[4] << 32) | (b[0] << 40) | (b[1] << 48) | (b[2] << 56);
+                                        let pat1 = b[3] | (b[4] << 8) | (b[0] << 16) | (b[1] << 24) | (b[2] << 32) | (b[3] << 40) | (b[4] << 48) | (b[0] << 56);
+                                        let pat2 = b[1] | (b[2] << 8) | (b[3] << 16) | (b[4] << 24) | (b[0] << 32) | (b[1] << 40) | (b[2] << 48) | (b[3] << 56);
+                                        let pat3 = b[4] | (b[0] << 8) | (b[1] << 16) | (b[2] << 24) | (b[3] << 32) | (b[4] << 40) | (b[0] << 48) | (b[1] << 56);
+                                        let pat4 = b[2] | (b[3] << 8) | (b[4] << 16) | (b[0] << 24) | (b[1] << 32) | (b[2] << 40) | (b[3] << 48) | (b[4] << 56);
 
-                                let mut j = 0;
-                                while i + 8 <= length {
-                                    std::ptr::write_unaligned(
-                                        dest_ptr.add(i) as *mut u64,
-                                        patterns[j],
-                                    );
-                                    i += 8;
-                                    j += 1;
-                                    if j == period {
-                                        j = 0;
+                                        let mut copied = 0;
+                                        while copied + 40 <= length {
+                                            std::ptr::write_unaligned(dest_ptr.add(copied) as *mut u64, pat0);
+                                            std::ptr::write_unaligned(dest_ptr.add(copied + 8) as *mut u64, pat1);
+                                            std::ptr::write_unaligned(dest_ptr.add(copied + 16) as *mut u64, pat2);
+                                            std::ptr::write_unaligned(dest_ptr.add(copied + 24) as *mut u64, pat3);
+                                            std::ptr::write_unaligned(dest_ptr.add(copied + 32) as *mut u64, pat4);
+                                            copied += 40;
+                                        }
+                                        while copied < length {
+                                            *dest_ptr.add(copied) = *src_ptr.add(copied);
+                                            copied += 1;
+                                        }
                                     }
-                                }
+                                    6 => {
+                                        let mut b = [0u64; 6];
+                                        for i in 0..6 { b[i] = *src_ptr.add(i) as u64; }
+                                        let pat0 = b[0] | (b[1] << 8) | (b[2] << 16) | (b[3] << 24) | (b[4] << 32) | (b[5] << 40) | (b[0] << 48) | (b[1] << 56);
+                                        let pat1 = b[2] | (b[3] << 8) | (b[4] << 16) | (b[5] << 24) | (b[0] << 32) | (b[1] << 40) | (b[2] << 48) | (b[3] << 56);
+                                        let pat2 = b[4] | (b[5] << 8) | (b[0] << 16) | (b[1] << 24) | (b[2] << 32) | (b[3] << 40) | (b[4] << 48) | (b[5] << 56);
 
-                                while i < length {
-                                    *dest_ptr.add(i) = *src_ptr.add(i);
-                                    i += 1;
+                                        let mut copied = 0;
+                                        while copied + 24 <= length {
+                                            std::ptr::write_unaligned(dest_ptr.add(copied) as *mut u64, pat0);
+                                            std::ptr::write_unaligned(dest_ptr.add(copied + 8) as *mut u64, pat1);
+                                            std::ptr::write_unaligned(dest_ptr.add(copied + 16) as *mut u64, pat2);
+                                            copied += 24;
+                                        }
+                                        while copied < length {
+                                            *dest_ptr.add(copied) = *src_ptr.add(copied);
+                                            copied += 1;
+                                        }
+                                    }
+                                    7 => {
+                                        let mut b = [0u64; 7];
+                                        for i in 0..7 { b[i] = *src_ptr.add(i) as u64; }
+                                        let pat0 = b[0] | (b[1] << 8) | (b[2] << 16) | (b[3] << 24) | (b[4] << 32) | (b[5] << 40) | (b[6] << 48) | (b[0] << 56);
+                                        let pat1 = b[1] | (b[2] << 8) | (b[3] << 16) | (b[4] << 24) | (b[5] << 32) | (b[6] << 40) | (b[0] << 48) | (b[1] << 56);
+                                        let pat2 = b[2] | (b[3] << 8) | (b[4] << 16) | (b[5] << 24) | (b[6] << 32) | (b[0] << 40) | (b[1] << 48) | (b[2] << 56);
+                                        let pat3 = b[3] | (b[4] << 8) | (b[5] << 16) | (b[6] << 24) | (b[0] << 32) | (b[1] << 40) | (b[2] << 48) | (b[3] << 56);
+                                        let pat4 = b[4] | (b[5] << 8) | (b[6] << 16) | (b[0] << 24) | (b[1] << 32) | (b[2] << 40) | (b[3] << 48) | (b[4] << 56);
+                                        let pat5 = b[5] | (b[6] << 8) | (b[0] << 16) | (b[1] << 24) | (b[2] << 32) | (b[3] << 40) | (b[4] << 48) | (b[5] << 56);
+                                        let pat6 = b[6] | (b[0] << 8) | (b[1] << 16) | (b[2] << 24) | (b[3] << 32) | (b[4] << 40) | (b[5] << 48) | (b[6] << 56);
+
+                                        let mut copied = 0;
+                                        while copied + 56 <= length {
+                                            std::ptr::write_unaligned(dest_ptr.add(copied) as *mut u64, pat0);
+                                            std::ptr::write_unaligned(dest_ptr.add(copied + 8) as *mut u64, pat1);
+                                            std::ptr::write_unaligned(dest_ptr.add(copied + 16) as *mut u64, pat2);
+                                            std::ptr::write_unaligned(dest_ptr.add(copied + 24) as *mut u64, pat3);
+                                            std::ptr::write_unaligned(dest_ptr.add(copied + 32) as *mut u64, pat4);
+                                            std::ptr::write_unaligned(dest_ptr.add(copied + 40) as *mut u64, pat5);
+                                            std::ptr::write_unaligned(dest_ptr.add(copied + 48) as *mut u64, pat6);
+                                            copied += 56;
+                                        }
+                                        while copied < length {
+                                            *dest_ptr.add(copied) = *src_ptr.add(copied);
+                                            copied += 1;
+                                        }
+                                    }
+                                    _ => {
+                                        // Fallback/Safety
+                                        let mut copied = 0;
+                                        while copied + offset <= length {
+                                            std::ptr::copy_nonoverlapping(src_ptr.add(copied), dest_ptr.add(copied), offset);
+                                            copied += offset;
+                                        }
+                                        while copied < length {
+                                            *dest_ptr.add(copied) = *src_ptr.add(copied);
+                                            copied += 1;
+                                        }
+                                    }
                                 }
                             }
                         } else {
