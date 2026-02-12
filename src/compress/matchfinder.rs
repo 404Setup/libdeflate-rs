@@ -253,7 +253,6 @@ unsafe fn match_len_avx512(a: *const u8, b: *const u8, max_len: usize) -> usize 
 
 #[cfg(target_arch = "x86_64")]
 #[target_feature(enable = "avx512vl,avx512bw")]
-#[inline]
 unsafe fn match_len_avx10(a: *const u8, b: *const u8, max_len: usize) -> usize {
     let mut len = 0;
     // Optimize: Unroll loop to process 128 bytes per iteration using 256-bit vectors.
@@ -302,7 +301,16 @@ unsafe fn match_len_avx10(a: *const u8, b: *const u8, max_len: usize) -> usize {
         }
         len += 32;
     }
-    len + match_len_sse2(a.add(len), b.add(len), max_len - len)
+
+    let rem = max_len - len;
+    if rem > 0 {
+        let k = (1u32 << rem).wrapping_sub(1);
+        let v1 = _mm256_maskz_loadu_epi8(k, a.add(len) as *const _);
+        let v2 = _mm256_maskz_loadu_epi8(k, b.add(len) as *const _);
+        let mask = _mm256_cmpeq_epi8_mask(v1, v2);
+        len += min(rem, (!mask).trailing_zeros() as usize);
+    }
+    len
 }
 
 #[cfg(target_arch = "aarch64")]
@@ -1075,6 +1083,42 @@ mod tests {
         unsafe {
             let len = (mf.match_len)(a.as_ptr(), b.as_ptr(), 6);
             assert_eq!(len, 3);
+        }
+    }
+
+    #[test]
+    fn test_match_len_avx10_explicit() {
+        #[cfg(target_arch = "x86_64")]
+        if is_x86_feature_detected!("avx512vl") && is_x86_feature_detected!("avx512bw") {
+            let a = b"abcdefghijklmnopqrstuvwxyz0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+            let b = b"abcdefghijklmnopqrstuvwxyz0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+
+            unsafe {
+                // Test full match
+                let len = match_len_avx10(a.as_ptr(), b.as_ptr(), a.len());
+                assert_eq!(len, a.len());
+
+                // Test partial match
+                let len = match_len_avx10(a.as_ptr(), b.as_ptr(), 10);
+                assert_eq!(len, 10);
+
+                // Test mismatch
+                let c = b"abcdefghijklmnopqrstuvwxyz0123456789ABCDEFGHIJKLMNOPQRSTUVWXY!";
+                let len = match_len_avx10(a.as_ptr(), c.as_ptr(), a.len());
+                assert_eq!(len, a.len() - 1);
+
+                // Test small lengths (tail handling)
+                for i in 0..35 {
+                    let len = match_len_avx10(a.as_ptr(), b.as_ptr(), i);
+                    assert_eq!(len, i);
+                }
+
+                // Test mismatch in tail
+                let d = b"abcdefghijklmnopqrstuvwxyz012345!"; // 33 chars, mismatch at 32
+                // a has '6' at 32.
+                let len = match_len_avx10(a.as_ptr(), d.as_ptr(), 33);
+                assert_eq!(len, 32);
+            }
         }
     }
 }
