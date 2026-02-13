@@ -46,6 +46,7 @@ impl<'a> Bitstream<'a> {
 
         // Flush when we have at least 6 bytes (48 bits).
         // This reduces store frequency compared to flushing at 4 bytes (32 bits).
+        // We flush a constant 6 bytes (48 bits) to enable constant shifts and avoids variable logic.
         if self.bitcount >= 48 {
             if self.out_idx + 8 <= self.output.len() {
                 unsafe {
@@ -54,17 +55,33 @@ impl<'a> Bitstream<'a> {
                         self.bitbuf.to_le(),
                     );
                 }
-                let bytes_written = (self.bitcount >> 3) as usize;
-                self.out_idx += bytes_written;
-                self.bitbuf >>= bytes_written * 8;
-                self.bitcount &= 7;
+                self.out_idx += 6;
+                self.bitbuf >>= 48;
+                self.bitcount -= 48;
                 return true;
             }
-        }
 
+            while self.bitcount >= 8 {
+                if self.out_idx >= self.output.len() {
+                    return false;
+                }
+                unsafe {
+                    self.output
+                        .get_unchecked_mut(self.out_idx)
+                        .write((self.bitbuf & 0xFF) as u8);
+                }
+                self.out_idx += 1;
+                self.bitbuf >>= 8;
+                self.bitcount -= 8;
+            }
+        }
+        true
+    }
+
+    pub fn flush(&mut self) -> (bool, u32) {
         while self.bitcount >= 8 {
             if self.out_idx >= self.output.len() {
-                return false;
+                return (false, 0);
             }
             unsafe {
                 self.output
@@ -75,10 +92,7 @@ impl<'a> Bitstream<'a> {
             self.bitbuf >>= 8;
             self.bitcount -= 8;
         }
-        true
-    }
 
-    pub fn flush(&mut self) -> (bool, u32) {
         let mut valid_bits = 0;
         if self.bitcount > 0 {
             if self.out_idx >= self.output.len() {
