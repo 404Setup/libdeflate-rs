@@ -755,10 +755,6 @@ pub unsafe fn crc32_x86_vpclmulqdq_avx2(crc: u32, p: &[u8]) -> u32 {
         len -= 16;
     }
 
-    if len > 0 {
-        x0 = fold_lessthan16bytes(x0, data, len, mults_128b);
-    }
-
     x0 = _mm_xor_si128(
         _mm_clmulepi64_si128(x0, mults_128b, 0x10),
         _mm_srli_si128(x0, 8),
