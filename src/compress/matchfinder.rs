@@ -264,6 +264,19 @@ unsafe fn match_len_avx2(a: *const u8, b: *const u8, max_len: usize) -> usize {
 #[inline]
 unsafe fn match_len_avx512(a: *const u8, b: *const u8, max_len: usize) -> usize {
     let mut len = 0;
+
+    // Fail fast for short matches (common case in greedy/lazy parsing).
+    // This avoids loading the second 64-byte chunk if the first one mismatches.
+    if len + 64 <= max_len {
+        let v1 = _mm512_loadu_si512(a as *const _);
+        let v2 = _mm512_loadu_si512(b as *const _);
+        let mask = _mm512_cmpeq_epi8_mask(v1, v2);
+        if mask != u64::MAX {
+            return (!mask).trailing_zeros() as usize;
+        }
+        len += 64;
+    }
+
     // Optimize: Unroll loop to process 128 bytes per iteration.
     // This reduces loop overhead and allows pipelining of loads.
     while len + 128 <= max_len {
@@ -302,6 +315,19 @@ unsafe fn match_len_avx512(a: *const u8, b: *const u8, max_len: usize) -> usize 
 #[target_feature(enable = "avx512vl,avx512bw")]
 unsafe fn match_len_avx10(a: *const u8, b: *const u8, max_len: usize) -> usize {
     let mut len = 0;
+
+    // Fail fast for short matches.
+    // Checks the first 32 bytes to avoid loading 96 extra bytes for short matches.
+    if len + 32 <= max_len {
+        let v1 = _mm256_loadu_si256(a as *const _);
+        let v2 = _mm256_loadu_si256(b as *const _);
+        let mask = _mm256_cmpeq_epi8_mask(v1, v2);
+        if mask != 0xFFFFFFFF {
+            return (!mask).trailing_zeros() as usize;
+        }
+        len += 32;
+    }
+
     // Optimize: Unroll loop to process 128 bytes per iteration using 256-bit vectors.
     // This maintains throughput while avoiding potential frequency throttling associated
     // with 512-bit vectors on some architectures, and aligns with AVX10 philosophy.
