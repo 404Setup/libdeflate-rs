@@ -511,6 +511,30 @@ impl Decompressor {
                             *dest_ptr.add(i) = (pattern >> ((i & 7) * 8)) as u8;
                             i += 1;
                         }
+                        } else if offset == 3 {
+                            let pat0 = prepare_pattern(3, src_ptr);
+                            let pat1 = prepare_pattern(3, src_ptr.add(1));
+                            let pat2 = prepare_pattern(3, src_ptr.add(2));
+                            let mut i = 0;
+                            while i + 24 <= length {
+                                std::ptr::write_unaligned(dest_ptr.add(i) as *mut u64, pat0);
+                                std::ptr::write_unaligned(dest_ptr.add(i + 8) as *mut u64, pat2);
+                                std::ptr::write_unaligned(dest_ptr.add(i + 16) as *mut u64, pat1);
+                                i += 24;
+                            }
+                            while i + 8 <= length {
+                                let p = match i % 24 {
+                                    0 => pat0,
+                                    8 => pat2,
+                                    _ => pat1,
+                                };
+                                std::ptr::write_unaligned(dest_ptr.add(i) as *mut u64, p);
+                                i += 8;
+                            }
+                            while i < length {
+                                *dest_ptr.add(i) = *src_ptr.add(i);
+                                i += 1;
+                            }
                     } else {
                         let mut copied = 0;
                         while copied + offset <= length {
