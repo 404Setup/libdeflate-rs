@@ -18,7 +18,17 @@ impl<'a> Bitstream<'a> {
     }
 
     #[inline(always)]
-    pub fn write_bits(&mut self, bits: u32, count: u32) -> bool {
+    pub fn write_bits(&mut self, mut bits: u32, mut count: u32) -> bool {
+        // Security/Robustness: Handle count > 16 by splitting writes.
+        // The underlying write_bits_unchecked supports max 16 bits at a time.
+        // This prevents potential assertion failures in debug builds and data corruption in release builds.
+        while count > 16 {
+            if !self.write_bits(bits & 0xFFFF, 16) {
+                return false;
+            }
+            bits >>= 16;
+            count -= 16;
+        }
         if count == 0 {
             return true;
         }
