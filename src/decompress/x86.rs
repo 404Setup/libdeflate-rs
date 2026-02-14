@@ -342,6 +342,43 @@ pub unsafe fn decompress_bmi2(
                                                     length - copied,
                                                 );
                                             }
+                                        } else if offset == 16 {
+                                            // Optimization: Avoid reloading the same 16-byte pattern.
+                                            // v already contains the pattern from dst[-16..0].
+                                            let mut copied = 16;
+                                            while copied + 64 <= length {
+                                                _mm_storeu_si128(
+                                                    out_next.add(copied) as *mut __m128i,
+                                                    v,
+                                                );
+                                                _mm_storeu_si128(
+                                                    out_next.add(copied + 16) as *mut __m128i,
+                                                    v,
+                                                );
+                                                _mm_storeu_si128(
+                                                    out_next.add(copied + 32) as *mut __m128i,
+                                                    v,
+                                                );
+                                                _mm_storeu_si128(
+                                                    out_next.add(copied + 48) as *mut __m128i,
+                                                    v,
+                                                );
+                                                copied += 64;
+                                            }
+                                            while copied + 16 <= length {
+                                                _mm_storeu_si128(
+                                                    out_next.add(copied) as *mut __m128i,
+                                                    v,
+                                                );
+                                                copied += 16;
+                                            }
+                                            if copied < length {
+                                                std::ptr::copy_nonoverlapping(
+                                                    src.add(copied),
+                                                    out_next.add(copied),
+                                                    length - copied,
+                                                );
+                                            }
                                         } else {
                                             let mut copied = 16;
                                             // Optimization: Use 128-bit SIMD load/store loop for bulk copy.
@@ -1343,6 +1380,36 @@ pub unsafe fn decompress_bmi2(
                                         copied += 16;
                                     }
 
+                                    while copied < length {
+                                        let copy_len = std::cmp::min(offset, length - copied);
+                                        std::ptr::copy_nonoverlapping(
+                                            out_ptr.add(src + copied),
+                                            out_ptr.add(dest + copied),
+                                            copy_len,
+                                        );
+                                        copied += copy_len;
+                                    }
+                                } else if offset == 16 {
+                                    let v = _mm_loadu_si128(out_ptr.add(src) as *const __m128i);
+                                    let mut copied = 16;
+                                    while copied + 32 <= length {
+                                        _mm_storeu_si128(
+                                            out_ptr.add(dest + copied) as *mut __m128i,
+                                            v,
+                                        );
+                                        _mm_storeu_si128(
+                                            out_ptr.add(dest + copied + 16) as *mut __m128i,
+                                            v,
+                                        );
+                                        copied += 32;
+                                    }
+                                    if copied + 16 <= length {
+                                        _mm_storeu_si128(
+                                            out_ptr.add(dest + copied) as *mut __m128i,
+                                            v,
+                                        );
+                                        copied += 16;
+                                    }
                                     while copied < length {
                                         let copy_len = std::cmp::min(offset, length - copied);
                                         std::ptr::copy_nonoverlapping(
