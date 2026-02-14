@@ -836,6 +836,68 @@ fn bench_decompress_offset13(c: &mut Criterion) {
     group.finish();
 }
 
+fn bench_decompress_offset16(c: &mut Criterion) {
+    let path = "bench_data/data_offset16.bin";
+    if !Path::new(path).exists() {
+        return;
+    }
+    let original_data = read_file(path);
+    let size = original_data.len();
+
+    let mut compressor = Compressor::new(6).unwrap();
+    let mut compressed_data = vec![0u8; size + size / 2 + 1024];
+    let compressed_size = compressor
+        .compress_deflate_into(&original_data, &mut compressed_data)
+        .unwrap();
+
+    let mut out_buf = vec![0u8; size];
+
+    let mut group = c.benchmark_group("Decompress offset16");
+    group.throughput(Throughput::Bytes(size as u64));
+
+    group.bench_with_input("libdeflate-rs offset16", &size, |b, &_size| {
+        let mut decompressor = Decompressor::new();
+        b.iter(|| {
+            decompressor
+                .decompress_deflate_into(&compressed_data[..compressed_size], &mut out_buf)
+                .unwrap_or(0)
+        });
+    });
+
+    group.finish();
+}
+
+fn bench_decompress_offset17(c: &mut Criterion) {
+    let path = "bench_data/data_offset17.bin";
+    if !Path::new(path).exists() {
+        return;
+    }
+    let original_data = read_file(path);
+    let size = original_data.len();
+
+    let mut compressor = Compressor::new(6).unwrap();
+    let mut compressed_data = vec![0u8; size + size / 2 + 1024];
+    let compressed_size = compressor
+        .compress_deflate_into(&original_data, &mut compressed_data)
+        .unwrap();
+
+    let mut out_buf = vec![0u8; size];
+
+    let mut group = c.benchmark_group("Decompress offset17");
+    group.throughput(Throughput::Bytes(size as u64));
+
+    group.bench_with_input("libdeflate-rs offset17", &size, |b, &_size| {
+        let mut decompressor = Decompressor::new();
+        b.iter(|| {
+            decompressor
+                .decompress_deflate_into(&compressed_data[..compressed_size], &mut out_buf)
+                .unwrap_or(0)
+        });
+    });
+
+    group.finish();
+}
+
 fn bench_decompress_offset10_micro(c: &mut Criterion) {
     let size = 200;
     let pattern = b"1234567890";
@@ -918,5 +980,7 @@ criterion_group!(
     bench_decompress_offset13,
     bench_decompress_offset14,
     bench_decompress_offset15,
+    bench_decompress_offset16,
+    bench_decompress_offset17,
 );
 criterion_main!(benches);
