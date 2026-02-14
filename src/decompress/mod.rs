@@ -141,7 +141,7 @@ impl Decompressor {
     ) -> (DecompressResult, usize, usize) {
         #[cfg(target_arch = "x86_64")]
         {
-            if is_x86_feature_detected!("bmi2") {
+            if is_x86_feature_detected!("bmi2") && is_x86_feature_detected!("ssse3") {
                 return unsafe { x86::decompress_bmi2(self, input, output) };
             }
         }
