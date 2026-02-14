@@ -8,6 +8,11 @@ license = "BSD-3"
 
 [dependencies]
 rayon = "1.11.0"
+cudarc = { version = "0.11.2", optional = true, features = ["cuda-12000"] }
+
+[features]
+default = []
+cuda = ["dep:cudarc"]
 
 [profile.release]
 opt-level = 3

@@ -12,6 +12,15 @@ impl BatchCompressor {
     }
 
     pub fn compress_batch(&self, inputs: &[&[u8]]) -> Vec<Vec<u8>> {
+        #[cfg(feature = "cuda")]
+        {
+            if let Ok(cuda_impl) = crate::batch_cuda::CudaBatchCompressor::new(self.level) {
+                if let Ok(res) = cuda_impl.compress_batch(inputs) {
+                    return res;
+                }
+            }
+        }
+
         inputs
             .par_iter()
             .map_init(
