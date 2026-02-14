@@ -150,3 +150,18 @@ fn test_offset_14_pattern() {
         .unwrap();
     assert_eq!(decompressed, pattern);
 }
+
+#[test]
+fn test_offset_13_pattern() {
+    let mut compressor = Compressor::new(6).unwrap();
+    let mut decompressor = Decompressor::new();
+
+    // Pattern length 13. Offset 13.
+    let pattern: Vec<u8> = b"ABCDEFGHIJKLM".iter().cloned().cycle().take(1000).collect();
+    let compressed = compressor.compress_deflate(&pattern).unwrap();
+
+    let decompressed = decompressor
+        .decompress_deflate(&compressed, pattern.len())
+        .unwrap();
+    assert_eq!(decompressed, pattern);
+}
