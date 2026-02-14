@@ -269,27 +269,23 @@ pub unsafe fn decompress_bmi2(
                                     std::ptr::write_bytes(out_next, b, length);
                                 } else if offset < 8 {
                                     if offset == 1 || offset == 2 || offset == 4 {
-                                        let pattern = prepare_pattern(offset, src);
+                                        let v_pattern = match offset {
+                                            1 => _mm_set1_epi8(*src as i8),
+                                            2 => _mm_set1_epi16(std::ptr::read_unaligned(src as *const u16) as i16),
+                                            4 => _mm_set1_epi32(std::ptr::read_unaligned(src as *const u32) as i32),
+                                            _ => std::hint::unreachable_unchecked(),
+                                        };
                                         let mut i = 0;
                                         while i + 32 <= length {
-                                            std::ptr::write_unaligned(
-                                                out_next.add(i) as *mut u64,
-                                                pattern,
-                                            );
-                                            std::ptr::write_unaligned(
-                                                out_next.add(i + 8) as *mut u64,
-                                                pattern,
-                                            );
-                                            std::ptr::write_unaligned(
-                                                out_next.add(i + 16) as *mut u64,
-                                                pattern,
-                                            );
-                                            std::ptr::write_unaligned(
-                                                out_next.add(i + 24) as *mut u64,
-                                                pattern,
-                                            );
+                                            _mm_storeu_si128(out_next.add(i) as *mut __m128i, v_pattern);
+                                            _mm_storeu_si128(out_next.add(i + 16) as *mut __m128i, v_pattern);
                                             i += 32;
                                         }
+                                        if i + 16 <= length {
+                                            _mm_storeu_si128(out_next.add(i) as *mut __m128i, v_pattern);
+                                            i += 16;
+                                        }
+                                        let pattern = _mm_cvtsi128_si64(v_pattern) as u64;
                                         while i + 8 <= length {
                                             std::ptr::write_unaligned(
                                                 out_next.add(i) as *mut u64,
@@ -463,27 +459,19 @@ pub unsafe fn decompress_bmi2(
                                         }
                                     }
                                 } else if offset == 8 {
-                                    let pattern = std::ptr::read_unaligned(src as *const u64);
+                                    let val = std::ptr::read_unaligned(src as *const u64);
+                                    let v_pattern = _mm_set1_epi64x(val as i64);
                                     let mut i = 0;
                                     while i + 32 <= length {
-                                        std::ptr::write_unaligned(
-                                            out_next.add(i) as *mut u64,
-                                            pattern,
-                                        );
-                                        std::ptr::write_unaligned(
-                                            out_next.add(i + 8) as *mut u64,
-                                            pattern,
-                                        );
-                                        std::ptr::write_unaligned(
-                                            out_next.add(i + 16) as *mut u64,
-                                            pattern,
-                                        );
-                                        std::ptr::write_unaligned(
-                                            out_next.add(i + 24) as *mut u64,
-                                            pattern,
-                                        );
+                                        _mm_storeu_si128(out_next.add(i) as *mut __m128i, v_pattern);
+                                        _mm_storeu_si128(out_next.add(i + 16) as *mut __m128i, v_pattern);
                                         i += 32;
                                     }
+                                    if i + 16 <= length {
+                                        _mm_storeu_si128(out_next.add(i) as *mut __m128i, v_pattern);
+                                        i += 16;
+                                    }
+                                    let pattern = _mm_cvtsi128_si64(v_pattern) as u64;
                                     while i + 8 <= length {
                                         std::ptr::write_unaligned(
                                             out_next.add(i) as *mut u64,
