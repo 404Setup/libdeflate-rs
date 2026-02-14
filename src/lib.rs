@@ -3,6 +3,8 @@
 pub mod adler32;
 pub mod api;
 pub mod batch;
+#[cfg(feature = "cuda")]
+pub mod batch_cuda;
 pub mod common;
 pub mod compress;
 pub mod crc32;
