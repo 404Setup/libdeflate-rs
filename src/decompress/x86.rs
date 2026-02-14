@@ -921,6 +921,69 @@ pub unsafe fn decompress_bmi2(
                                 *dest_ptr.add(i) = (pattern >> ((i & 7) * 8)) as u8;
                                 i += 1;
                             }
+                        } else if offset == 9 {
+                            let dest_ptr = out_ptr.add(dest);
+                            let src_ptr = out_ptr.add(src);
+                            let mut copied = 0;
+
+                            if length >= 16 {
+                                let v_src = _mm_loadu_si128(src_ptr as *const __m128i);
+                                let masks_ptr = OFFSET9_MASKS.as_ptr() as *const __m128i;
+                                let v_base = _mm_shuffle_epi8(v_src, _mm_loadu_si128(masks_ptr));
+
+                                while copied + 144 <= length {
+                                    _mm_storeu_si128(dest_ptr.add(copied) as *mut __m128i, v_base);
+                                    _mm_storeu_si128(
+                                        dest_ptr.add(copied + 16) as *mut __m128i,
+                                        _mm_shuffle_epi8(v_base, _mm_loadu_si128(masks_ptr.add(1))),
+                                    );
+                                    _mm_storeu_si128(
+                                        dest_ptr.add(copied + 32) as *mut __m128i,
+                                        _mm_shuffle_epi8(v_base, _mm_loadu_si128(masks_ptr.add(2))),
+                                    );
+                                    _mm_storeu_si128(
+                                        dest_ptr.add(copied + 48) as *mut __m128i,
+                                        _mm_shuffle_epi8(v_base, _mm_loadu_si128(masks_ptr.add(3))),
+                                    );
+                                    _mm_storeu_si128(
+                                        dest_ptr.add(copied + 64) as *mut __m128i,
+                                        _mm_shuffle_epi8(v_base, _mm_loadu_si128(masks_ptr.add(4))),
+                                    );
+                                    _mm_storeu_si128(
+                                        dest_ptr.add(copied + 80) as *mut __m128i,
+                                        _mm_shuffle_epi8(v_base, _mm_loadu_si128(masks_ptr.add(5))),
+                                    );
+                                    _mm_storeu_si128(
+                                        dest_ptr.add(copied + 96) as *mut __m128i,
+                                        _mm_shuffle_epi8(v_base, _mm_loadu_si128(masks_ptr.add(6))),
+                                    );
+                                    _mm_storeu_si128(
+                                        dest_ptr.add(copied + 112) as *mut __m128i,
+                                        _mm_shuffle_epi8(v_base, _mm_loadu_si128(masks_ptr.add(7))),
+                                    );
+                                    _mm_storeu_si128(
+                                        dest_ptr.add(copied + 128) as *mut __m128i,
+                                        _mm_shuffle_epi8(v_base, _mm_loadu_si128(masks_ptr.add(8))),
+                                    );
+                                    copied += 144;
+                                }
+
+                                while copied + 16 <= length {
+                                    let idx = (copied % 144) / 16;
+                                    let v = if idx == 0 {
+                                        v_base
+                                    } else {
+                                        _mm_shuffle_epi8(v_base, _mm_loadu_si128(masks_ptr.add(idx)))
+                                    };
+                                    _mm_storeu_si128(dest_ptr.add(copied) as *mut __m128i, v);
+                                    copied += 16;
+                                }
+                            }
+
+                            while copied < length {
+                                *dest_ptr.add(copied) = *src_ptr.add(copied);
+                                copied += 1;
+                            }
                         } else {
                             let mut copied = 0;
                             while copied + 8 <= length {
