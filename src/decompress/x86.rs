@@ -4,7 +4,7 @@ use crate::decompress::tables::{
 };
 use crate::decompress::{
     DEFLATE_BLOCKTYPE_DYNAMIC_HUFFMAN, DEFLATE_BLOCKTYPE_STATIC_HUFFMAN,
-    DEFLATE_BLOCKTYPE_UNCOMPRESSED, DecompressResult, Decompressor, prepare_pattern,
+    DEFLATE_BLOCKTYPE_UNCOMPRESSED, DecompressResult, Decompressor,
 };
 
 #[cfg(target_arch = "x86_64")]
@@ -690,8 +690,10 @@ pub unsafe fn decompress_bmi2(
                         } else if offset < 8 {
                             let src_ptr = out_ptr.add(src);
                             let dest_ptr = out_ptr.add(dest);
-                            if offset == 1 || offset == 2 || offset == 4 {
-                                let pattern = prepare_pattern(offset, src_ptr);
+
+                            if offset == 2 {
+                                let w = std::ptr::read_unaligned(src_ptr as *const u16) as u64;
+                                let pattern = w | (w << 16) | (w << 32) | (w << 48);
                                 let mut i = 0;
                                 while i + 32 <= length {
                                     std::ptr::write_unaligned(dest_ptr.add(i) as *mut u64, pattern);
@@ -710,7 +712,38 @@ pub unsafe fn decompress_bmi2(
                                     i += 32;
                                 }
                                 while i + 8 <= length {
-                                    std::ptr::write_unaligned(dest_ptr.add(i) as *mut u64, pattern);
+                                    std::ptr::write_unaligned(
+                                        dest_ptr.add(i) as *mut u64,
+                                        pattern,
+                                    );
+                                    i += 8;
+                                }
+                                while i < length {
+                                    *dest_ptr.add(i) = (pattern >> ((i & 7) * 8)) as u8;
+                                    i += 1;
+                                }
+                            } else if offset == 4 {
+                                let val = std::ptr::read_unaligned(src_ptr as *const u32) as i32;
+                                let v_pattern = _mm_set1_epi32(val);
+                                let mut i = 0;
+                                while i + 32 <= length {
+                                    _mm_storeu_si128(dest_ptr.add(i) as *mut __m128i, v_pattern);
+                                    _mm_storeu_si128(
+                                        dest_ptr.add(i + 16) as *mut __m128i,
+                                        v_pattern,
+                                    );
+                                    i += 32;
+                                }
+                                if i + 16 <= length {
+                                    _mm_storeu_si128(dest_ptr.add(i) as *mut __m128i, v_pattern);
+                                    i += 16;
+                                }
+                                let pattern = _mm_cvtsi128_si64(v_pattern) as u64;
+                                while i + 8 <= length {
+                                    std::ptr::write_unaligned(
+                                        dest_ptr.add(i) as *mut u64,
+                                        pattern,
+                                    );
                                     i += 8;
                                 }
                                 while i < length {
