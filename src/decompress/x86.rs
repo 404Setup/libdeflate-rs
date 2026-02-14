@@ -322,15 +322,28 @@ pub unsafe fn decompress_bmi2(
                                             );
                                         } else {
                                             let mut copied = 16;
-                                            while copied < length {
-                                                let copy_len =
-                                                    std::cmp::min(offset, length - copied);
+                                            // Optimization: Use 128-bit SIMD load/store loop for bulk copy.
+                                            // This is safe because `offset >= 16` (guarded by outer `if`), meaning the
+                                            // source and destination windows separated by `offset` do not overlap
+                                            // destructively within a 16-byte chunk.
+                                            // Reads from `src + copied` (which is `dst + copied - offset`)
+                                            // are valid because we are at least 16 bytes into the match, and `offset >= 16`.
+                                            while copied + 16 <= length {
+                                                let v = _mm_loadu_si128(
+                                                    src.add(copied) as *const __m128i
+                                                );
+                                                _mm_storeu_si128(
+                                                    out_next.add(copied) as *mut __m128i,
+                                                    v,
+                                                );
+                                                copied += 16;
+                                            }
+                                            if copied < length {
                                                 std::ptr::copy_nonoverlapping(
                                                     src.add(copied),
                                                     out_next.add(copied),
-                                                    copy_len,
+                                                    length - copied,
                                                 );
-                                                copied += copy_len;
                                             }
                                         }
                                     }
