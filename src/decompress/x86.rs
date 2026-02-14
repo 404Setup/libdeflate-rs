@@ -351,21 +351,51 @@ pub unsafe fn decompress_bmi2(
                                             // Reads from `src + copied` (which is `dst + copied - offset`)
                                             // are valid because we are at least 16 bytes into the match, and `offset >= 16`.
                                             while copied + 64 <= length {
-                                                let v1 = _mm_loadu_si128(src.add(copied) as *const __m128i);
-                                                _mm_storeu_si128(out_next.add(copied) as *mut __m128i, v1);
-                                                let v2 = _mm_loadu_si128(src.add(copied + 16) as *const __m128i);
-                                                _mm_storeu_si128(out_next.add(copied + 16) as *mut __m128i, v2);
-                                                let v3 = _mm_loadu_si128(src.add(copied + 32) as *const __m128i);
-                                                _mm_storeu_si128(out_next.add(copied + 32) as *mut __m128i, v3);
-                                                let v4 = _mm_loadu_si128(src.add(copied + 48) as *const __m128i);
-                                                _mm_storeu_si128(out_next.add(copied + 48) as *mut __m128i, v4);
+                                                let v1 = _mm_loadu_si128(
+                                                    src.add(copied) as *const __m128i
+                                                );
+                                                _mm_storeu_si128(
+                                                    out_next.add(copied) as *mut __m128i,
+                                                    v1,
+                                                );
+                                                let v2 = _mm_loadu_si128(
+                                                    src.add(copied + 16) as *const __m128i
+                                                );
+                                                _mm_storeu_si128(
+                                                    out_next.add(copied + 16) as *mut __m128i,
+                                                    v2,
+                                                );
+                                                let v3 = _mm_loadu_si128(
+                                                    src.add(copied + 32) as *const __m128i
+                                                );
+                                                _mm_storeu_si128(
+                                                    out_next.add(copied + 32) as *mut __m128i,
+                                                    v3,
+                                                );
+                                                let v4 = _mm_loadu_si128(
+                                                    src.add(copied + 48) as *const __m128i
+                                                );
+                                                _mm_storeu_si128(
+                                                    out_next.add(copied + 48) as *mut __m128i,
+                                                    v4,
+                                                );
                                                 copied += 64;
                                             }
                                             while copied + 32 <= length {
-                                                let v1 = _mm_loadu_si128(src.add(copied) as *const __m128i);
-                                                _mm_storeu_si128(out_next.add(copied) as *mut __m128i, v1);
-                                                let v2 = _mm_loadu_si128(src.add(copied + 16) as *const __m128i);
-                                                _mm_storeu_si128(out_next.add(copied + 16) as *mut __m128i, v2);
+                                                let v1 = _mm_loadu_si128(
+                                                    src.add(copied) as *const __m128i
+                                                );
+                                                _mm_storeu_si128(
+                                                    out_next.add(copied) as *mut __m128i,
+                                                    v1,
+                                                );
+                                                let v2 = _mm_loadu_si128(
+                                                    src.add(copied + 16) as *const __m128i
+                                                );
+                                                _mm_storeu_si128(
+                                                    out_next.add(copied + 16) as *mut __m128i,
+                                                    v2,
+                                                );
                                                 copied += 32;
                                             }
                                             while copied + 16 <= length {
@@ -439,7 +469,10 @@ pub unsafe fn decompress_bmi2(
                                         }
                                     } else if offset == 3 {
                                         let dest_ptr = out_next;
-                                        let val = std::ptr::read_unaligned(src as *const u32);
+                                        let v0 = std::ptr::read_unaligned(src as *const u16) as u32;
+                                        let v1 = std::ptr::read_unaligned(src.add(1) as *const u16)
+                                            as u32;
+                                        let val = v0 | (v1 << 8);
                                         let v_pat = _mm_cvtsi32_si128(val as i32);
                                         let masks_ptr = OFFSET3_MASKS.as_ptr() as *const __m128i;
                                         let v_base =
@@ -489,7 +522,10 @@ pub unsafe fn decompress_bmi2(
                                         }
                                     } else if offset == 5 {
                                         let dest_ptr = out_next;
-                                        let val = std::ptr::read_unaligned(src as *const u64);
+                                        let v0 = std::ptr::read_unaligned(src as *const u32) as u64;
+                                        let v1 = std::ptr::read_unaligned(src.add(1) as *const u32)
+                                            as u64;
+                                        let val = v0 | (v1 << 8);
                                         let v_pat = _mm_cvtsi64_si128(val as i64);
                                         let masks_ptr = OFFSET5_MASKS.as_ptr() as *const __m128i;
                                         let v_base =
@@ -553,7 +589,10 @@ pub unsafe fn decompress_bmi2(
                                         }
                                     } else if offset == 6 {
                                         let dest_ptr = out_next;
-                                        let val = std::ptr::read_unaligned(src as *const u64);
+                                        let v0 = std::ptr::read_unaligned(src as *const u32) as u64;
+                                        let v1 = std::ptr::read_unaligned(src.add(2) as *const u32)
+                                            as u64;
+                                        let val = v0 | (v1 << 16);
                                         let v_pat = _mm_cvtsi64_si128(val as i64);
                                         let masks_ptr = OFFSET6_MASKS.as_ptr() as *const __m128i;
                                         let v_base =
@@ -604,7 +643,10 @@ pub unsafe fn decompress_bmi2(
                                     } else {
                                         // offset == 7
                                         let dest_ptr = out_next;
-                                        let val = std::ptr::read_unaligned(src as *const u64);
+                                        let v0 = std::ptr::read_unaligned(src as *const u32) as u64;
+                                        let v1 = std::ptr::read_unaligned(src.add(3) as *const u32)
+                                            as u64;
+                                        let val = v0 | (v1 << 24);
                                         let v_pat = _mm_cvtsi64_si128(val as i64);
                                         let masks_ptr = OFFSET7_MASKS.as_ptr() as *const __m128i;
                                         let v_base =
@@ -1434,7 +1476,12 @@ pub unsafe fn decompress_bmi2(
                             } else {
                                 match offset {
                                     3 => {
-                                        let val = std::ptr::read_unaligned(src_ptr as *const u32);
+                                        let v0 =
+                                            std::ptr::read_unaligned(src_ptr as *const u16) as u32;
+                                        let v1 =
+                                            std::ptr::read_unaligned(src_ptr.add(1) as *const u16)
+                                                as u32;
+                                        let val = v0 | (v1 << 8);
                                         let v_pat = _mm_cvtsi32_si128(val as i32);
                                         let masks_ptr = OFFSET3_MASKS.as_ptr() as *const __m128i;
                                         let v_base =
@@ -1484,7 +1531,12 @@ pub unsafe fn decompress_bmi2(
                                         }
                                     }
                                     5 => {
-                                        let val = std::ptr::read_unaligned(src_ptr as *const u64);
+                                        let v0 =
+                                            std::ptr::read_unaligned(src_ptr as *const u32) as u64;
+                                        let v1 =
+                                            std::ptr::read_unaligned(src_ptr.add(1) as *const u32)
+                                                as u64;
+                                        let val = v0 | (v1 << 8);
                                         let v_pat = _mm_cvtsi64_si128(val as i64);
                                         let masks_ptr = OFFSET5_MASKS.as_ptr() as *const __m128i;
                                         let v_base =
@@ -1548,7 +1600,12 @@ pub unsafe fn decompress_bmi2(
                                         }
                                     }
                                     6 => {
-                                        let val = std::ptr::read_unaligned(src_ptr as *const u64);
+                                        let v0 =
+                                            std::ptr::read_unaligned(src_ptr as *const u32) as u64;
+                                        let v1 =
+                                            std::ptr::read_unaligned(src_ptr.add(2) as *const u32)
+                                                as u64;
+                                        let val = v0 | (v1 << 16);
                                         let v_pat = _mm_cvtsi64_si128(val as i64);
                                         let masks_ptr = OFFSET6_MASKS.as_ptr() as *const __m128i;
                                         let v_base =
@@ -1598,7 +1655,12 @@ pub unsafe fn decompress_bmi2(
                                         }
                                     }
                                     7 => {
-                                        let val = std::ptr::read_unaligned(src_ptr as *const u64);
+                                        let v0 =
+                                            std::ptr::read_unaligned(src_ptr as *const u32) as u64;
+                                        let v1 =
+                                            std::ptr::read_unaligned(src_ptr.add(3) as *const u32)
+                                                as u64;
+                                        let val = v0 | (v1 << 24);
                                         let v_pat = _mm_cvtsi64_si128(val as i64);
                                         let masks_ptr = OFFSET7_MASKS.as_ptr() as *const __m128i;
                                         let v_base =
