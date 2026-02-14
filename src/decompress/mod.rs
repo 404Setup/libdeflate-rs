@@ -994,10 +994,22 @@ impl Decompressor {
                                 (out_next.add(i + 32) as *mut u64).write_unaligned(pat4);
                                 i += 40;
                             }
-                            if i + 8 <= length { (out_next.add(i) as *mut u64).write_unaligned(pat0); i += 8; }
-                            if i + 8 <= length { (out_next.add(i) as *mut u64).write_unaligned(pat1); i += 8; }
-                            if i + 8 <= length { (out_next.add(i) as *mut u64).write_unaligned(pat2); i += 8; }
-                            if i + 8 <= length { (out_next.add(i) as *mut u64).write_unaligned(pat3); i += 8; }
+                            if i + 8 <= length {
+                                (out_next.add(i) as *mut u64).write_unaligned(pat0);
+                                i += 8;
+                            }
+                            if i + 8 <= length {
+                                (out_next.add(i) as *mut u64).write_unaligned(pat1);
+                                i += 8;
+                            }
+                            if i + 8 <= length {
+                                (out_next.add(i) as *mut u64).write_unaligned(pat2);
+                                i += 8;
+                            }
+                            if i + 8 <= length {
+                                (out_next.add(i) as *mut u64).write_unaligned(pat3);
+                                i += 8;
+                            }
                             while i < length {
                                 *out_next.add(i) = *src.add(i);
                                 i += 1;
@@ -1017,8 +1029,14 @@ impl Decompressor {
                                 (out_next.add(i + 16) as *mut u64).write_unaligned(pat2);
                                 i += 24;
                             }
-                            if i + 8 <= length { (out_next.add(i) as *mut u64).write_unaligned(pat0); i += 8; }
-                            if i + 8 <= length { (out_next.add(i) as *mut u64).write_unaligned(pat1); i += 8; }
+                            if i + 8 <= length {
+                                (out_next.add(i) as *mut u64).write_unaligned(pat0);
+                                i += 8;
+                            }
+                            if i + 8 <= length {
+                                (out_next.add(i) as *mut u64).write_unaligned(pat1);
+                                i += 8;
+                            }
                             while i < length {
                                 *out_next.add(i) = *src.add(i);
                                 i += 1;
@@ -1046,12 +1064,30 @@ impl Decompressor {
                                 (out_next.add(i + 48) as *mut u64).write_unaligned(pat6);
                                 i += 56;
                             }
-                            if i + 8 <= length { (out_next.add(i) as *mut u64).write_unaligned(pat0); i += 8; }
-                            if i + 8 <= length { (out_next.add(i) as *mut u64).write_unaligned(pat1); i += 8; }
-                            if i + 8 <= length { (out_next.add(i) as *mut u64).write_unaligned(pat2); i += 8; }
-                            if i + 8 <= length { (out_next.add(i) as *mut u64).write_unaligned(pat3); i += 8; }
-                            if i + 8 <= length { (out_next.add(i) as *mut u64).write_unaligned(pat4); i += 8; }
-                            if i + 8 <= length { (out_next.add(i) as *mut u64).write_unaligned(pat5); i += 8; }
+                            if i + 8 <= length {
+                                (out_next.add(i) as *mut u64).write_unaligned(pat0);
+                                i += 8;
+                            }
+                            if i + 8 <= length {
+                                (out_next.add(i) as *mut u64).write_unaligned(pat1);
+                                i += 8;
+                            }
+                            if i + 8 <= length {
+                                (out_next.add(i) as *mut u64).write_unaligned(pat2);
+                                i += 8;
+                            }
+                            if i + 8 <= length {
+                                (out_next.add(i) as *mut u64).write_unaligned(pat3);
+                                i += 8;
+                            }
+                            if i + 8 <= length {
+                                (out_next.add(i) as *mut u64).write_unaligned(pat4);
+                                i += 8;
+                            }
+                            if i + 8 <= length {
+                                (out_next.add(i) as *mut u64).write_unaligned(pat5);
+                                i += 8;
+                            }
                             while i < length {
                                 *out_next.add(i) = *src.add(i);
                                 i += 1;

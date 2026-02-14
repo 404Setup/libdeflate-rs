@@ -126,13 +126,19 @@ impl Compressor {
 
 pub struct Decompressor {
     inner: InternalDecompressor,
+    max_memory_limit: usize,
 }
 
 impl Decompressor {
     pub fn new() -> Self {
         Self {
             inner: InternalDecompressor::new(),
+            max_memory_limit: usize::MAX,
         }
+    }
+
+    pub fn set_max_memory_limit(&mut self, limit: usize) {
+        self.max_memory_limit = limit;
     }
 
     pub fn decompress_deflate(&mut self, data: &[u8], expected_size: usize) -> io::Result<Vec<u8>> {
@@ -187,6 +193,16 @@ impl Decompressor {
                     "Expected size {} exceeds safety limit for input size {}",
                     expected_size,
                     data.len()
+                ),
+            ));
+        }
+
+        if expected_size > self.max_memory_limit {
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidInput,
+                format!(
+                    "Expected size {} exceeds maximum memory limit {}",
+                    expected_size, self.max_memory_limit
                 ),
             ));
         }
