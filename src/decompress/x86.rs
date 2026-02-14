@@ -133,7 +133,9 @@ pub unsafe fn decompress_bmi2(
                                     let subtable_idx = (entry >> 16) as usize;
                                     let subtable_bits = (entry >> 8) & 0x3F;
                                     let sub_idx = _bzhi_u64(bitbuf, subtable_bits) as usize;
-                                    entry = *d.litlen_decode_table.get_unchecked(subtable_idx + sub_idx);
+                                    entry = *d
+                                        .litlen_decode_table
+                                        .get_unchecked(subtable_idx + sub_idx);
                                 } else {
                                     break;
                                 }
@@ -164,7 +166,8 @@ pub unsafe fn decompress_bmi2(
                                     bitsleft |= 56;
                                 }
 
-                                let offset_idx = _bzhi_u64(bitbuf, OFFSET_TABLEBITS as u32) as usize;
+                                let offset_idx =
+                                    _bzhi_u64(bitbuf, OFFSET_TABLEBITS as u32) as usize;
                                 let mut entry = *d.offset_decode_table.get_unchecked(offset_idx);
 
                                 if entry & HUFFDEC_EXCEPTIONAL != 0 {
@@ -175,7 +178,9 @@ pub unsafe fn decompress_bmi2(
                                         let subtable_idx = (entry >> 16) as usize;
                                         let subtable_bits = (entry >> 8) & 0x3F;
                                         let sub_idx = _bzhi_u64(bitbuf, subtable_bits) as usize;
-                                        entry = *d.offset_decode_table.get_unchecked(subtable_idx + sub_idx);
+                                        entry = *d
+                                            .offset_decode_table
+                                            .get_unchecked(subtable_idx + sub_idx);
                                     } else {
                                         break;
                                     }
@@ -206,12 +211,21 @@ pub unsafe fn decompress_bmi2(
                                     std::ptr::write_unaligned(out_next.add(8) as *mut u64, v2);
                                     if length > 16 {
                                         if offset >= length {
-                                            std::ptr::copy_nonoverlapping(src.add(16), out_next.add(16), length - 16);
+                                            std::ptr::copy_nonoverlapping(
+                                                src.add(16),
+                                                out_next.add(16),
+                                                length - 16,
+                                            );
                                         } else {
                                             let mut copied = 16;
                                             while copied < length {
-                                                let copy_len = std::cmp::min(offset, length - copied);
-                                                std::ptr::copy_nonoverlapping(src.add(copied), out_next.add(copied), copy_len);
+                                                let copy_len =
+                                                    std::cmp::min(offset, length - copied);
+                                                std::ptr::copy_nonoverlapping(
+                                                    src.add(copied),
+                                                    out_next.add(copied),
+                                                    copy_len,
+                                                );
                                                 copied += copy_len;
                                             }
                                         }
@@ -226,14 +240,29 @@ pub unsafe fn decompress_bmi2(
                                         let pattern = prepare_pattern(offset, src);
                                         let mut i = 0;
                                         while i + 32 <= length {
-                                            std::ptr::write_unaligned(out_next.add(i) as *mut u64, pattern);
-                                            std::ptr::write_unaligned(out_next.add(i + 8) as *mut u64, pattern);
-                                            std::ptr::write_unaligned(out_next.add(i + 16) as *mut u64, pattern);
-                                            std::ptr::write_unaligned(out_next.add(i + 24) as *mut u64, pattern);
+                                            std::ptr::write_unaligned(
+                                                out_next.add(i) as *mut u64,
+                                                pattern,
+                                            );
+                                            std::ptr::write_unaligned(
+                                                out_next.add(i + 8) as *mut u64,
+                                                pattern,
+                                            );
+                                            std::ptr::write_unaligned(
+                                                out_next.add(i + 16) as *mut u64,
+                                                pattern,
+                                            );
+                                            std::ptr::write_unaligned(
+                                                out_next.add(i + 24) as *mut u64,
+                                                pattern,
+                                            );
                                             i += 32;
                                         }
                                         while i + 8 <= length {
-                                            std::ptr::write_unaligned(out_next.add(i) as *mut u64, pattern);
+                                            std::ptr::write_unaligned(
+                                                out_next.add(i) as *mut u64,
+                                                pattern,
+                                            );
                                             i += 8;
                                         }
                                         while i < length {
@@ -250,9 +279,18 @@ pub unsafe fn decompress_bmi2(
 
                                         let mut copied = 0;
                                         while copied + 24 <= length {
-                                            std::ptr::write_unaligned(out_next.add(copied) as *mut u64, pat0);
-                                            std::ptr::write_unaligned(out_next.add(copied + 8) as *mut u64, pat1);
-                                            std::ptr::write_unaligned(out_next.add(copied + 16) as *mut u64, pat2);
+                                            std::ptr::write_unaligned(
+                                                out_next.add(copied) as *mut u64,
+                                                pat0,
+                                            );
+                                            std::ptr::write_unaligned(
+                                                out_next.add(copied + 8) as *mut u64,
+                                                pat1,
+                                            );
+                                            std::ptr::write_unaligned(
+                                                out_next.add(copied + 16) as *mut u64,
+                                                pat2,
+                                            );
                                             copied += 24;
                                         }
                                         while copied + 8 <= length {
@@ -261,7 +299,10 @@ pub unsafe fn decompress_bmi2(
                                                 8 => pat1,
                                                 _ => pat2,
                                             };
-                                            std::ptr::write_unaligned(out_next.add(copied) as *mut u64, p);
+                                            std::ptr::write_unaligned(
+                                                out_next.add(copied) as *mut u64,
+                                                p,
+                                            );
                                             copied += 8;
                                         }
                                         while copied < length {
@@ -280,27 +321,54 @@ pub unsafe fn decompress_bmi2(
 
                                         let mut copied = 0;
                                         while copied + 40 <= length {
-                                            std::ptr::write_unaligned(out_next.add(copied) as *mut u64, pat0);
-                                            std::ptr::write_unaligned(out_next.add(copied + 8) as *mut u64, pat1);
-                                            std::ptr::write_unaligned(out_next.add(copied + 16) as *mut u64, pat2);
-                                            std::ptr::write_unaligned(out_next.add(copied + 24) as *mut u64, pat3);
-                                            std::ptr::write_unaligned(out_next.add(copied + 32) as *mut u64, pat4);
+                                            std::ptr::write_unaligned(
+                                                out_next.add(copied) as *mut u64,
+                                                pat0,
+                                            );
+                                            std::ptr::write_unaligned(
+                                                out_next.add(copied + 8) as *mut u64,
+                                                pat1,
+                                            );
+                                            std::ptr::write_unaligned(
+                                                out_next.add(copied + 16) as *mut u64,
+                                                pat2,
+                                            );
+                                            std::ptr::write_unaligned(
+                                                out_next.add(copied + 24) as *mut u64,
+                                                pat3,
+                                            );
+                                            std::ptr::write_unaligned(
+                                                out_next.add(copied + 32) as *mut u64,
+                                                pat4,
+                                            );
                                             copied += 40;
                                         }
                                         if copied + 8 <= length {
-                                            std::ptr::write_unaligned(out_next.add(copied) as *mut u64, pat0);
+                                            std::ptr::write_unaligned(
+                                                out_next.add(copied) as *mut u64,
+                                                pat0,
+                                            );
                                             copied += 8;
                                         }
                                         if copied + 8 <= length {
-                                            std::ptr::write_unaligned(out_next.add(copied) as *mut u64, pat1);
+                                            std::ptr::write_unaligned(
+                                                out_next.add(copied) as *mut u64,
+                                                pat1,
+                                            );
                                             copied += 8;
                                         }
                                         if copied + 8 <= length {
-                                            std::ptr::write_unaligned(out_next.add(copied) as *mut u64, pat2);
+                                            std::ptr::write_unaligned(
+                                                out_next.add(copied) as *mut u64,
+                                                pat2,
+                                            );
                                             copied += 8;
                                         }
                                         if copied + 8 <= length {
-                                            std::ptr::write_unaligned(out_next.add(copied) as *mut u64, pat3);
+                                            std::ptr::write_unaligned(
+                                                out_next.add(copied) as *mut u64,
+                                                pat3,
+                                            );
                                             copied += 8;
                                         }
                                         while copied < length {
@@ -317,17 +385,32 @@ pub unsafe fn decompress_bmi2(
 
                                         let mut copied = 0;
                                         while copied + 24 <= length {
-                                            std::ptr::write_unaligned(out_next.add(copied) as *mut u64, pat0);
-                                            std::ptr::write_unaligned(out_next.add(copied + 8) as *mut u64, pat1);
-                                            std::ptr::write_unaligned(out_next.add(copied + 16) as *mut u64, pat2);
+                                            std::ptr::write_unaligned(
+                                                out_next.add(copied) as *mut u64,
+                                                pat0,
+                                            );
+                                            std::ptr::write_unaligned(
+                                                out_next.add(copied + 8) as *mut u64,
+                                                pat1,
+                                            );
+                                            std::ptr::write_unaligned(
+                                                out_next.add(copied + 16) as *mut u64,
+                                                pat2,
+                                            );
                                             copied += 24;
                                         }
                                         if copied + 8 <= length {
-                                            std::ptr::write_unaligned(out_next.add(copied) as *mut u64, pat0);
+                                            std::ptr::write_unaligned(
+                                                out_next.add(copied) as *mut u64,
+                                                pat0,
+                                            );
                                             copied += 8;
                                         }
                                         if copied + 8 <= length {
-                                            std::ptr::write_unaligned(out_next.add(copied) as *mut u64, pat1);
+                                            std::ptr::write_unaligned(
+                                                out_next.add(copied) as *mut u64,
+                                                pat1,
+                                            );
                                             copied += 8;
                                         }
                                         while copied < length {
@@ -348,37 +431,76 @@ pub unsafe fn decompress_bmi2(
 
                                         let mut copied = 0;
                                         while copied + 56 <= length {
-                                            std::ptr::write_unaligned(out_next.add(copied) as *mut u64, pat0);
-                                            std::ptr::write_unaligned(out_next.add(copied + 8) as *mut u64, pat1);
-                                            std::ptr::write_unaligned(out_next.add(copied + 16) as *mut u64, pat2);
-                                            std::ptr::write_unaligned(out_next.add(copied + 24) as *mut u64, pat3);
-                                            std::ptr::write_unaligned(out_next.add(copied + 32) as *mut u64, pat4);
-                                            std::ptr::write_unaligned(out_next.add(copied + 40) as *mut u64, pat5);
-                                            std::ptr::write_unaligned(out_next.add(copied + 48) as *mut u64, pat6);
+                                            std::ptr::write_unaligned(
+                                                out_next.add(copied) as *mut u64,
+                                                pat0,
+                                            );
+                                            std::ptr::write_unaligned(
+                                                out_next.add(copied + 8) as *mut u64,
+                                                pat1,
+                                            );
+                                            std::ptr::write_unaligned(
+                                                out_next.add(copied + 16) as *mut u64,
+                                                pat2,
+                                            );
+                                            std::ptr::write_unaligned(
+                                                out_next.add(copied + 24) as *mut u64,
+                                                pat3,
+                                            );
+                                            std::ptr::write_unaligned(
+                                                out_next.add(copied + 32) as *mut u64,
+                                                pat4,
+                                            );
+                                            std::ptr::write_unaligned(
+                                                out_next.add(copied + 40) as *mut u64,
+                                                pat5,
+                                            );
+                                            std::ptr::write_unaligned(
+                                                out_next.add(copied + 48) as *mut u64,
+                                                pat6,
+                                            );
                                             copied += 56;
                                         }
                                         if copied + 8 <= length {
-                                            std::ptr::write_unaligned(out_next.add(copied) as *mut u64, pat0);
+                                            std::ptr::write_unaligned(
+                                                out_next.add(copied) as *mut u64,
+                                                pat0,
+                                            );
                                             copied += 8;
                                         }
                                         if copied + 8 <= length {
-                                            std::ptr::write_unaligned(out_next.add(copied) as *mut u64, pat1);
+                                            std::ptr::write_unaligned(
+                                                out_next.add(copied) as *mut u64,
+                                                pat1,
+                                            );
                                             copied += 8;
                                         }
                                         if copied + 8 <= length {
-                                            std::ptr::write_unaligned(out_next.add(copied) as *mut u64, pat2);
+                                            std::ptr::write_unaligned(
+                                                out_next.add(copied) as *mut u64,
+                                                pat2,
+                                            );
                                             copied += 8;
                                         }
                                         if copied + 8 <= length {
-                                            std::ptr::write_unaligned(out_next.add(copied) as *mut u64, pat3);
+                                            std::ptr::write_unaligned(
+                                                out_next.add(copied) as *mut u64,
+                                                pat3,
+                                            );
                                             copied += 8;
                                         }
                                         if copied + 8 <= length {
-                                            std::ptr::write_unaligned(out_next.add(copied) as *mut u64, pat4);
+                                            std::ptr::write_unaligned(
+                                                out_next.add(copied) as *mut u64,
+                                                pat4,
+                                            );
                                             copied += 8;
                                         }
                                         if copied + 8 <= length {
-                                            std::ptr::write_unaligned(out_next.add(copied) as *mut u64, pat5);
+                                            std::ptr::write_unaligned(
+                                                out_next.add(copied) as *mut u64,
+                                                pat5,
+                                            );
                                             copied += 8;
                                         }
                                         while copied < length {
@@ -390,14 +512,29 @@ pub unsafe fn decompress_bmi2(
                                     let pattern = std::ptr::read_unaligned(src as *const u64);
                                     let mut i = 0;
                                     while i + 32 <= length {
-                                        std::ptr::write_unaligned(out_next.add(i) as *mut u64, pattern);
-                                        std::ptr::write_unaligned(out_next.add(i + 8) as *mut u64, pattern);
-                                        std::ptr::write_unaligned(out_next.add(i + 16) as *mut u64, pattern);
-                                        std::ptr::write_unaligned(out_next.add(i + 24) as *mut u64, pattern);
+                                        std::ptr::write_unaligned(
+                                            out_next.add(i) as *mut u64,
+                                            pattern,
+                                        );
+                                        std::ptr::write_unaligned(
+                                            out_next.add(i + 8) as *mut u64,
+                                            pattern,
+                                        );
+                                        std::ptr::write_unaligned(
+                                            out_next.add(i + 16) as *mut u64,
+                                            pattern,
+                                        );
+                                        std::ptr::write_unaligned(
+                                            out_next.add(i + 24) as *mut u64,
+                                            pattern,
+                                        );
                                         i += 32;
                                     }
                                     while i + 8 <= length {
-                                        std::ptr::write_unaligned(out_next.add(i) as *mut u64, pattern);
+                                        std::ptr::write_unaligned(
+                                            out_next.add(i) as *mut u64,
+                                            pattern,
+                                        );
                                         i += 8;
                                     }
                                     while i < length {
@@ -418,15 +555,24 @@ pub unsafe fn decompress_bmi2(
                                         7,
                                     );
 
-                                    let p0 = std::ptr::read_unaligned(buf.as_ptr().add(0) as *const u64);
-                                    let p1 = std::ptr::read_unaligned(buf.as_ptr().add(8) as *const u64);
-                                    let p2 = std::ptr::read_unaligned(buf.as_ptr().add(7) as *const u64);
-                                    let p3 = std::ptr::read_unaligned(buf.as_ptr().add(6) as *const u64);
-                                    let p4 = std::ptr::read_unaligned(buf.as_ptr().add(5) as *const u64);
-                                    let p5 = std::ptr::read_unaligned(buf.as_ptr().add(4) as *const u64);
-                                    let p6 = std::ptr::read_unaligned(buf.as_ptr().add(3) as *const u64);
-                                    let p7 = std::ptr::read_unaligned(buf.as_ptr().add(2) as *const u64);
-                                    let p8 = std::ptr::read_unaligned(buf.as_ptr().add(1) as *const u64);
+                                    let p0 =
+                                        std::ptr::read_unaligned(buf.as_ptr().add(0) as *const u64);
+                                    let p1 =
+                                        std::ptr::read_unaligned(buf.as_ptr().add(8) as *const u64);
+                                    let p2 =
+                                        std::ptr::read_unaligned(buf.as_ptr().add(7) as *const u64);
+                                    let p3 =
+                                        std::ptr::read_unaligned(buf.as_ptr().add(6) as *const u64);
+                                    let p4 =
+                                        std::ptr::read_unaligned(buf.as_ptr().add(5) as *const u64);
+                                    let p5 =
+                                        std::ptr::read_unaligned(buf.as_ptr().add(4) as *const u64);
+                                    let p6 =
+                                        std::ptr::read_unaligned(buf.as_ptr().add(3) as *const u64);
+                                    let p7 =
+                                        std::ptr::read_unaligned(buf.as_ptr().add(2) as *const u64);
+                                    let p8 =
+                                        std::ptr::read_unaligned(buf.as_ptr().add(1) as *const u64);
 
                                     let mut copied = 0;
                                     while copied + 72 <= length {
@@ -540,8 +686,12 @@ pub unsafe fn decompress_bmi2(
                                 } else {
                                     let mut copied = 0;
                                     while copied + 8 <= length {
-                                        let val = std::ptr::read_unaligned(src.add(copied) as *const u64);
-                                        std::ptr::write_unaligned(out_next.add(copied) as *mut u64, val);
+                                        let val =
+                                            std::ptr::read_unaligned(src.add(copied) as *const u64);
+                                        std::ptr::write_unaligned(
+                                            out_next.add(copied) as *mut u64,
+                                            val,
+                                        );
                                         copied += 8;
                                     }
                                     while copied < length {
@@ -677,9 +827,18 @@ pub unsafe fn decompress_bmi2(
                                 let mut i = 0;
                                 while i + 32 <= length {
                                     std::ptr::write_unaligned(dest_ptr.add(i) as *mut u64, pattern);
-                                    std::ptr::write_unaligned(dest_ptr.add(i + 8) as *mut u64, pattern);
-                                    std::ptr::write_unaligned(dest_ptr.add(i + 16) as *mut u64, pattern);
-                                    std::ptr::write_unaligned(dest_ptr.add(i + 24) as *mut u64, pattern);
+                                    std::ptr::write_unaligned(
+                                        dest_ptr.add(i + 8) as *mut u64,
+                                        pattern,
+                                    );
+                                    std::ptr::write_unaligned(
+                                        dest_ptr.add(i + 16) as *mut u64,
+                                        pattern,
+                                    );
+                                    std::ptr::write_unaligned(
+                                        dest_ptr.add(i + 24) as *mut u64,
+                                        pattern,
+                                    );
                                     i += 32;
                                 }
                                 while i + 8 <= length {
@@ -1095,8 +1254,14 @@ pub unsafe fn decompress_bmi2(
                             while i + 32 <= length {
                                 std::ptr::write_unaligned(dest_ptr.add(i) as *mut u64, pattern);
                                 std::ptr::write_unaligned(dest_ptr.add(i + 8) as *mut u64, pattern);
-                                std::ptr::write_unaligned(dest_ptr.add(i + 16) as *mut u64, pattern);
-                                std::ptr::write_unaligned(dest_ptr.add(i + 24) as *mut u64, pattern);
+                                std::ptr::write_unaligned(
+                                    dest_ptr.add(i + 16) as *mut u64,
+                                    pattern,
+                                );
+                                std::ptr::write_unaligned(
+                                    dest_ptr.add(i + 24) as *mut u64,
+                                    pattern,
+                                );
                                 i += 32;
                             }
                             while i + 8 <= length {

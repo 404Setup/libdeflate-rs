@@ -9,7 +9,9 @@ fn test_offset_3_pattern() {
     let pattern: Vec<u8> = b"ABC".iter().cloned().cycle().take(1000).collect();
     let compressed = compressor.compress_deflate(&pattern).unwrap();
 
-    let decompressed = decompressor.decompress_deflate(&compressed, pattern.len()).unwrap();
+    let decompressed = decompressor
+        .decompress_deflate(&compressed, pattern.len())
+        .unwrap();
     assert_eq!(decompressed, pattern);
 }
 
@@ -22,7 +24,9 @@ fn test_offset_5_pattern() {
     let pattern: Vec<u8> = b"ABCDE".iter().cloned().cycle().take(1000).collect();
     let compressed = compressor.compress_deflate(&pattern).unwrap();
 
-    let decompressed = decompressor.decompress_deflate(&compressed, pattern.len()).unwrap();
+    let decompressed = decompressor
+        .decompress_deflate(&compressed, pattern.len())
+        .unwrap();
     assert_eq!(decompressed, pattern);
 }
 
@@ -35,7 +39,9 @@ fn test_offset_6_pattern() {
     let pattern: Vec<u8> = b"ABCDEF".iter().cloned().cycle().take(1000).collect();
     let compressed = compressor.compress_deflate(&pattern).unwrap();
 
-    let decompressed = decompressor.decompress_deflate(&compressed, pattern.len()).unwrap();
+    let decompressed = decompressor
+        .decompress_deflate(&compressed, pattern.len())
+        .unwrap();
     assert_eq!(decompressed, pattern);
 }
 
@@ -48,7 +54,9 @@ fn test_offset_7_pattern() {
     let pattern: Vec<u8> = b"ABCDEFG".iter().cloned().cycle().take(1000).collect();
     let compressed = compressor.compress_deflate(&pattern).unwrap();
 
-    let decompressed = decompressor.decompress_deflate(&compressed, pattern.len()).unwrap();
+    let decompressed = decompressor
+        .decompress_deflate(&compressed, pattern.len())
+        .unwrap();
     assert_eq!(decompressed, pattern);
 }
 
@@ -61,7 +69,9 @@ fn test_offset_8_pattern() {
     let pattern: Vec<u8> = b"ABCDEFGH".iter().cloned().cycle().take(1000).collect();
     let compressed = compressor.compress_deflate(&pattern).unwrap();
 
-    let decompressed = decompressor.decompress_deflate(&compressed, pattern.len()).unwrap();
+    let decompressed = decompressor
+        .decompress_deflate(&compressed, pattern.len())
+        .unwrap();
     assert_eq!(decompressed, pattern);
 }
 
@@ -74,6 +84,8 @@ fn test_offset_9_pattern() {
     let pattern: Vec<u8> = b"ABCDEFGHI".iter().cloned().cycle().take(1000).collect();
     let compressed = compressor.compress_deflate(&pattern).unwrap();
 
-    let decompressed = decompressor.decompress_deflate(&compressed, pattern.len()).unwrap();
+    let decompressed = decompressor
+        .decompress_deflate(&compressed, pattern.len())
+        .unwrap();
     assert_eq!(decompressed, pattern);
 }
