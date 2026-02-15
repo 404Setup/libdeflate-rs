@@ -23,8 +23,12 @@ impl<'a> Bitstream<'a> {
         // The underlying write_bits_unchecked supports max 16 bits at a time.
         // This prevents potential assertion failures in debug builds and data corruption in release builds.
         while count > 16 {
-            if !self.write_bits(bits & 0xFFFF, 16) {
-                return false;
+            // Safety: count is 16, and we mask bits to 16 bits, so the requirement
+            // `bits & !((1 << count) - 1) == 0` is satisfied.
+            unsafe {
+                if !self.write_bits_unchecked(bits & 0xFFFF, 16) {
+                    return false;
+                }
             }
             bits >>= 16;
             count -= 16;
