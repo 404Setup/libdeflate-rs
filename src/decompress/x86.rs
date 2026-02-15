@@ -342,6 +342,372 @@ pub unsafe fn decompress_bmi2(
                                                     length - copied,
                                                 );
                                             }
+                                        } else if offset == 21 {
+                                            let mut copied = 16;
+                                            let c = std::ptr::read_unaligned(
+                                                out_next.sub(5) as *const u64,
+                                            );
+                                            let v_lower = _mm_slli_si128(
+                                                _mm_cvtsi64_si128(c as i64),
+                                                11,
+                                            );
+                                            let mut v_curr =
+                                                _mm_alignr_epi8(v, v_lower, 11);
+                                            let mut v_prev = v;
+
+                                            while copied + 64 <= length {
+                                                _mm_storeu_si128(
+                                                    out_next.add(copied) as *mut __m128i,
+                                                    v_curr,
+                                                );
+                                                let v_next1 =
+                                                    _mm_alignr_epi8(v_curr, v_prev, 11);
+                                                _mm_storeu_si128(
+                                                    out_next.add(copied + 16) as *mut __m128i,
+                                                    v_next1,
+                                                );
+                                                let v_next2 =
+                                                    _mm_alignr_epi8(v_next1, v_curr, 11);
+                                                _mm_storeu_si128(
+                                                    out_next.add(copied + 32) as *mut __m128i,
+                                                    v_next2,
+                                                );
+                                                let v_next3 =
+                                                    _mm_alignr_epi8(v_next2, v_next1, 11);
+                                                _mm_storeu_si128(
+                                                    out_next.add(copied + 48) as *mut __m128i,
+                                                    v_next3,
+                                                );
+                                                let v_next4 =
+                                                    _mm_alignr_epi8(v_next3, v_next2, 11);
+
+                                                v_prev = v_next3;
+                                                v_curr = v_next4;
+                                                copied += 64;
+                                            }
+                                            while copied + 16 <= length {
+                                                _mm_storeu_si128(
+                                                    out_next.add(copied) as *mut __m128i,
+                                                    v_curr,
+                                                );
+                                                let v_next =
+                                                    _mm_alignr_epi8(v_curr, v_prev, 11);
+                                                v_prev = v_curr;
+                                                v_curr = v_next;
+                                                copied += 16;
+                                            }
+                                            if copied < length {
+                                                std::ptr::copy_nonoverlapping(
+                                                    src.add(copied),
+                                                    out_next.add(copied),
+                                                    length - copied,
+                                                );
+                                            }
+                                        } else if offset == 21 {
+                                            let mut copied = 16;
+                                            let c = std::ptr::read_unaligned(
+                                                out_next.sub(5) as *const u64,
+                                            );
+                                            let v_lower = _mm_slli_si128(
+                                                _mm_cvtsi64_si128(c as i64),
+                                                11,
+                                            );
+                                            let mut v_curr =
+                                                _mm_alignr_epi8(v, v_lower, 11);
+                                            let mut v_prev = v;
+
+                                            while copied + 64 <= length {
+                                                _mm_storeu_si128(
+                                                    out_next.add(copied) as *mut __m128i,
+                                                    v_curr,
+                                                );
+                                                let v_next1 =
+                                                    _mm_alignr_epi8(v_curr, v_prev, 11);
+                                                _mm_storeu_si128(
+                                                    out_next.add(copied + 16) as *mut __m128i,
+                                                    v_next1,
+                                                );
+                                                let v_next2 =
+                                                    _mm_alignr_epi8(v_next1, v_curr, 11);
+                                                _mm_storeu_si128(
+                                                    out_next.add(copied + 32) as *mut __m128i,
+                                                    v_next2,
+                                                );
+                                                let v_next3 =
+                                                    _mm_alignr_epi8(v_next2, v_next1, 11);
+                                                _mm_storeu_si128(
+                                                    out_next.add(copied + 48) as *mut __m128i,
+                                                    v_next3,
+                                                );
+                                                let v_next4 =
+                                                    _mm_alignr_epi8(v_next3, v_next2, 11);
+
+                                                v_prev = v_next3;
+                                                v_curr = v_next4;
+                                                copied += 64;
+                                            }
+                                            while copied + 16 <= length {
+                                                _mm_storeu_si128(
+                                                    out_next.add(copied) as *mut __m128i,
+                                                    v_curr,
+                                                );
+                                                let v_next =
+                                                    _mm_alignr_epi8(v_curr, v_prev, 11);
+                                                v_prev = v_curr;
+                                                v_curr = v_next;
+                                                copied += 16;
+                                            }
+                                            if copied < length {
+                                                std::ptr::copy_nonoverlapping(
+                                                    src.add(copied),
+                                                    out_next.add(copied),
+                                                    length - copied,
+                                                );
+                                            }
+                                        } else if offset == 21 {
+                                            let mut copied = 16;
+                                            let c = std::ptr::read_unaligned(
+                                                out_next.sub(5) as *const u64,
+                                            );
+                                            let v_lower = _mm_slli_si128(
+                                                _mm_cvtsi64_si128(c as i64),
+                                                11,
+                                            );
+                                            let mut v_curr =
+                                                _mm_alignr_epi8(v, v_lower, 11);
+                                            let mut v_prev = v;
+
+                                            while copied + 64 <= length {
+                                                _mm_storeu_si128(
+                                                    out_next.add(copied) as *mut __m128i,
+                                                    v_curr,
+                                                );
+                                                let v_next1 =
+                                                    _mm_alignr_epi8(v_curr, v_prev, 11);
+                                                _mm_storeu_si128(
+                                                    out_next.add(copied + 16) as *mut __m128i,
+                                                    v_next1,
+                                                );
+                                                let v_next2 =
+                                                    _mm_alignr_epi8(v_next1, v_curr, 11);
+                                                _mm_storeu_si128(
+                                                    out_next.add(copied + 32) as *mut __m128i,
+                                                    v_next2,
+                                                );
+                                                let v_next3 =
+                                                    _mm_alignr_epi8(v_next2, v_next1, 11);
+                                                _mm_storeu_si128(
+                                                    out_next.add(copied + 48) as *mut __m128i,
+                                                    v_next3,
+                                                );
+                                                let v_next4 =
+                                                    _mm_alignr_epi8(v_next3, v_next2, 11);
+
+                                                v_prev = v_next3;
+                                                v_curr = v_next4;
+                                                copied += 64;
+                                            }
+                                            while copied + 16 <= length {
+                                                _mm_storeu_si128(
+                                                    out_next.add(copied) as *mut __m128i,
+                                                    v_curr,
+                                                );
+                                                let v_next =
+                                                    _mm_alignr_epi8(v_curr, v_prev, 11);
+                                                v_prev = v_curr;
+                                                v_curr = v_next;
+                                                copied += 16;
+                                            }
+                                            if copied < length {
+                                                std::ptr::copy_nonoverlapping(
+                                                    src.add(copied),
+                                                    out_next.add(copied),
+                                                    length - copied,
+                                                );
+                                            }
+                                        } else if offset == 20 {
+                                            let mut copied = 16;
+                                            let c = std::ptr::read_unaligned(
+                                                out_next.sub(4) as *const u32
+                                            );
+                                            let v_lower = _mm_slli_si128(
+                                                _mm_cvtsi32_si128(c as i32),
+                                                12,
+                                            );
+                                            let mut v_curr =
+                                                _mm_alignr_epi8(v, v_lower, 12);
+                                            let mut v_prev = v;
+
+                                            while copied + 64 <= length {
+                                                _mm_storeu_si128(
+                                                    out_next.add(copied) as *mut __m128i,
+                                                    v_curr,
+                                                );
+                                                let v_next1 =
+                                                    _mm_alignr_epi8(v_curr, v_prev, 12);
+                                                _mm_storeu_si128(
+                                                    out_next.add(copied + 16) as *mut __m128i,
+                                                    v_next1,
+                                                );
+                                                let v_next2 =
+                                                    _mm_alignr_epi8(v_next1, v_curr, 12);
+                                                _mm_storeu_si128(
+                                                    out_next.add(copied + 32) as *mut __m128i,
+                                                    v_next2,
+                                                );
+                                                let v_next3 =
+                                                    _mm_alignr_epi8(v_next2, v_next1, 12);
+                                                _mm_storeu_si128(
+                                                    out_next.add(copied + 48) as *mut __m128i,
+                                                    v_next3,
+                                                );
+                                                let v_next4 =
+                                                    _mm_alignr_epi8(v_next3, v_next2, 12);
+
+                                                v_prev = v_next3;
+                                                v_curr = v_next4;
+                                                copied += 64;
+                                            }
+                                            while copied + 16 <= length {
+                                                _mm_storeu_si128(
+                                                    out_next.add(copied) as *mut __m128i,
+                                                    v_curr,
+                                                );
+                                                let v_next =
+                                                    _mm_alignr_epi8(v_curr, v_prev, 12);
+                                                v_prev = v_curr;
+                                                v_curr = v_next;
+                                                copied += 16;
+                                            }
+                                            if copied < length {
+                                                std::ptr::copy_nonoverlapping(
+                                                    src.add(copied),
+                                                    out_next.add(copied),
+                                                    length - copied,
+                                                );
+                                            }
+                                        } else if offset == 20 {
+                                            let mut copied = 16;
+                                            let c = std::ptr::read_unaligned(
+                                                out_next.sub(4) as *const u32
+                                            );
+                                            let v_lower = _mm_slli_si128(
+                                                _mm_cvtsi32_si128(c as i32),
+                                                12,
+                                            );
+                                            let mut v_curr =
+                                                _mm_alignr_epi8(v, v_lower, 12);
+                                            let mut v_prev = v;
+
+                                            /*while copied + 64 <= length {
+                                                _mm_storeu_si128(
+                                                    out_next.add(copied) as *mut __m128i,
+                                                    v_curr,
+                                                );
+                                                let v_next1 =
+                                                    _mm_alignr_epi8(v_curr, v_prev, 12);
+                                                _mm_storeu_si128(
+                                                    out_next.add(copied + 16) as *mut __m128i,
+                                                    v_next1,
+                                                );
+                                                let v_next2 =
+                                                    _mm_alignr_epi8(v_next1, v_curr, 12);
+                                                _mm_storeu_si128(
+                                                    out_next.add(copied + 32) as *mut __m128i,
+                                                    v_next2,
+                                                );
+                                                let v_next3 =
+                                                    _mm_alignr_epi8(v_next2, v_next1, 12);
+                                                _mm_storeu_si128(
+                                                    out_next.add(copied + 48) as *mut __m128i,
+                                                    v_next3,
+                                                );
+                                                let v_next4 =
+                                                    _mm_alignr_epi8(v_next3, v_next2, 12);
+
+                                                v_prev = v_next3;
+                                                v_curr = v_next4;
+                                                copied += 64;
+                                            }*/
+                                            while copied + 16 <= length {
+                                                _mm_storeu_si128(
+                                                    out_next.add(copied) as *mut __m128i,
+                                                    v_curr,
+                                                );
+                                                let v_next =
+                                                    _mm_alignr_epi8(v_curr, v_prev, 12);
+                                                v_prev = v_curr;
+                                                v_curr = v_next;
+                                                copied += 16;
+                                            }
+                                            if copied < length {
+                                                std::ptr::copy_nonoverlapping(
+                                                    src.add(copied),
+                                                    out_next.add(copied),
+                                                    length - copied,
+                                                );
+                                            }
+                                        } else if offset == 20 {
+                                            let mut copied = 16;
+                                            let c = std::ptr::read_unaligned(
+                                                out_next.sub(4) as *const u32
+                                            );
+                                            let v_lower = _mm_slli_si128(
+                                                _mm_cvtsi32_si128(c as i32),
+                                                12,
+                                            );
+                                            let mut v_curr =
+                                                _mm_alignr_epi8(v, v_lower, 12);
+                                            let mut v_prev = v;
+
+                                            while copied + 64 <= length {
+                                                _mm_storeu_si128(
+                                                    out_next.add(copied) as *mut __m128i,
+                                                    v_curr,
+                                                );
+                                                let v_next1 =
+                                                    _mm_alignr_epi8(v_curr, v_prev, 12);
+                                                _mm_storeu_si128(
+                                                    out_next.add(copied + 16) as *mut __m128i,
+                                                    v_next1,
+                                                );
+                                                let v_next2 =
+                                                    _mm_alignr_epi8(v_next1, v_curr, 12);
+                                                _mm_storeu_si128(
+                                                    out_next.add(copied + 32) as *mut __m128i,
+                                                    v_next2,
+                                                );
+                                                let v_next3 =
+                                                    _mm_alignr_epi8(v_next2, v_next1, 12);
+                                                _mm_storeu_si128(
+                                                    out_next.add(copied + 48) as *mut __m128i,
+                                                    v_next3,
+                                                );
+                                                let v_next4 =
+                                                    _mm_alignr_epi8(v_next3, v_next2, 12);
+
+                                                v_prev = v_next3;
+                                                v_curr = v_next4;
+                                                copied += 64;
+                                            }
+                                            while copied + 16 <= length {
+                                                _mm_storeu_si128(
+                                                    out_next.add(copied) as *mut __m128i,
+                                                    v_curr,
+                                                );
+                                                let v_next =
+                                                    _mm_alignr_epi8(v_curr, v_prev, 12);
+                                                v_prev = v_curr;
+                                                v_curr = v_next;
+                                                copied += 16;
+                                            }
+                                            if copied < length {
+                                                std::ptr::copy_nonoverlapping(
+                                                    src.add(copied),
+                                                    out_next.add(copied),
+                                                    length - copied,
+                                                );
+                                            }
                                         } else if offset == 19 {
                                             let mut copied = 16;
                                             // For offset 19, src[16] is dest[-3], src[17] is dest[-2], src[18] is dest[-1]
@@ -399,7 +765,7 @@ pub unsafe fn decompress_bmi2(
                                                 );
                                                 copied += copy_len;
                                             }
-                                        } else if offset == 16 {
+                                        /*} else if offset == 16 {
                                             let mut copied = 16;
                                             while copied + 64 <= length {
                                                 _mm_storeu_si128(
@@ -433,8 +799,8 @@ pub unsafe fn decompress_bmi2(
                                                     out_next.add(copied),
                                                     length - copied,
                                                 );
-                                            }
-                                        } else {
+                                            }*/
+                                        } else if offset >= 16 { // Changed to else if to match original structure logic if needed, or just } else {
                                             let mut copied = 16;
                                             // Optimization: Use 128-bit SIMD load/store loop for bulk copy.
                                             // This is safe because `offset >= 16` (guarded by outer `if`), meaning the

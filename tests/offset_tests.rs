@@ -16,6 +16,67 @@ fn test_offset_3_pattern() {
 }
 
 #[test]
+fn test_offset_21_pattern() {
+    let mut compressor = Compressor::new(6).unwrap();
+    let mut decompressor = Decompressor::new();
+
+    // Pattern length 21. Offset 21.
+    let pattern: Vec<u8> = b"ABCDEFGHIJKLMNOPQRSTU"
+        .iter()
+        .cloned()
+        .cycle()
+        .take(10000)
+        .collect();
+    let compressed = compressor.compress_deflate(&pattern).unwrap();
+
+    let decompressed = decompressor
+        .decompress_deflate(&compressed, pattern.len())
+        .unwrap();
+    assert_eq!(decompressed, pattern);
+}
+
+#[test]
+fn test_offset_20_small() {
+    let mut compressor = Compressor::new(6).unwrap();
+    let mut decompressor = Decompressor::new();
+
+    // Pattern length 20. Offset 20.
+    // Use a pattern that does not have smaller sub-periods (like 10).
+    let pattern: Vec<u8> = b"ABCDEFGHIJKLMNOPQRST"
+        .iter()
+        .cloned()
+        .cycle()
+        .take(60)
+        .collect();
+    let compressed = compressor.compress_deflate(&pattern).unwrap();
+
+    let decompressed = decompressor
+        .decompress_deflate(&compressed, pattern.len())
+        .unwrap();
+    assert_eq!(decompressed, pattern);
+}
+
+#[test]
+fn test_offset_20_pattern() {
+    let mut compressor = Compressor::new(6).unwrap();
+    let mut decompressor = Decompressor::new();
+
+    // Pattern length 20. Offset 20.
+    let pattern: Vec<u8> = b"ABCDEFGHIJKLMNOPQRST"
+        .iter()
+        .cloned()
+        .cycle()
+        .take(10000)
+        .collect();
+    let compressed = compressor.compress_deflate(&pattern).unwrap();
+
+    let decompressed = decompressor
+        .decompress_deflate(&compressed, pattern.len())
+        .unwrap();
+    assert_eq!(decompressed, pattern);
+}
+
+#[test]
 fn test_offset_18_pattern() {
     let mut compressor = Compressor::new(6).unwrap();
     let mut decompressor = Decompressor::new();
