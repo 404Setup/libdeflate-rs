@@ -4,6 +4,7 @@ use core::arch::x86::*;
 use core::arch::x86_64::*;
 
 const DIVISOR: u32 = 65521;
+const BLOCK_SIZE: usize = 5504;
 
 #[target_feature(enable = "sse2")]
 pub unsafe fn adler32_x86_sse2(adler: u32, p: &[u8]) -> u32 {
@@ -18,7 +19,7 @@ pub unsafe fn adler32_x86_sse2(adler: u32, p: &[u8]) -> u32 {
     let v_zero = _mm_setzero_si128();
 
     while data.len() >= 32 {
-        let mut n = std::cmp::min(data.len(), 4096);
+        let mut n = std::cmp::min(data.len(), BLOCK_SIZE);
         n &= !31;
 
         s2 += s1 * (n as u32);
@@ -227,7 +228,7 @@ pub unsafe fn adler32_x86_avx2(adler: u32, p: &[u8]) -> u32 {
     let v_zero = _mm256_setzero_si256();
 
     while len >= 64 {
-        let n = std::cmp::min(len, 5504);
+        let n = std::cmp::min(len, BLOCK_SIZE);
         let n_rounded = n & !63;
 
         s2 += s1 * (n_rounded as u32);
@@ -467,7 +468,7 @@ pub unsafe fn adler32_x86_avx2_vnni(adler: u32, p: &[u8]) -> u32 {
     );
 
     while data.len() >= 32 {
-        let n = std::cmp::min(data.len(), 4032) & !31;
+        let n = std::cmp::min(data.len(), BLOCK_SIZE) & !31;
         s2 += s1 * (n as u32);
 
         let mut v_s1 = _mm256_setzero_si256();
@@ -610,7 +611,7 @@ pub unsafe fn adler32_x86_avx512_vnni(adler: u32, p: &[u8]) -> u32 {
     );
 
     while data.len() >= 64 {
-        let n = std::cmp::min(data.len(), 4096) & !63;
+        let n = std::cmp::min(data.len(), BLOCK_SIZE) & !63;
         s2 += s1 * (n as u32);
 
         let mut v_s1 = _mm512_setzero_si512();
@@ -803,7 +804,7 @@ pub unsafe fn adler32_x86_avx512(adler: u32, p: &[u8]) -> u32 {
     );
 
     while data.len() >= 64 {
-        let n = std::cmp::min(data.len(), 4096) & !63;
+        let n = std::cmp::min(data.len(), BLOCK_SIZE) & !63;
         s2 += s1 * (n as u32);
 
         let mut v_s1 = _mm512_setzero_si512();
@@ -1051,7 +1052,7 @@ pub unsafe fn adler32_x86_avx512_vl(adler: u32, p: &[u8]) -> u32 {
     );
 
     while data.len() >= 32 {
-        let n = std::cmp::min(data.len(), 4096) & !31;
+        let n = std::cmp::min(data.len(), BLOCK_SIZE) & !31;
         s2 += s1 * (n as u32);
 
         let mut v_s1 = _mm256_setzero_si256();
