@@ -2038,14 +2038,38 @@ pub unsafe fn decompress_bmi2(
                                     }
                                 } else {
                                     let mut copied = 16;
-                                    while copied < length {
-                                        let copy_len = std::cmp::min(offset, length - copied);
-                                        std::ptr::copy_nonoverlapping(
-                                            out_ptr.add(src + copied),
-                                            out_ptr.add(dest + copied),
-                                            copy_len,
-                                        );
-                                        copied += copy_len;
+                                    // Optimization for small offsets where repeated memcpy overhead is high.
+                                    // Threshold 128 is heuristic.
+                                    // Safe because offset >= 32 here (offsets 1-31 are handled by specialized blocks or outer checks).
+                                    // With offset >= 32, we can copy 16 bytes at a time without destructive overlap.
+                                    if offset < 128 {
+                                        while copied + 16 <= length {
+                                            let v = _mm_loadu_si128(
+                                                out_ptr.add(src + copied) as *const __m128i
+                                            );
+                                            _mm_storeu_si128(
+                                                out_ptr.add(dest + copied) as *mut __m128i,
+                                                v,
+                                            );
+                                            copied += 16;
+                                        }
+                                        if copied < length {
+                                            std::ptr::copy_nonoverlapping(
+                                                out_ptr.add(src + copied),
+                                                out_ptr.add(dest + copied),
+                                                length - copied,
+                                            );
+                                        }
+                                    } else {
+                                        while copied < length {
+                                            let copy_len = std::cmp::min(offset, length - copied);
+                                            std::ptr::copy_nonoverlapping(
+                                                out_ptr.add(src + copied),
+                                                out_ptr.add(dest + copied),
+                                                copy_len,
+                                            );
+                                            copied += copy_len;
+                                        }
                                     }
                                 }
                             }
