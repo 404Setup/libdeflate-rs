@@ -576,7 +576,9 @@ impl MatchFinder {
 
     pub fn reset(&mut self) {
         self.hash_tab.fill(-1);
-        self.prev_tab.fill(0);
+        // Optimization: prev_tab doesn't need to be cleared because it's only accessed
+        // via chains starting from hash_tab (which is cleared). New insertions overwrite
+        // prev_tab entries before linking them.
         self.base_offset = 0;
     }
 
@@ -955,7 +957,8 @@ impl BtMatchFinder {
     pub fn reset(&mut self) {
         self.hash3_tab.fill([-1; 2]);
         self.hash4_tab.fill(-1);
-        self.child_tab.fill([0; 2]);
+        // Optimization: child_tab doesn't need to be cleared because it's only accessed
+        // via tree traversal starting from hash_tab (which is cleared).
         self.base_offset = 0;
     }
 
