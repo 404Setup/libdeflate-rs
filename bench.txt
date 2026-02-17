@@ -285,8 +285,6 @@ Compress/libdeflate-rs M Level 6/1048576
 Found 3 outliers among 100 measurements (3.00%)
   2 (2.00%) high mild
   1 (1.00%) high severe
-Benchmarking Compress/libdeflater M Level 6/1048576: Warming up for 3.0000 s
-Warning: Unable to complete 100 samples in 5.0s. You may wish to increase target time to 6.1s, enable flat sampling, or reduce sample count to 60.
 Compress/libdeflater M Level 6/1048576
                         time:   [1.2147 ms 1.2251 ms 1.2366 ms]
                         thrpt:  [808.66 MiB/s 816.26 MiB/s 823.25 MiB/s]
@@ -309,8 +307,6 @@ Found 9 outliers among 100 measurements (9.00%)
   4 (4.00%) low mild
   2 (2.00%) high mild
   2 (2.00%) high severe
-Benchmarking Compress/libdeflater M Level 9/1048576: Warming up for 3.0000 s
-Warning: Unable to complete 100 samples in 5.0s. You may wish to increase target time to 6.2s, enable flat sampling, or reduce sample count to 60.
 Compress/libdeflater M Level 9/1048576
                         time:   [1.2093 ms 1.2159 ms 1.2228 ms]
                         thrpt:  [817.79 MiB/s 822.45 MiB/s 826.93 MiB/s]
@@ -397,8 +393,6 @@ Compress/libdeflate-rs XL Level 6/67108864
                         time:   [-17.476% -16.835% -16.244%] (p = 0.00 < 0.05)
                         thrpt:  [+19.394% +20.243% +21.178%]
                         Performance has improved.
-Benchmarking Compress/libdeflater XL Level 6/67108864: Warming up for 3.0000 s
-Warning: Unable to complete 100 samples in 5.0s. You may wish to increase target time to 7.8s, or reduce sample count to 60.
 Compress/libdeflater XL Level 6/67108864
                         time:   [77.419 ms 77.873 ms 78.362 ms]
                         thrpt:  [816.72 MiB/s 821.86 MiB/s 826.67 MiB/s]
@@ -417,8 +411,6 @@ Compress/libdeflate-rs XL Level 9/67108864
                         Performance has improved.
 Found 4 outliers among 100 measurements (4.00%)
   4 (4.00%) high mild
-Benchmarking Compress/libdeflater XL Level 9/67108864: Warming up for 3.0000 s
-Warning: Unable to complete 100 samples in 5.0s. You may wish to increase target time to 8.1s, or reduce sample count to 60.
 Compress/libdeflater XL Level 9/67108864
                         time:   [78.980 ms 79.432 ms 79.899 ms]
                         thrpt:  [801.01 MiB/s 805.72 MiB/s 810.33 MiB/s]
@@ -1043,3 +1035,11 @@ Decompress offset5/libdeflate-rs offset5
                         Performance has improved.
 Found 10 outliers among 100 measurements (10.00%)
   10 (10.00%) high mild
+
+# Optimization Journal - 2025-02-23
+Investigated optimizing `src/compress/huffman_comp.rs` by reusing a persistent scratch buffer for frequency counting to avoid stack allocations of `[u32; 288]`.
+Benchmark: Compress/libdeflate-rs L Level 6/16777216
+Baseline: ~11.0ms (~1.40 GB/s)
+Result (slice reuse): ~11.5ms (~1.34 GB/s) - Regression
+Result (unsafe slice reuse): ~15.0ms (~1.02 GB/s) - Major Regression
+Conclusion: Reverted changes. Stack allocation of small constant arrays is significantly faster than reused dynamic slices in this context, likely due to better compiler optimization (SROA/vectorization) for constant-size stack arrays.
