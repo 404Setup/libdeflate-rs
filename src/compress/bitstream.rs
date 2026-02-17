@@ -38,6 +38,33 @@ impl<'a> Bitstream<'a> {
         self.write_bits_unchecked(bits, count)
     }
 
+    /// Writes bits assuming sufficient buffer space (at least 8 bytes at current `out_idx`).
+    ///
+    /// # Safety
+    ///
+    /// * `count` must be > 0.
+    /// * `bits` must not have any bits set above `count`.
+    /// * `self.out_idx + 8 <= self.output.len()`.
+    #[inline(always)]
+    pub unsafe fn write_bits_unchecked_fast(&mut self, bits: u32, count: u32) {
+        debug_assert!(count > 0);
+        debug_assert!(count <= 32);
+        debug_assert!(self.out_idx + 8 <= self.output.len());
+
+        self.bitbuf |= (bits as u64) << self.bitcount;
+        self.bitcount += count;
+
+        if self.bitcount >= 32 {
+            std::ptr::write_unaligned(
+                self.output.as_mut_ptr().add(self.out_idx) as *mut u64,
+                self.bitbuf.to_le(),
+            );
+            self.out_idx += 4;
+            self.bitbuf >>= 32;
+            self.bitcount -= 32;
+        }
+    }
+
     /// Writes bits without checking count or masking bits.
     ///
     /// # Safety
