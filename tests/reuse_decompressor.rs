@@ -1,5 +1,5 @@
 use libdeflate::Compressor;
-use libdeflate::decompress::{Decompressor, DecompressResult};
+use libdeflate::decompress::{DecompressResult, Decompressor};
 
 #[test]
 fn test_decompress_reuse_mixed() {
@@ -34,9 +34,15 @@ fn test_decompress_reuse_mixed() {
     // Second decompression (streaming)
     let mut out2 = vec![0u8; data.len()];
     let mut out_idx = 0;
-    let (res, _in_read, out_written) = decompressor.decompress_streaming(&compressed, &mut out2, &mut out_idx);
+    let (res, _in_read, out_written) =
+        decompressor.decompress_streaming(&compressed, &mut out2, &mut out_idx);
 
-    assert_eq!(res, DecompressResult::Success, "Streaming decompression failed: {:?}", res);
+    assert_eq!(
+        res,
+        DecompressResult::Success,
+        "Streaming decompression failed: {:?}",
+        res
+    );
     assert_eq!(out_written, data.len());
     assert_eq!(&out2[..out_written], data);
 }

@@ -726,6 +726,8 @@ impl Compressor {
             &mut self.offset_codewords,
         );
 
+        self.update_costs();
+
         self.dp_nodes.clear();
         self.dp_nodes.resize(
             processed + 1,
@@ -1383,6 +1385,8 @@ impl Compressor {
             &mut self.offset_codewords,
         );
 
+        self.update_costs();
+
         self.dp_nodes.clear();
         self.dp_nodes.resize(
             processed + 1,
@@ -1710,16 +1714,31 @@ impl Compressor {
     fn get_offset_extra_bits(&self, slot: usize) -> usize {
         OFFSET_EXTRA_BITS_TABLE[slot] as usize
     }
-    fn get_match_cost(&self, len: usize, offset: usize) -> u32 {
-        let len_info = unsafe { *LENGTH_WRITE_TABLE.get_unchecked(len) };
-        let len_slot = (len_info >> 24) as usize;
-        let len_extra_bits = ((len_info >> 16) & 0xFF) as u32;
+    fn update_costs(&mut self) {
+        for len in 3..=DEFLATE_MAX_MATCH_LEN {
+            let len_info = unsafe { *LENGTH_WRITE_TABLE.get_unchecked(len) };
+            let len_slot = (len_info >> 24) as usize;
+            let len_extra_bits = ((len_info >> 16) & 0xFF) as u32;
 
-        let len_cost = self.litlen_lens[257 + len_slot] as u32 + len_extra_bits;
-        let off_slot = self.get_offset_slot(offset);
-        let off_cost =
-            self.offset_lens[off_slot] as u32 + self.get_offset_extra_bits(off_slot) as u32;
-        len_cost + off_cost
+            let len_cost =
+                unsafe { *self.litlen_lens.get_unchecked(257 + len_slot) } as u32 + len_extra_bits;
+            unsafe { *self.length_costs.get_unchecked_mut(len) = len_cost };
+        }
+        for slot in 0..30 {
+            let extra_bits = unsafe { *OFFSET_EXTRA_BITS_TABLE.get_unchecked(slot) } as u32;
+            let off_cost = unsafe { *self.offset_lens.get_unchecked(slot) } as u32 + extra_bits;
+            unsafe { *self.offset_slot_costs.get_unchecked_mut(slot) = off_cost };
+        }
+    }
+
+    #[inline(always)]
+    fn get_match_cost(&self, len: usize, offset: usize) -> u32 {
+        unsafe {
+            let len_cost = *self.length_costs.get_unchecked(len);
+            let off_slot = self.get_offset_slot(offset);
+            let off_cost = *self.offset_slot_costs.get_unchecked(off_slot);
+            len_cost + off_cost
+        }
     }
 
     pub fn deflate_compress_bound(size: usize) -> usize {

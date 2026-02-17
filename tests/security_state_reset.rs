@@ -1,6 +1,5 @@
-
 use libdeflate::compress::{Compressor, FlushMode};
-use libdeflate::decompress::{Decompressor, DecompressResult, DecompressorState};
+use libdeflate::decompress::{DecompressResult, Decompressor, DecompressorState};
 
 #[test]
 fn test_state_corruption_after_one_shot_decompress() {
@@ -17,14 +16,16 @@ fn test_state_corruption_after_one_shot_decompress() {
     assert_eq!(res, libdeflate::compress::CompressResult::Success);
     println!("Compressed size: {}", size);
 
-    let compressed_data = unsafe {
-        std::slice::from_raw_parts(compressed.as_ptr() as *const u8, size)
-    };
+    let compressed_data =
+        unsafe { std::slice::from_raw_parts(compressed.as_ptr() as *const u8, size) };
 
     // 2. Split into two parts.
     // Ensure split point is within the data but not at the very end
     if size < 200 {
-        panic!("Compressed data too small ({}) to split reliably for this test", size);
+        panic!(
+            "Compressed data too small ({}) to split reliably for this test",
+            size
+        );
     }
     let split_point = size / 2;
     let (part1, part2) = compressed_data.split_at(split_point);
@@ -37,12 +38,15 @@ fn test_state_corruption_after_one_shot_decompress() {
     let (res1, in1, out1) = decompressor.decompress_streaming(part1, &mut output, &mut out_idx);
 
     // We expect ShortInput because we didn't provide full data
-    println!("Streaming part 1 result: {:?}, consumed: {}, produced: {}", res1, in1, out1);
+    println!(
+        "Streaming part 1 result: {:?}, consumed: {}, produced: {}",
+        res1, in1, out1
+    );
 
     match decompressor.state {
         DecompressorState::BlockBody | DecompressorState::BlockBodyOffset { .. } => {
             println!("State after part1: BlockBody (Correct)");
-        },
+        }
         state => {
             println!("State after part1: {:?}", state);
             // If we are not in BlockBody, we might have finished a block?
@@ -54,10 +58,10 @@ fn test_state_corruption_after_one_shot_decompress() {
     let other_data = vec![66u8; 500]; // "BBBB..."
     let mut other_compressed = vec![std::mem::MaybeUninit::uninit(); 1000];
     let mut other_comp = Compressor::new(6);
-    let (_, other_size, _) = other_comp.compress(&other_data, &mut other_compressed, FlushMode::Finish);
-    let other_compressed_slice = unsafe {
-        std::slice::from_raw_parts(other_compressed.as_ptr() as *const u8, other_size)
-    };
+    let (_, other_size, _) =
+        other_comp.compress(&other_data, &mut other_compressed, FlushMode::Finish);
+    let other_compressed_slice =
+        unsafe { std::slice::from_raw_parts(other_compressed.as_ptr() as *const u8, other_size) };
 
     let mut other_out = vec![0u8; 1000];
     let res_other = decompressor.decompress(other_compressed_slice, &mut other_out);
@@ -69,6 +73,8 @@ fn test_state_corruption_after_one_shot_decompress() {
     println!("State after one-shot: {:?}", decompressor.state);
 
     if decompressor.state != DecompressorState::Start {
-        panic!("VULNERABILITY: Decompressor state was not reset after one-shot decompression! Internal state corrupted.");
+        panic!(
+            "VULNERABILITY: Decompressor state was not reset after one-shot decompression! Internal state corrupted."
+        );
     }
 }

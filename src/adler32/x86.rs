@@ -586,7 +586,10 @@ pub unsafe fn adler32_x86_avx2_vnni(adler: u32, p: &[u8]) -> u32 {
             let p3 = _mm256_dpbusd_epi32(v_zero, d3, mults);
             let p4 = _mm256_dpbusd_epi32(v_zero, d4, mults);
 
-            v_s2 = _mm256_add_epi32(v_s2, _mm256_add_epi32(_mm256_add_epi32(p1, p2), _mm256_add_epi32(p3, p4)));
+            v_s2 = _mm256_add_epi32(
+                v_s2,
+                _mm256_add_epi32(_mm256_add_epi32(p1, p2), _mm256_add_epi32(p3, p4)),
+            );
 
             let s1_x4 = _mm256_slli_epi32(v_s1, 2);
             let u12 = _mm256_add_epi32(u1, u2);

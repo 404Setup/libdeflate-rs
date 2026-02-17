@@ -1,5 +1,6 @@
 use criterion::{BenchmarkId, Criterion, Throughput, criterion_group, criterion_main};
 use libdeflate::batch;
+use libdeflate::compress::bitstream::Bitstream;
 use libdeflate::crc32::crc32_slice8;
 use libdeflate::stream;
 use libdeflate::{Compressor, Decompressor, adler32, crc32};
@@ -7,7 +8,6 @@ use std::fs::File;
 use std::io::{Read, Write};
 use std::mem::MaybeUninit;
 use std::path::Path;
-use libdeflate::compress::bitstream::Bitstream;
 
 fn read_file(path: &str) -> Vec<u8> {
     let mut file = File::open(path).expect(&format!("Failed to open file {}", path));
@@ -1214,13 +1214,17 @@ fn bench_bitstream_micro(c: &mut Criterion) {
 
     group.bench_function("write_bits_upto_32 (28 bits)", |b| {
         let mut buffer: Vec<MaybeUninit<u8>> = Vec::with_capacity(size + 1024);
-        unsafe { buffer.set_len(size + 1024); }
+        unsafe {
+            buffer.set_len(size + 1024);
+        }
         b.iter(|| {
             let mut bs = Bitstream::new(&mut buffer);
             // Write 1MB of data using 28-bit writes
             let iterations = (size * 8) / 28;
             for _ in 0..iterations {
-                unsafe { bs.write_bits_upto_32(0x1234567, 28); }
+                unsafe {
+                    bs.write_bits_upto_32(0x1234567, 28);
+                }
             }
             bs.flush();
         });
@@ -1228,7 +1232,9 @@ fn bench_bitstream_micro(c: &mut Criterion) {
 
     group.bench_function("write_bits (13 bits)", |b| {
         let mut buffer: Vec<MaybeUninit<u8>> = Vec::with_capacity(size + 1024);
-        unsafe { buffer.set_len(size + 1024); }
+        unsafe {
+            buffer.set_len(size + 1024);
+        }
         b.iter(|| {
             let mut bs = Bitstream::new(&mut buffer);
             let iterations = (size * 8) / 13;
