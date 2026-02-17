@@ -613,9 +613,11 @@ impl MatchFinder {
 
         let src = data.as_ptr().add(pos);
         let src_val;
+        let mut src_val_4 = 0;
 
         if safe_to_read_u32 {
-            src_val = (src as *const u32).read_unaligned() & 0xFFFFFF;
+            src_val_4 = (src as *const u32).read_unaligned();
+            src_val = src_val_4 & 0xFFFFFF;
         } else {
             src_val = ((src.read() as u32) << 0)
                 | ((src.add(1).read() as u32) << 8)
@@ -675,31 +677,48 @@ impl MatchFinder {
             }
 
             if match_ok {
-                let match_val;
-                // Optimization: If we could safely read a u32 at the current position (`pos`),
-                // we can definitely read a u32 at any previous match position (`p_rel`), because
-                // `p_rel < pos` implies `p_rel + 4 < pos + 4 <= data.len()`.
-                // This allows us to lift the boundary check out of the loop for the vast majority of cases.
                 if safe_to_read_u32 {
-                    match_val = (match_ptr as *const u32).read_unaligned() & 0xFFFFFF;
-                } else if p_rel + 4 <= data.len() {
-                    match_val = (match_ptr as *const u32).read_unaligned() & 0xFFFFFF;
+                    let match_val_4 = (match_ptr as *const u32).read_unaligned();
+                    if match_val_4 == src_val_4 {
+                        let max_len = min(DEFLATE_MAX_MATCH_LEN, data.len() - pos);
+                        let len = (self.match_len)(match_ptr, src, max_len);
+
+                        if len > best_len {
+                            best_len = len;
+                            best_offset = offset;
+                            on_match(len, offset);
+                            if len == DEFLATE_MAX_MATCH_LEN {
+                                break;
+                            }
+                        }
+                    } else if (match_val_4 & 0xFFFFFF) == src_val {
+                        if 3 > best_len {
+                            best_len = 3;
+                            best_offset = offset;
+                            on_match(3, offset);
+                        }
+                    }
                 } else {
-                    match_val = ((match_ptr.read() as u32) << 0)
-                        | ((match_ptr.add(1).read() as u32) << 8)
-                        | ((match_ptr.add(2).read() as u32) << 16);
-                }
+                    let match_val;
+                    if p_rel + 4 <= data.len() {
+                        match_val = (match_ptr as *const u32).read_unaligned() & 0xFFFFFF;
+                    } else {
+                        match_val = ((match_ptr.read() as u32) << 0)
+                            | ((match_ptr.add(1).read() as u32) << 8)
+                            | ((match_ptr.add(2).read() as u32) << 16);
+                    }
 
-                if match_val == src_val {
-                    let max_len = min(DEFLATE_MAX_MATCH_LEN, data.len() - pos);
-                    let len = (self.match_len)(match_ptr, src, max_len);
+                    if match_val == src_val {
+                        let max_len = min(DEFLATE_MAX_MATCH_LEN, data.len() - pos);
+                        let len = (self.match_len)(match_ptr, src, max_len);
 
-                    if len > best_len {
-                        best_len = len;
-                        best_offset = offset;
-                        on_match(len, offset);
-                        if len == DEFLATE_MAX_MATCH_LEN {
-                            break;
+                        if len > best_len {
+                            best_len = len;
+                            best_offset = offset;
+                            on_match(len, offset);
+                            if len == DEFLATE_MAX_MATCH_LEN {
+                                break;
+                            }
                         }
                     }
                 }
