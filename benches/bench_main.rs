@@ -34,6 +34,29 @@ fn bench_crc32_slice8(c: &mut Criterion) {
     group.finish();
 }
 
+fn bench_adler32_nano(c: &mut Criterion) {
+    let sizes = [16, 31, 32, 48, 63];
+    let mut group = c.benchmark_group("Adler32 Nano");
+
+    for size in sizes {
+        let data = vec![0u8; size];
+        group.throughput(Throughput::Bytes(size as u64));
+
+        group.bench_with_input(
+            BenchmarkId::new("libdeflate-rs", size),
+            &size,
+            |b, &_size| {
+                b.iter(|| adler32(1, &data));
+            },
+        );
+
+        group.bench_with_input(BenchmarkId::new("libdeflater", size), &size, |b, &_size| {
+            b.iter(|| libdeflater::adler32(&data));
+        });
+    }
+    group.finish();
+}
+
 fn bench_decompress_offset28(c: &mut Criterion) {
     let path = "bench_data/data_offset28.bin";
     if !Path::new(path).exists() {
@@ -1293,6 +1316,7 @@ criterion_group!(
     bench_stream,
     bench_batch,
     bench_parallel_alloc,
+    bench_adler32_nano,
     bench_adler32_micro,
     bench_crc32_micro,
     bench_decompress_offset8,

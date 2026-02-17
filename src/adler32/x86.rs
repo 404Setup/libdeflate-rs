@@ -467,19 +467,69 @@ pub unsafe fn adler32_x86_avx2(adler: u32, p: &[u8]) -> u32 {
         s2 %= DIVISOR;
     }
 
-    let remaining = core::slice::from_raw_parts(ptr, len);
-    if remaining.len() >= 16 {
-        let res = adler32_x86_sse2((s2 << 16) | s1, remaining);
-        s1 = res & 0xFFFF;
-        s2 = res >> 16;
-    } else {
-        for &b in remaining {
-            s1 += b as u32;
-            s2 += s1;
-        }
-        s1 %= DIVISOR;
-        s2 %= DIVISOR;
+    if len >= 32 {
+        let d = _mm256_loadu_si256(ptr as *const __m256i);
+
+        let sad = _mm256_sad_epu8(d, v_zero);
+        let sad_lo = _mm256_castsi256_si128(sad);
+        let sad_hi = _mm256_extracti128_si256(sad, 1);
+        let sad_sum = _mm_add_epi64(sad_lo, sad_hi);
+        let sad_sum = _mm_add_epi64(sad_sum, _mm_unpackhi_epi64(sad_sum, sad_sum));
+        let s1_part = _mm_cvtsi128_si32(sad_sum) as u32;
+
+        s2 += s1 * 32;
+        s1 += s1_part;
+
+        let w_32 = _mm256_set_epi8(
+            1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24,
+            25, 26, 27, 28, 29, 30, 31, 32,
+        );
+        let p = _mm256_maddubs_epi16(d, w_32);
+        let s = _mm256_madd_epi16(p, ones_i16);
+
+        let s_lo = _mm256_castsi256_si128(s);
+        let s_hi = _mm256_extracti128_si256(s, 1);
+        let s_sum = _mm_add_epi32(s_lo, s_hi);
+        let s_sum = _mm_add_epi32(s_sum, _mm_shuffle_epi32(s_sum, 0x4E));
+        let s_sum = _mm_add_epi32(s_sum, _mm_shuffle_epi32(s_sum, 0xB1));
+
+        s2 += _mm_cvtsi128_si32(s_sum) as u32;
+
+        ptr = ptr.add(32);
+        len -= 32;
     }
+
+    if len >= 16 {
+        let d = _mm_loadu_si128(ptr as *const __m128i);
+        let v_zero_xmm = _mm_setzero_si128();
+
+        let sad = _mm_sad_epu8(d, v_zero_xmm);
+        let s1_part =
+            _mm_cvtsi128_si32(_mm_add_epi32(sad, _mm_unpackhi_epi64(sad, sad))) as u32;
+
+        s2 += s1 * 16;
+        s1 += s1_part;
+
+        let w_16 = _mm_set_epi8(1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16);
+        let p = _mm_maddubs_epi16(d, w_16);
+        let s = _mm_madd_epi16(p, _mm_set1_epi16(1));
+
+        let s_sum = _mm_add_epi32(s, _mm_shuffle_epi32(s, 0x4E));
+        let s_sum = _mm_add_epi32(s_sum, _mm_shuffle_epi32(s_sum, 0xB1));
+
+        s2 += _mm_cvtsi128_si32(s_sum) as u32;
+
+        ptr = ptr.add(16);
+        len -= 16;
+    }
+
+    let remaining = core::slice::from_raw_parts(ptr, len);
+    for &b in remaining {
+        s1 += b as u32;
+        s2 += s1;
+    }
+    s1 %= DIVISOR;
+    s2 %= DIVISOR;
 
     (s2 << 16) | s1
 }
