@@ -884,15 +884,11 @@ pub unsafe fn adler32_x86_avx2_vnni(adler: u32, p: &[u8]) -> u32 {
 }
 
 #[cfg(target_arch = "x86_64")]
-#[target_feature(enable = "avx512f")]
-unsafe fn hsum_epi32_avx512(v: __m512i) -> u32 {
-    let v256 = _mm256_add_epi32(
-        _mm512_extracti64x4_epi64(v, 0),
-        _mm512_extracti64x4_epi64(v, 1),
-    );
+#[target_feature(enable = "avx2")]
+unsafe fn hsum_epi32_avx256(v: __m256i) -> u32 {
     let v128 = _mm_add_epi32(
-        _mm256_extracti128_si256(v256, 0),
-        _mm256_extracti128_si256(v256, 1),
+        _mm256_extracti128_si256(v, 0),
+        _mm256_extracti128_si256(v, 1),
     );
     let v64 = _mm_add_epi32(v128, _mm_shuffle_epi32(v128, 0x4E));
     let v32 = _mm_add_epi32(v64, _mm_shuffle_epi32(v64, 0xB1));
@@ -919,7 +915,8 @@ pub unsafe fn adler32_x86_avx512_vnni(adler: u32, p: &[u8]) -> u32 {
         }
     }
 
-    let ones = _mm512_set1_epi8(1);
+    let ones_u8 = _mm512_set1_epi8(1);
+    let ones_i16 = _mm512_set1_epi16(1);
     let mults = _mm512_set_epi8(
         1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25,
         26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48,
@@ -1148,13 +1145,36 @@ pub unsafe fn adler32_x86_avx512_vnni(adler: u32, p: &[u8]) -> u32 {
         s2 %= DIVISOR;
     }
 
+    if data.len() >= 32 {
+        let d = _mm256_loadu_si256(data.as_ptr() as *const _);
+        let ones_256 = _mm256_set1_epi8(1);
+        let mults_256 = _mm256_set_epi8(
+            1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24,
+            25, 26, 27, 28, 29, 30, 31, 32,
+        );
+
+        let u = _mm256_dpbusd_epi32(_mm256_setzero_si256(), d, ones_256);
+        let p = _mm256_dpbusd_epi32(_mm256_setzero_si256(), d, mults_256);
+
+        let sum_u = hsum_epi32_avx256(u);
+        let sum_p = hsum_epi32_avx256(p);
+
+        s2 += s1 * 32 + sum_p;
+        s1 += sum_u;
+
+        data = &data[32..];
+    }
+
     if data.len() > 0 {
         let len = data.len();
         let mask = (1u32 << len) - 1;
         let d = _mm256_maskz_loadu_epi8(mask, data.as_ptr() as *const i8);
 
-        let s1_part = hsum_epi32_avx256(_mm256_dpbusd_epi32(_mm256_setzero_si256(), d, ones));
-        let s2_part_raw = hsum_epi32_avx256(_mm256_dpbusd_epi32(_mm256_setzero_si256(), d, mults));
+        let s1_part = hsum_epi32_avx256(_mm256_dpbusd_epi32(_mm256_setzero_si256(), d, _mm256_set1_epi8(1)));
+        let s2_part_raw = hsum_epi32_avx256(_mm256_dpbusd_epi32(_mm256_setzero_si256(), d, _mm256_set_epi8(
+            1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24,
+            25, 26, 27, 28, 29, 30, 31, 32,
+        )));
 
         let s2_part = s2_part_raw.wrapping_sub(((32 - len) as u32).wrapping_mul(s1_part));
         s2 = s2.wrapping_add(s1.wrapping_mul(len as u32));
