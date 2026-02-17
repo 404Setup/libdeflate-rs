@@ -15,3 +15,7 @@
 ## 2026-06-03 - [Adler32 AVX2 Register Spilling]
 **Learning:** An aggressive 256-byte loop unrolling in `adler32_x86_avx2` using 8 separate vector accumulators caused a 36% throughput regression for 512-byte inputs compared to 384 bytes. The excessive use of YMM registers (accumulators + constants + temporaries) forced the compiler to spill to the stack.
 **Action:** When unrolling loops for ILP, carefully balance the number of independent accumulators against the register file size. Reusing accumulators (4 instead of 8) eliminated spills while maintaining instruction-level parallelism for the heavy arithmetic instructions.
+
+## 2026-06-03 - [Tail Loop Overhead]
+**Learning:** When implementing tail handling for small inputs (e.g., < 64 bytes) using SIMD, wrapping the logic in a `while` loop caused significant regression (e.g., 31 bytes took 19.9ns vs 13.4ns baseline), likely due to branch prediction overhead or loop mechanics. Unrolling the loop into a sequence of `if` checks (straight-line code) recovered the performance and unlocked gains (13.0ns).
+**Action:** For hot paths handling small fixed-size chunks (tails), prefer unrolled `if` sequences over loops to minimize control flow overhead.
