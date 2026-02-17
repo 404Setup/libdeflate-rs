@@ -17,31 +17,34 @@ macro_rules! adler32_tail {
     ($s1:expr, $s2:expr, $ptr:expr, $len:expr) => {
         // We know len < 16 here because larger chunks are handled by SIMD or unrolled loops before calling this macro.
         if $len > 0 {
-            if $len >= 4 {
-                let v = ($ptr as *const u32).read_unaligned();
-                let b0 = v & 0xFF;
-                let b1 = (v >> 8) & 0xFF;
-                let b2 = (v >> 16) & 0xFF;
-                let b3 = (v >> 24);
+            if $len >= 8 {
+                let v = ($ptr as *const u64).read_unaligned();
+                let v_lo = v as u32;
+                let v_hi = (v >> 32) as u32;
 
-                $s2 += ($s1 << 2) + (b0 << 2) + (b1.wrapping_mul(3)) + (b2 << 1) + b3;
-                $s1 += b0 + b1 + b2 + b3;
+                let b0 = v_lo & 0xFF;
+                let b1 = (v_lo >> 8) & 0xFF;
+                let b2 = (v_lo >> 16) & 0xFF;
+                let b3 = (v_lo >> 24);
 
-                $ptr = $ptr.add(4);
-                $len -= 4;
-            }
-            if $len >= 4 {
-                let v = ($ptr as *const u32).read_unaligned();
-                let b0 = v & 0xFF;
-                let b1 = (v >> 8) & 0xFF;
-                let b2 = (v >> 16) & 0xFF;
-                let b3 = (v >> 24);
+                let b4 = v_hi & 0xFF;
+                let b5 = (v_hi >> 8) & 0xFF;
+                let b6 = (v_hi >> 16) & 0xFF;
+                let b7 = (v_hi >> 24);
 
-                $s2 += ($s1 << 2) + (b0 << 2) + (b1.wrapping_mul(3)) + (b2 << 1) + b3;
-                $s1 += b0 + b1 + b2 + b3;
+                $s2 += ($s1 << 3)
+                    + (b0 << 3)
+                    + (b1.wrapping_mul(7))
+                    + (b2.wrapping_mul(6))
+                    + (b3.wrapping_mul(5))
+                    + (b4 << 2)
+                    + (b5.wrapping_mul(3))
+                    + (b6 << 1)
+                    + b7;
+                $s1 += b0 + b1 + b2 + b3 + b4 + b5 + b6 + b7;
 
-                $ptr = $ptr.add(4);
-                $len -= 4;
+                $ptr = $ptr.add(8);
+                $len -= 8;
             }
             if $len >= 4 {
                 let v = ($ptr as *const u32).read_unaligned();
@@ -892,7 +895,7 @@ unsafe fn hsum_epi32_avx256(v: __m256i) -> u32 {
     _mm_cvtsi128_si32(v32) as u32
 }
 
-#[target_feature(enable = "avx512f,avx512bw,avx512vnni")]
+#[target_feature(enable = "avx512f,avx512bw,avx512vl,avx512vnni")]
 pub unsafe fn adler32_x86_avx512_vnni(adler: u32, p: &[u8]) -> u32 {
     let mut s1 = adler & 0xFFFF;
     let mut s2 = adler >> 16;
