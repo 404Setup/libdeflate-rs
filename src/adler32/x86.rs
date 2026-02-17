@@ -504,8 +504,7 @@ pub unsafe fn adler32_x86_avx2(adler: u32, p: &[u8]) -> u32 {
         let v_zero_xmm = _mm_setzero_si128();
 
         let sad = _mm_sad_epu8(d, v_zero_xmm);
-        let s1_part =
-            _mm_cvtsi128_si32(_mm_add_epi32(sad, _mm_unpackhi_epi64(sad, sad))) as u32;
+        let s1_part = _mm_cvtsi128_si32(_mm_add_epi32(sad, _mm_unpackhi_epi64(sad, sad))) as u32;
 
         s2 += s1 * 16;
         s1 += s1_part;
@@ -570,11 +569,97 @@ pub unsafe fn adler32_x86_avx2_vnni(adler: u32, p: &[u8]) -> u32 {
 
         let mut chunk_n = n;
 
-        // Optimization: For chunks >= 128 bytes, use the unrolled loop (processing 128 bytes per iteration)
-        // with 4 independent accumulators. This amortizes the setup overhead and increases instruction-level parallelism
-        // by breaking dependency chains for `vpdpbusd` (typical latency 5 cycles).
-        // The previous threshold of 2048 was overly conservative. The inner loop safely handles multiples of 128 bytes.
-        if chunk_n >= 128 {
+        // Optimization: For chunks >= 256 bytes, use an unrolled loop with 8 independent accumulators.
+        // This increases instruction-level parallelism to hide the latency of `vpdpbusd` (5 cycles on Golden Cove).
+        // We merge the global `v_s2` into `v_s2_a` to save a register, keeping total usage within AVX2 limits (16 YMMs).
+        if chunk_n >= 256 {
+            let mut ptr = data.as_ptr();
+            let mut v_s2_a = v_s2;
+            let mut v_s2_b = _mm256_setzero_si256();
+            let mut v_s2_c = _mm256_setzero_si256();
+            let mut v_s2_d = _mm256_setzero_si256();
+            let mut v_s2_e = _mm256_setzero_si256();
+            let mut v_s2_f = _mm256_setzero_si256();
+            let mut v_s2_g = _mm256_setzero_si256();
+            let mut v_s2_h = _mm256_setzero_si256();
+
+            while chunk_n >= 256 {
+                // Block 1 (0..128)
+                let d1 = _mm256_loadu_si256(ptr as *const __m256i);
+                v_s2_a = _mm256_dpbusd_avx_epi32(v_s2_a, d1, mults);
+                let u1 = _mm256_dpbusd_avx_epi32(_mm256_setzero_si256(), d1, ones);
+
+                let d2 = _mm256_loadu_si256(ptr.add(32) as *const __m256i);
+                v_s2_b = _mm256_dpbusd_avx_epi32(v_s2_b, d2, mults);
+                let u2 = _mm256_dpbusd_avx_epi32(_mm256_setzero_si256(), d2, ones);
+
+                let d3 = _mm256_loadu_si256(ptr.add(64) as *const __m256i);
+                v_s2_c = _mm256_dpbusd_avx_epi32(v_s2_c, d3, mults);
+                let u3 = _mm256_dpbusd_avx_epi32(_mm256_setzero_si256(), d3, ones);
+
+                let d4 = _mm256_loadu_si256(ptr.add(96) as *const __m256i);
+                v_s2_d = _mm256_dpbusd_avx_epi32(v_s2_d, d4, mults);
+                let u4 = _mm256_dpbusd_avx_epi32(_mm256_setzero_si256(), d4, ones);
+
+                let u12 = _mm256_add_epi32(u1, u2);
+                let u34 = _mm256_add_epi32(u3, u4);
+                let total_u_a = _mm256_add_epi32(u12, u34);
+
+                let u12_x2 = _mm256_slli_epi32(u12, 1);
+                let inc_a = _mm256_add_epi32(_mm256_add_epi32(u12_x2, u1), u3);
+
+                let s1_x4 = _mm256_slli_epi32(v_s1, 2);
+                v_s1_sums = _mm256_add_epi32(v_s1_sums, s1_x4);
+                v_s1_sums = _mm256_add_epi32(v_s1_sums, inc_a);
+                v_s1 = _mm256_add_epi32(v_s1, total_u_a);
+
+                // Block 2 (128..256)
+                let d5 = _mm256_loadu_si256(ptr.add(128) as *const __m256i);
+                v_s2_e = _mm256_dpbusd_avx_epi32(v_s2_e, d5, mults);
+                let u5 = _mm256_dpbusd_avx_epi32(_mm256_setzero_si256(), d5, ones);
+
+                let d6 = _mm256_loadu_si256(ptr.add(160) as *const __m256i);
+                v_s2_f = _mm256_dpbusd_avx_epi32(v_s2_f, d6, mults);
+                let u6 = _mm256_dpbusd_avx_epi32(_mm256_setzero_si256(), d6, ones);
+
+                let d7 = _mm256_loadu_si256(ptr.add(192) as *const __m256i);
+                v_s2_g = _mm256_dpbusd_avx_epi32(v_s2_g, d7, mults);
+                let u7 = _mm256_dpbusd_avx_epi32(_mm256_setzero_si256(), d7, ones);
+
+                let d8 = _mm256_loadu_si256(ptr.add(224) as *const __m256i);
+                v_s2_h = _mm256_dpbusd_avx_epi32(v_s2_h, d8, mults);
+                let u8 = _mm256_dpbusd_avx_epi32(_mm256_setzero_si256(), d8, ones);
+
+                let u56 = _mm256_add_epi32(u5, u6);
+                let u78 = _mm256_add_epi32(u7, u8);
+                let total_u_b = _mm256_add_epi32(u56, u78);
+
+                let u56_x2 = _mm256_slli_epi32(u56, 1);
+                let inc_b = _mm256_add_epi32(_mm256_add_epi32(u56_x2, u5), u7);
+
+                let s1_x4_b = _mm256_slli_epi32(v_s1, 2);
+                v_s1_sums = _mm256_add_epi32(v_s1_sums, s1_x4_b);
+                v_s1_sums = _mm256_add_epi32(v_s1_sums, inc_b);
+                v_s1 = _mm256_add_epi32(v_s1, total_u_b);
+
+                ptr = ptr.add(256);
+                chunk_n -= 256;
+            }
+            v_s2 = _mm256_add_epi32(
+                _mm256_add_epi32(
+                    _mm256_add_epi32(v_s2_a, v_s2_b),
+                    _mm256_add_epi32(v_s2_c, v_s2_d),
+                ),
+                _mm256_add_epi32(
+                    _mm256_add_epi32(v_s2_e, v_s2_f),
+                    _mm256_add_epi32(v_s2_g, v_s2_h),
+                ),
+            );
+            let processed = ptr as usize - data.as_ptr() as usize;
+            data = &data[processed..];
+        }
+
+        while chunk_n >= 128 {
             let mut ptr = data.as_ptr();
             let mut v_s2_a = _mm256_setzero_si256();
             let mut v_s2_b = _mm256_setzero_si256();
