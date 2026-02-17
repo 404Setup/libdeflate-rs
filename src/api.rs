@@ -202,7 +202,10 @@ impl Decompressor {
         // Security check: prevent massive allocations for small inputs (Zip bomb prevention)
         // Max compression ratio for Deflate is ~1032:1. We use a generous limit of 2000:1 + overhead.
         // This prevents allocating GBs of memory for small inputs.
-        let limit = data.len().saturating_mul(self.limit_ratio).saturating_add(4096);
+        let limit = data
+            .len()
+            .saturating_mul(self.limit_ratio)
+            .saturating_add(4096);
         if expected_size > limit {
             return Err(io::Error::new(
                 io::ErrorKind::InvalidInput,

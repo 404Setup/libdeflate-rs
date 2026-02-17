@@ -67,14 +67,22 @@ fn test_decompression_ratio_limit() {
     // Should NOT return InvalidInput (might return InvalidData because input is garbage)
     let res = decompressor.decompress_deflate(&input, 20000);
     if let Err(e) = &res {
-        assert_ne!(e.kind(), io::ErrorKind::InvalidInput, "Should not reject 20000 bytes for 10 bytes input with default ratio");
+        assert_ne!(
+            e.kind(),
+            io::ErrorKind::InvalidInput,
+            "Should not reject 20000 bytes for 10 bytes input with default ratio"
+        );
     }
 
     // Case 2: Exceed default limit (30000 > 24096)
     // Should return InvalidInput
     let res = decompressor.decompress_deflate(&input, 30000);
     assert!(res.is_err());
-    assert_eq!(res.unwrap_err().kind(), io::ErrorKind::InvalidInput, "Should reject 30000 bytes for 10 bytes input with default ratio");
+    assert_eq!(
+        res.unwrap_err().kind(),
+        io::ErrorKind::InvalidInput,
+        "Should reject 30000 bytes for 10 bytes input with default ratio"
+    );
 
     // Case 3: Set custom limit ratio to 10
     decompressor.set_limit_ratio(10);
@@ -83,11 +91,19 @@ fn test_decompression_ratio_limit() {
     // Case 4: Exceed custom limit (5000 > 4196)
     let res = decompressor.decompress_deflate(&input, 5000);
     assert!(res.is_err());
-    assert_eq!(res.unwrap_err().kind(), io::ErrorKind::InvalidInput, "Should reject 5000 bytes for 10 bytes input with ratio 10");
+    assert_eq!(
+        res.unwrap_err().kind(),
+        io::ErrorKind::InvalidInput,
+        "Should reject 5000 bytes for 10 bytes input with ratio 10"
+    );
 
     // Case 5: Within custom limit (4000 <= 4196)
     let res = decompressor.decompress_deflate(&input, 4000);
     if let Err(e) = &res {
-        assert_ne!(e.kind(), io::ErrorKind::InvalidInput, "Should not reject 4000 bytes for 10 bytes input with ratio 10");
+        assert_ne!(
+            e.kind(),
+            io::ErrorKind::InvalidInput,
+            "Should not reject 4000 bytes for 10 bytes input with ratio 10"
+        );
     }
 }
