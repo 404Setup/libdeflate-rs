@@ -1108,11 +1108,20 @@ impl Compressor {
         }
         let mut in_pos = start_pos;
         for seq in &self.sequences {
-            for _ in 0..seq.litrunlen {
-                if !self.write_literal(bs, input[in_pos]) {
-                    return false;
+            if seq.litrunlen > 0 {
+                if bs.out_idx + 16 + (seq.litrunlen as usize * 2) < bs.output.len() {
+                    for _ in 0..seq.litrunlen {
+                        unsafe { self.write_literal_fast(bs, input[in_pos]) };
+                        in_pos += 1;
+                    }
+                } else {
+                    for _ in 0..seq.litrunlen {
+                        if !self.write_literal(bs, input[in_pos]) {
+                            return false;
+                        }
+                        in_pos += 1;
+                    }
                 }
-                in_pos += 1;
             }
             if seq.length >= 3 {
                 if !self.write_match(bs, seq.length as usize, seq.offset as usize) {
@@ -1664,6 +1673,13 @@ impl Compressor {
         gen_codewords_from_lens(&self.litlen_lens, &mut self.litlen_codewords, 9);
         gen_codewords_from_lens(&self.offset_lens, &mut self.offset_codewords, 5);
         self.update_huffman_tables();
+    }
+
+    #[inline(always)]
+    unsafe fn write_literal_fast(&self, bs: &mut Bitstream, lit: u8) {
+        let sym = lit as usize;
+        let entry = *self.litlen_table.get_unchecked(sym);
+        bs.write_bits_unchecked_fast(entry as u32, (entry >> 32) as u32)
     }
 
     fn write_literal(&self, bs: &mut Bitstream, lit: u8) -> bool {
