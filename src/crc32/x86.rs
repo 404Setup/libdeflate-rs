@@ -664,11 +664,7 @@ pub unsafe fn crc32_x86_vpclmulqdq_avx2(crc: u32, p: &[u8]) -> u32 {
             );
 
             while len >= 256 {
-                v0 = fold_vec256(
-                    v0,
-                    _mm256_loadu_si256(data.as_ptr() as *const _),
-                    mults_8v,
-                );
+                v0 = fold_vec256(v0, _mm256_loadu_si256(data.as_ptr() as *const _), mults_8v);
                 v1 = fold_vec256(
                     v1,
                     _mm256_loadu_si256(data.as_ptr().add(32) as *const _),
@@ -726,11 +722,7 @@ pub unsafe fn crc32_x86_vpclmulqdq_avx2(crc: u32, p: &[u8]) -> u32 {
         }
 
         while len >= 128 {
-            v0 = fold_vec256(
-                v0,
-                _mm256_loadu_si256(data.as_ptr() as *const _),
-                mults_4v,
-            );
+            v0 = fold_vec256(v0, _mm256_loadu_si256(data.as_ptr() as *const _), mults_4v);
             v1 = fold_vec256(
                 v1,
                 _mm256_loadu_si256(data.as_ptr().add(32) as *const _),

@@ -19,3 +19,7 @@
 ## 2026-06-03 - [Tail Loop Overhead]
 **Learning:** When implementing tail handling for small inputs (e.g., < 64 bytes) using SIMD, wrapping the logic in a `while` loop caused significant regression (e.g., 31 bytes took 19.9ns vs 13.4ns baseline), likely due to branch prediction overhead or loop mechanics. Unrolling the loop into a sequence of `if` checks (straight-line code) recovered the performance and unlocked gains (13.0ns).
 **Action:** For hot paths handling small fixed-size chunks (tails), prefer unrolled `if` sequences over loops to minimize control flow overhead.
+
+## 2026-06-04 - [Adler32 AVX2 VNNI Optimization]
+**Learning:** Optimizing `adler32_x86_avx2_vnni` by unrolling to 256 bytes (8 accumulators) yielded a 44% throughput improvement for 256-byte inputs. However, holding intermediate `u` vectors for batch reduction caused register spilling (17+ registers needed).
+**Action:** To fit 8 accumulators within 16 AVX2 registers, interleave the reduction of temporary vectors (`u`) with the accumulation steps (`v_s2`), allowing registers to be freed earlier. Merging the global accumulator into a local one and generating `v_zero` on-the-fly also saved registers.
