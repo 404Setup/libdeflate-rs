@@ -35,7 +35,7 @@ macro_rules! refill_bits {
     };
 }
 
-const OFFSET9_MASKS: [u8; 144] = [
+static OFFSET9_MASKS: [u8; 144] = [
     0, 1, 2, 3, 4, 5, 6, 7, 8, 0, 1, 2, 3, 4, 5, 6, 7, 8, 0, 1, 2, 3, 4, 5, 6, 7, 8, 0, 1, 2, 3, 4,
     5, 6, 7, 8, 0, 1, 2, 3, 4, 5, 6, 7, 8, 0, 1, 2, 3, 4, 5, 6, 7, 8, 0, 1, 2, 3, 4, 5, 6, 7, 8, 0,
     1, 2, 3, 4, 5, 6, 7, 8, 0, 1, 2, 3, 4, 5, 6, 7, 8, 0, 1, 2, 3, 4, 5, 6, 7, 8, 0, 1, 2, 3, 4, 5,
@@ -43,44 +43,21 @@ const OFFSET9_MASKS: [u8; 144] = [
     2, 3, 4, 5, 6, 7, 8, 0, 1, 2, 3, 4, 5, 6, 7, 8,
 ];
 
-// LCM(3, 16) = 48. 3 vectors.
-const OFFSET3_MASKS: [u8; 48] = [
-    0, 1, 2, 0, 1, 2, 0, 1, 2, 0, 1, 2, 0, 1, 2, 0, 1, 2, 0, 1, 2, 0, 1, 2, 0, 1, 2, 0, 1, 2, 0, 1,
-    2, 0, 1, 2, 0, 1, 2, 0, 1, 2, 0, 1, 2, 0, 1, 2,
-];
-// LCM(5, 16) = 80. 5 vectors.
-const OFFSET5_MASKS: [u8; 80] = [
-    0, 1, 2, 3, 4, 0, 1, 2, 3, 4, 0, 1, 2, 3, 4, 0, 1, 2, 3, 4, 0, 1, 2, 3, 4, 0, 1, 2, 3, 4, 0, 1,
-    2, 3, 4, 0, 1, 2, 3, 4, 0, 1, 2, 3, 4, 0, 1, 2, 3, 4, 0, 1, 2, 3, 4, 0, 1, 2, 3, 4, 0, 1, 2, 3,
-    4, 0, 1, 2, 3, 4, 0, 1, 2, 3, 4, 0, 1, 2, 3, 4,
-];
-// LCM(6, 16) = 48. 3 vectors.
-const OFFSET6_MASKS: [u8; 48] = [
-    0, 1, 2, 3, 4, 5, 0, 1, 2, 3, 4, 5, 0, 1, 2, 3, 4, 5, 0, 1, 2, 3, 4, 5, 0, 1, 2, 3, 4, 5, 0, 1,
-    2, 3, 4, 5, 0, 1, 2, 3, 4, 5, 0, 1, 2, 3, 4, 5,
-];
-// LCM(7, 16) = 112. 7 vectors.
-const OFFSET7_MASKS: [u8; 112] = [
-    0, 1, 2, 3, 4, 5, 6, 0, 1, 2, 3, 4, 5, 6, 0, 1, 2, 3, 4, 5, 6, 0, 1, 2, 3, 4, 5, 6, 0, 1, 2, 3,
-    4, 5, 6, 0, 1, 2, 3, 4, 5, 6, 0, 1, 2, 3, 4, 5, 6, 0, 1, 2, 3, 4, 5, 6, 0, 1, 2, 3, 4, 5, 6, 0,
-    1, 2, 3, 4, 5, 6, 0, 1, 2, 3, 4, 5, 6, 0, 1, 2, 3, 4, 5, 6, 0, 1, 2, 3, 4, 5, 6, 0, 1, 2, 3, 4,
-    5, 6, 0, 1, 2, 3, 4, 5, 6, 0, 1, 2, 3, 4, 5, 6,
-];
 // LCM(12, 16) = 48. 3 vectors.
-const OFFSET12_MASKS: [u8; 48] = [
+static OFFSET12_MASKS: [u8; 48] = [
     0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 0, 1, 2, 3, 4, 5,
     6, 7, 8, 9, 10, 11, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11,
 ];
 
 // LCM(10, 16) = 80. 5 vectors.
-const OFFSET10_MASKS: [u8; 80] = [
+static OFFSET10_MASKS: [u8; 80] = [
     0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 0, 1,
     2, 3, 4, 5, 6, 7, 8, 9, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 0, 1, 2, 3,
     4, 5, 6, 7, 8, 9, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9,
 ];
 
 // LCM(11, 16) = 176. 11 vectors.
-const OFFSET11_MASKS: [u8; 176] = [
+static OFFSET11_MASKS: [u8; 176] = [
     0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 0, 1, 2, 3, 4, 5, 6, 7, 8,
     9, 10, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 0, 1, 2, 3, 4, 5, 6,
     7, 8, 9, 10, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 0, 1, 2, 3, 4,
@@ -90,7 +67,7 @@ const OFFSET11_MASKS: [u8; 176] = [
 ];
 
 // LCM(15, 16) = 240. 15 vectors.
-const OFFSET15_MASKS: [u8; 240] = [
+static OFFSET15_MASKS: [u8; 240] = [
     0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13,
     14, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12,
     13, 14, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11,
@@ -103,7 +80,7 @@ const OFFSET15_MASKS: [u8; 240] = [
 ];
 
 // LCM(14, 16) = 112. 7 vectors.
-const OFFSET14_MASKS: [u8; 112] = [
+static OFFSET14_MASKS: [u8; 112] = [
     0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 0,
     1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 0, 1,
     2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 0, 1, 2,
@@ -111,7 +88,7 @@ const OFFSET14_MASKS: [u8; 112] = [
 ];
 
 // LCM(13, 16) = 208. 13 vectors.
-const OFFSET13_MASKS: [u8; 208] = [
+static OFFSET13_MASKS: [u8; 208] = [
     0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 0, 1, 2, 3,
     4, 5, 6, 7, 8, 9, 10, 11, 12, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 0, 1, 2, 3, 4, 5, 6, 7,
     8, 9, 10, 11, 12, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10,
@@ -121,81 +98,6 @@ const OFFSET13_MASKS: [u8; 208] = [
     9, 10, 11, 12, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11,
     12,
 ];
-
-#[cfg(target_arch = "x86_64")]
-#[target_feature(enable = "avx2")]
-unsafe fn copy_match_offset3_avx2(dest: *mut u8, val: u32, length: usize) -> usize {
-    let v_pat = _mm256_set1_epi32(val as i32);
-    let masks_ptr = OFFSET3_MASKS.as_ptr() as *const __m128i;
-    let m0 = _mm_loadu_si128(masks_ptr);
-    let m1 = _mm_loadu_si128(masks_ptr.add(1));
-    let m2 = _mm_loadu_si128(masks_ptr.add(2));
-
-    // Construct 256-bit shuffle masks by combining 128-bit masks.
-    // The pattern repeats every 3 bytes.
-    // m0 covers bytes 0..16. m1 covers 16..32. m2 covers 32..48.
-    //
-    // Iteration 1 (0..32): Uses [m0, m1].
-    // Iteration 2 (32..64): Starts at offset 32 (32 % 3 = 2). Needs pattern starting with 2 (m2).
-    //                       Lane 1 starts at offset 48 (48 % 3 = 0). Needs pattern starting with 0 (m0).
-    //                       Uses [m2, m0].
-    // Iteration 3 (64..96): Starts at offset 64 (64 % 3 = 1). Needs pattern starting with 1 (m1).
-    //                       Lane 1 starts at offset 80 (80 % 3 = 2). Needs pattern starting with 2 (m2).
-    //                       Uses [m1, m2].
-    let mask_a = _mm256_inserti128_si256(_mm256_castsi128_si256(m0), m1, 1);
-    let mask_b = _mm256_inserti128_si256(_mm256_castsi128_si256(m2), m0, 1);
-    let mask_c = _mm256_inserti128_si256(_mm256_castsi128_si256(m1), m2, 1);
-
-    let mut copied = 0;
-    while copied + 96 <= length {
-        let v_a = _mm256_shuffle_epi8(v_pat, mask_a);
-        let v_b = _mm256_shuffle_epi8(v_pat, mask_b);
-        let v_c = _mm256_shuffle_epi8(v_pat, mask_c);
-
-        _mm256_storeu_si256(dest.add(copied) as *mut __m256i, v_a);
-        _mm256_storeu_si256(dest.add(copied + 32) as *mut __m256i, v_b);
-        _mm256_storeu_si256(dest.add(copied + 64) as *mut __m256i, v_c);
-
-        copied += 96;
-    }
-    copied
-}
-
-#[cfg(target_arch = "x86_64")]
-#[target_feature(enable = "avx2")]
-unsafe fn copy_match_offset5_avx2(dest: *mut u8, val: u64, length: usize) -> usize {
-    let v_pat = _mm256_set1_epi64x(val as i64);
-    let masks_ptr = OFFSET5_MASKS.as_ptr() as *const __m128i;
-    let m0 = _mm_loadu_si128(masks_ptr);
-    let m1 = _mm_loadu_si128(masks_ptr.add(1));
-    let m2 = _mm_loadu_si128(masks_ptr.add(2));
-    let m3 = _mm_loadu_si128(masks_ptr.add(3));
-    let m4 = _mm_loadu_si128(masks_ptr.add(4));
-
-    let mask_0 = _mm256_inserti128_si256(_mm256_castsi128_si256(m0), m1, 1);
-    let mask_1 = _mm256_inserti128_si256(_mm256_castsi128_si256(m2), m3, 1);
-    let mask_2 = _mm256_inserti128_si256(_mm256_castsi128_si256(m4), m0, 1);
-    let mask_3 = _mm256_inserti128_si256(_mm256_castsi128_si256(m1), m2, 1);
-    let mask_4 = _mm256_inserti128_si256(_mm256_castsi128_si256(m3), m4, 1);
-
-    let mut copied = 0;
-    while copied + 160 <= length {
-        let v0 = _mm256_shuffle_epi8(v_pat, mask_0);
-        let v1 = _mm256_shuffle_epi8(v_pat, mask_1);
-        let v2 = _mm256_shuffle_epi8(v_pat, mask_2);
-        let v3 = _mm256_shuffle_epi8(v_pat, mask_3);
-        let v4 = _mm256_shuffle_epi8(v_pat, mask_4);
-
-        _mm256_storeu_si256(dest.add(copied) as *mut __m256i, v0);
-        _mm256_storeu_si256(dest.add(copied + 32) as *mut __m256i, v1);
-        _mm256_storeu_si256(dest.add(copied + 64) as *mut __m256i, v2);
-        _mm256_storeu_si256(dest.add(copied + 96) as *mut __m256i, v3);
-        _mm256_storeu_si256(dest.add(copied + 128) as *mut __m256i, v4);
-
-        copied += 160;
-    }
-    copied
-}
 
 #[cfg(target_arch = "x86_64")]
 #[target_feature(enable = "bmi2,ssse3")]
@@ -967,9 +869,8 @@ pub unsafe fn decompress_bmi2(
                                     let b = *src;
                                     std::ptr::write_bytes(out_next, b, length);
                                 } else if offset < 8 {
-                                    if offset == 1 || offset == 2 || offset == 4 {
+                                    if offset == 2 || offset == 4 {
                                         let v_pattern = match offset {
-                                            1 => _mm_set1_epi8(*src as i8),
                                             2 => _mm_set1_epi16(std::ptr::read_unaligned(
                                                 src as *const u16,
                                             )
@@ -1030,270 +931,11 @@ pub unsafe fn decompress_bmi2(
                                             *out_next.add(i) = (pattern >> ((i & 7) * 8)) as u8;
                                             i += 1;
                                         }
-                                    } else if offset == 3 {
-                                        let dest_ptr = out_next;
-                                        let v0 = std::ptr::read_unaligned(src as *const u16) as u32;
-                                        let v1 = std::ptr::read_unaligned(src.add(1) as *const u16)
-                                            as u32;
-                                        let val = v0 | (v1 << 8);
-
-                                        let mut copied = 0;
-                                        if is_x86_feature_detected!("avx2") {
-                                            copied = copy_match_offset3_avx2(dest_ptr, val, length);
-                                        }
-
-                                        let v_pat = _mm_cvtsi32_si128(val as i32);
-                                        let masks_ptr = OFFSET3_MASKS.as_ptr() as *const __m128i;
-                                        let v_base =
-                                            _mm_shuffle_epi8(v_pat, _mm_loadu_si128(masks_ptr));
-
-                                        while copied + 48 <= length {
-                                            _mm_storeu_si128(
-                                                dest_ptr.add(copied) as *mut __m128i,
-                                                v_base,
-                                            );
-                                            _mm_storeu_si128(
-                                                dest_ptr.add(copied + 16) as *mut __m128i,
-                                                _mm_shuffle_epi8(
-                                                    v_pat,
-                                                    _mm_loadu_si128(masks_ptr.add(1)),
-                                                ),
-                                            );
-                                            _mm_storeu_si128(
-                                                dest_ptr.add(copied + 32) as *mut __m128i,
-                                                _mm_shuffle_epi8(
-                                                    v_pat,
-                                                    _mm_loadu_si128(masks_ptr.add(2)),
-                                                ),
-                                            );
-                                            copied += 48;
-                                        }
-                                        while copied + 16 <= length {
-                                            let idx = (copied % 48) / 16;
-                                            let v = if idx == 0 {
-                                                v_base
-                                            } else {
-                                                _mm_shuffle_epi8(
-                                                    v_pat,
-                                                    _mm_loadu_si128(masks_ptr.add(idx)),
-                                                )
-                                            };
-                                            _mm_storeu_si128(
-                                                dest_ptr.add(copied) as *mut __m128i,
-                                                v,
-                                            );
-                                            copied += 16;
-                                        }
-                                        while copied < length {
-                                            *dest_ptr.add(copied) = *src.add(copied);
-                                            copied += 1;
-                                        }
-                                    } else if offset == 5 {
-                                        let dest_ptr = out_next;
-                                        let v0 = std::ptr::read_unaligned(src as *const u32) as u64;
-                                        let v1 = std::ptr::read_unaligned(src.add(1) as *const u32)
-                                            as u64;
-                                        let val = v0 | (v1 << 8);
-
-                                        let mut copied = 0;
-                                        if is_x86_feature_detected!("avx2") {
-                                            copied = copy_match_offset5_avx2(dest_ptr, val, length);
-                                        }
-
-                                        let v_pat = _mm_cvtsi64_si128(val as i64);
-                                        let masks_ptr = OFFSET5_MASKS.as_ptr() as *const __m128i;
-                                        let v_base =
-                                            _mm_shuffle_epi8(v_pat, _mm_loadu_si128(masks_ptr));
-
-                                        while copied + 80 <= length {
-                                            _mm_storeu_si128(
-                                                dest_ptr.add(copied) as *mut __m128i,
-                                                v_base,
-                                            );
-                                            _mm_storeu_si128(
-                                                dest_ptr.add(copied + 16) as *mut __m128i,
-                                                _mm_shuffle_epi8(
-                                                    v_pat,
-                                                    _mm_loadu_si128(masks_ptr.add(1)),
-                                                ),
-                                            );
-                                            _mm_storeu_si128(
-                                                dest_ptr.add(copied + 32) as *mut __m128i,
-                                                _mm_shuffle_epi8(
-                                                    v_pat,
-                                                    _mm_loadu_si128(masks_ptr.add(2)),
-                                                ),
-                                            );
-                                            _mm_storeu_si128(
-                                                dest_ptr.add(copied + 48) as *mut __m128i,
-                                                _mm_shuffle_epi8(
-                                                    v_pat,
-                                                    _mm_loadu_si128(masks_ptr.add(3)),
-                                                ),
-                                            );
-                                            _mm_storeu_si128(
-                                                dest_ptr.add(copied + 64) as *mut __m128i,
-                                                _mm_shuffle_epi8(
-                                                    v_pat,
-                                                    _mm_loadu_si128(masks_ptr.add(4)),
-                                                ),
-                                            );
-                                            copied += 80;
-                                        }
-                                        while copied + 16 <= length {
-                                            let idx = (copied % 80) / 16;
-                                            let v = if idx == 0 {
-                                                v_base
-                                            } else {
-                                                _mm_shuffle_epi8(
-                                                    v_pat,
-                                                    _mm_loadu_si128(masks_ptr.add(idx)),
-                                                )
-                                            };
-                                            _mm_storeu_si128(
-                                                dest_ptr.add(copied) as *mut __m128i,
-                                                v,
-                                            );
-                                            copied += 16;
-                                        }
-                                        while copied < length {
-                                            *dest_ptr.add(copied) = *src.add(copied);
-                                            copied += 1;
-                                        }
-                                    } else if offset == 6 {
-                                        let dest_ptr = out_next;
-                                        let v0 = std::ptr::read_unaligned(src as *const u32) as u64;
-                                        let v1 = std::ptr::read_unaligned(src.add(2) as *const u32)
-                                            as u64;
-                                        let val = v0 | (v1 << 16);
-                                        let v_pat = _mm_cvtsi64_si128(val as i64);
-                                        let masks_ptr = OFFSET6_MASKS.as_ptr() as *const __m128i;
-                                        let v_base =
-                                            _mm_shuffle_epi8(v_pat, _mm_loadu_si128(masks_ptr));
-
-                                        let mut copied = 0;
-                                        while copied + 48 <= length {
-                                            _mm_storeu_si128(
-                                                dest_ptr.add(copied) as *mut __m128i,
-                                                v_base,
-                                            );
-                                            _mm_storeu_si128(
-                                                dest_ptr.add(copied + 16) as *mut __m128i,
-                                                _mm_shuffle_epi8(
-                                                    v_pat,
-                                                    _mm_loadu_si128(masks_ptr.add(1)),
-                                                ),
-                                            );
-                                            _mm_storeu_si128(
-                                                dest_ptr.add(copied + 32) as *mut __m128i,
-                                                _mm_shuffle_epi8(
-                                                    v_pat,
-                                                    _mm_loadu_si128(masks_ptr.add(2)),
-                                                ),
-                                            );
-                                            copied += 48;
-                                        }
-                                        while copied + 16 <= length {
-                                            let idx = (copied % 48) / 16;
-                                            let v = if idx == 0 {
-                                                v_base
-                                            } else {
-                                                _mm_shuffle_epi8(
-                                                    v_pat,
-                                                    _mm_loadu_si128(masks_ptr.add(idx)),
-                                                )
-                                            };
-                                            _mm_storeu_si128(
-                                                dest_ptr.add(copied) as *mut __m128i,
-                                                v,
-                                            );
-                                            copied += 16;
-                                        }
-                                        while copied < length {
-                                            *dest_ptr.add(copied) = *src.add(copied);
-                                            copied += 1;
-                                        }
                                     } else {
-                                        // offset == 7
-                                        let dest_ptr = out_next;
-                                        let v0 = std::ptr::read_unaligned(src as *const u32) as u64;
-                                        let v1 =
-                                            std::ptr::read_unaligned(src.add(3) as *const u32)
-                                                as u64;
-                                        let val = v0 | (v1 << 24);
-                                        let v_pat = _mm_cvtsi64_si128(val as i64);
-                                        let masks_ptr = OFFSET7_MASKS.as_ptr() as *const __m128i;
-                                        let v_base =
-                                            _mm_shuffle_epi8(v_pat, _mm_loadu_si128(masks_ptr));
-
+                                        // Simple loop for offsets 3, 5, 6, 7
                                         let mut copied = 0;
-                                        while copied + 112 <= length {
-                                            _mm_storeu_si128(
-                                                dest_ptr.add(copied) as *mut __m128i,
-                                                v_base,
-                                            );
-                                            _mm_storeu_si128(
-                                                dest_ptr.add(copied + 16) as *mut __m128i,
-                                                _mm_shuffle_epi8(
-                                                    v_pat,
-                                                    _mm_loadu_si128(masks_ptr.add(1)),
-                                                ),
-                                            );
-                                            _mm_storeu_si128(
-                                                dest_ptr.add(copied + 32) as *mut __m128i,
-                                                _mm_shuffle_epi8(
-                                                    v_pat,
-                                                    _mm_loadu_si128(masks_ptr.add(2)),
-                                                ),
-                                            );
-                                            _mm_storeu_si128(
-                                                dest_ptr.add(copied + 48) as *mut __m128i,
-                                                _mm_shuffle_epi8(
-                                                    v_pat,
-                                                    _mm_loadu_si128(masks_ptr.add(3)),
-                                                ),
-                                            );
-                                            _mm_storeu_si128(
-                                                dest_ptr.add(copied + 64) as *mut __m128i,
-                                                _mm_shuffle_epi8(
-                                                    v_pat,
-                                                    _mm_loadu_si128(masks_ptr.add(4)),
-                                                ),
-                                            );
-                                            _mm_storeu_si128(
-                                                dest_ptr.add(copied + 80) as *mut __m128i,
-                                                _mm_shuffle_epi8(
-                                                    v_pat,
-                                                    _mm_loadu_si128(masks_ptr.add(5)),
-                                                ),
-                                            );
-                                            _mm_storeu_si128(
-                                                dest_ptr.add(copied + 96) as *mut __m128i,
-                                                _mm_shuffle_epi8(
-                                                    v_pat,
-                                                    _mm_loadu_si128(masks_ptr.add(6)),
-                                                ),
-                                            );
-                                            copied += 112;
-                                        }
-                                        while copied + 16 <= length {
-                                            let idx = (copied % 112) / 16;
-                                            let v = if idx == 0 {
-                                                v_base
-                                            } else {
-                                                _mm_shuffle_epi8(
-                                                    v_pat,
-                                                    _mm_loadu_si128(masks_ptr.add(idx)),
-                                                )
-                                            };
-                                            _mm_storeu_si128(
-                                                dest_ptr.add(copied) as *mut __m128i,
-                                                v,
-                                            );
-                                            copied += 16;
-                                        }
                                         while copied < length {
-                                            *dest_ptr.add(copied) = *src.add(copied);
+                                            *out_next.add(copied) = *src.add(copied);
                                             copied += 1;
                                         }
                                     }
