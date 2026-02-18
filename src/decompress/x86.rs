@@ -123,6 +123,45 @@ const OFFSET13_MASKS: [u8; 208] = [
 ];
 
 #[cfg(target_arch = "x86_64")]
+#[target_feature(enable = "avx2")]
+unsafe fn copy_match_offset3_avx2(dest: *mut u8, val: u32, length: usize) -> usize {
+    let v_pat = _mm256_set1_epi32(val as i32);
+    let masks_ptr = OFFSET3_MASKS.as_ptr() as *const __m128i;
+    let m0 = _mm_loadu_si128(masks_ptr);
+    let m1 = _mm_loadu_si128(masks_ptr.add(1));
+    let m2 = _mm_loadu_si128(masks_ptr.add(2));
+
+    // Construct 256-bit shuffle masks by combining 128-bit masks.
+    // The pattern repeats every 3 bytes.
+    // m0 covers bytes 0..16. m1 covers 16..32. m2 covers 32..48.
+    //
+    // Iteration 1 (0..32): Uses [m0, m1].
+    // Iteration 2 (32..64): Starts at offset 32 (32 % 3 = 2). Needs pattern starting with 2 (m2).
+    //                       Lane 1 starts at offset 48 (48 % 3 = 0). Needs pattern starting with 0 (m0).
+    //                       Uses [m2, m0].
+    // Iteration 3 (64..96): Starts at offset 64 (64 % 3 = 1). Needs pattern starting with 1 (m1).
+    //                       Lane 1 starts at offset 80 (80 % 3 = 2). Needs pattern starting with 2 (m2).
+    //                       Uses [m1, m2].
+    let mask_a = _mm256_inserti128_si256(_mm256_castsi128_si256(m0), m1, 1);
+    let mask_b = _mm256_inserti128_si256(_mm256_castsi128_si256(m2), m0, 1);
+    let mask_c = _mm256_inserti128_si256(_mm256_castsi128_si256(m1), m2, 1);
+
+    let mut copied = 0;
+    while copied + 96 <= length {
+        let v_a = _mm256_shuffle_epi8(v_pat, mask_a);
+        let v_b = _mm256_shuffle_epi8(v_pat, mask_b);
+        let v_c = _mm256_shuffle_epi8(v_pat, mask_c);
+
+        _mm256_storeu_si256(dest.add(copied) as *mut __m256i, v_a);
+        _mm256_storeu_si256(dest.add(copied + 32) as *mut __m256i, v_b);
+        _mm256_storeu_si256(dest.add(copied + 64) as *mut __m256i, v_c);
+
+        copied += 96;
+    }
+    copied
+}
+
+#[cfg(target_arch = "x86_64")]
 #[target_feature(enable = "bmi2,ssse3")]
 pub unsafe fn decompress_bmi2(
     d: &mut Decompressor,
@@ -981,12 +1020,17 @@ pub unsafe fn decompress_bmi2(
                                         let v1 = std::ptr::read_unaligned(src.add(1) as *const u16)
                                             as u32;
                                         let val = v0 | (v1 << 8);
+
+                                        let mut copied = 0;
+                                        if is_x86_feature_detected!("avx2") {
+                                            copied = copy_match_offset3_avx2(dest_ptr, val, length);
+                                        }
+
                                         let v_pat = _mm_cvtsi32_si128(val as i32);
                                         let masks_ptr = OFFSET3_MASKS.as_ptr() as *const __m128i;
                                         let v_base =
                                             _mm_shuffle_epi8(v_pat, _mm_loadu_si128(masks_ptr));
 
-                                        let mut copied = 0;
                                         while copied + 48 <= length {
                                             _mm_storeu_si128(
                                                 dest_ptr.add(copied) as *mut __m128i,
