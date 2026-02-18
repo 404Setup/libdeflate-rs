@@ -1022,6 +1022,7 @@ impl Compressor {
             let (mut len, mut offset) = mf.find_match(input, in_idx, self.max_search_depth);
 
             if len >= 3 {
+                let mut skipped = 0;
                 if lazy_depth >= 1 && in_idx + 1 < input.len() {
                     let (next_len, next_offset) =
                         mf.find_match(input, in_idx + 1, self.max_search_depth);
@@ -1050,6 +1051,7 @@ impl Compressor {
 
                                 len = next_len;
                                 offset = next_offset;
+                                skipped = 1;
                             }
                         } else {
                             self.split_stats.observe_literal(input[in_idx]);
@@ -1060,6 +1062,8 @@ impl Compressor {
                             len = next_len;
                             offset = next_offset;
                         }
+                    } else {
+                        skipped = 1;
                     }
                 }
 
@@ -1072,7 +1076,14 @@ impl Compressor {
                 self.litlen_freqs[257 + self.get_length_slot(len)] += 1;
                 self.offset_freqs[self.get_offset_slot(offset)] += 1;
                 litrunlen = 0;
-                mf.skip_positions(input, in_idx + 1, len - 1, self.max_search_depth);
+                if len - 1 > skipped {
+                    mf.skip_positions(
+                        input,
+                        in_idx + 1 + skipped,
+                        len - 1 - skipped,
+                        self.max_search_depth,
+                    );
+                }
                 in_idx += len;
             } else {
                 self.split_stats.observe_literal(input[in_idx]);
