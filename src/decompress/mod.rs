@@ -1776,9 +1776,19 @@ fn build_decode_table(
         return true;
     }
     let mut cur_table_end: usize = 1 << len;
+    let mut outer_iters = 0;
     while len <= table_bits {
+        outer_iters += 1;
+        if outer_iters > 100 {
+            return false;
+        }
         let mut count = len_counts[len];
+        let mut inner_iters = 0;
         while count > 0 {
+            inner_iters += 1;
+            if inner_iters > 100000 {
+                return false;
+            }
             decode_table[codeword as usize] =
                 make_decode_table_entry(decode_results, sorted_syms[sym_ptr] as usize, len as u32);
             sym_ptr += 1;
@@ -1792,9 +1802,14 @@ fn build_decode_table(
                 }
                 return true;
             }
-            let bit = 1 << bsr32(codeword ^ ((cur_table_end as u32) - 1));
-            codeword &= bit - 1;
-            codeword |= bit;
+            let diff = codeword ^ ((cur_table_end as u32) - 1);
+            if diff == 0 {
+                codeword = 0;
+            } else {
+                let bit = 1 << bsr32(diff);
+                codeword &= bit - 1;
+                codeword |= bit;
+            }
             count -= 1;
         }
         loop {
