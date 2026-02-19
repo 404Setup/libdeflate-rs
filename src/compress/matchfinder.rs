@@ -10,9 +10,82 @@ pub const MATCHFINDER_HASH_ORDER: usize = 15;
 pub const MATCHFINDER_HASH_SIZE: usize = 1 << MATCHFINDER_HASH_ORDER;
 pub const MATCHFINDER_WINDOW_SIZE: usize = 32768;
 
-// Function pointer for the optimized match length calculation.
-// This avoids repeated feature detection inside the hot loop.
-type MatchLenFn = unsafe fn(*const u8, *const u8, usize) -> usize;
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum MatchLenStrategy {
+    Scalar,
+    #[cfg(target_arch = "x86_64")]
+    Sse2,
+    #[cfg(target_arch = "x86_64")]
+    Avx2,
+    #[cfg(target_arch = "x86_64")]
+    Avx512,
+    #[cfg(target_arch = "x86_64")]
+    Avx10,
+    #[cfg(target_arch = "aarch64")]
+    Neon,
+}
+
+trait MatchLen {
+    unsafe fn calc(a: *const u8, b: *const u8, max_len: usize) -> usize;
+}
+
+struct ScalarStrategy;
+impl MatchLen for ScalarStrategy {
+    #[inline(always)]
+    unsafe fn calc(a: *const u8, b: *const u8, max_len: usize) -> usize {
+        match_len_sw(a, b, max_len)
+    }
+}
+
+#[cfg(target_arch = "x86_64")]
+struct Sse2Strategy;
+#[cfg(target_arch = "x86_64")]
+impl MatchLen for Sse2Strategy {
+    #[inline(always)]
+    unsafe fn calc(a: *const u8, b: *const u8, max_len: usize) -> usize {
+        match_len_sse2(a, b, max_len)
+    }
+}
+
+#[cfg(target_arch = "x86_64")]
+struct Avx2Strategy;
+#[cfg(target_arch = "x86_64")]
+impl MatchLen for Avx2Strategy {
+    #[inline(always)]
+    unsafe fn calc(a: *const u8, b: *const u8, max_len: usize) -> usize {
+        match_len_avx2(a, b, max_len)
+    }
+}
+
+#[cfg(target_arch = "x86_64")]
+struct Avx512Strategy;
+#[cfg(target_arch = "x86_64")]
+impl MatchLen for Avx512Strategy {
+    #[inline(always)]
+    unsafe fn calc(a: *const u8, b: *const u8, max_len: usize) -> usize {
+        match_len_avx512(a, b, max_len)
+    }
+}
+
+#[cfg(target_arch = "x86_64")]
+struct Avx10Strategy;
+#[cfg(target_arch = "x86_64")]
+impl MatchLen for Avx10Strategy {
+    #[inline(always)]
+    unsafe fn calc(a: *const u8, b: *const u8, max_len: usize) -> usize {
+        match_len_avx10(a, b, max_len)
+    }
+}
+
+#[cfg(target_arch = "aarch64")]
+struct NeonStrategy;
+#[cfg(target_arch = "aarch64")]
+impl MatchLen for NeonStrategy {
+    #[inline(always)]
+    unsafe fn calc(a: *const u8, b: *const u8, max_len: usize) -> usize {
+        match_len_neon(a, b, max_len)
+    }
+}
 
 pub trait MatchFinderTrait {
     fn reset(&mut self);
@@ -530,38 +603,38 @@ unsafe fn match_len_neon(a: *const u8, b: *const u8, max_len: usize) -> usize {
 // Selects the best available match length implementation at runtime.
 // This is called once during initialization to avoid checking CPU features
 // inside the compression loop.
-fn get_match_len_func() -> MatchLenFn {
+fn get_match_len_strategy() -> MatchLenStrategy {
     #[cfg(target_arch = "x86_64")]
     {
         // Prioritize AVX10/256-bit implementation if AVX512VL is available.
         // This avoids frequency throttling on hybrid/consumer CPUs while still using AVX512 features.
         if is_x86_feature_detected!("avx512vl") && is_x86_feature_detected!("avx512bw") {
-            return match_len_avx10;
+            return MatchLenStrategy::Avx10;
         }
         if is_x86_feature_detected!("avx512bw") {
-            return match_len_avx512;
+            return MatchLenStrategy::Avx512;
         }
         if is_x86_feature_detected!("avx2") {
-            return match_len_avx2;
+            return MatchLenStrategy::Avx2;
         }
         if is_x86_feature_detected!("sse2") {
-            return match_len_sse2;
+            return MatchLenStrategy::Sse2;
         }
     }
     #[cfg(target_arch = "aarch64")]
     {
         if std::arch::is_aarch64_feature_detected!("neon") {
-            return match_len_neon;
+            return MatchLenStrategy::Neon;
         }
     }
-    match_len_sw
+    MatchLenStrategy::Scalar
 }
 
 pub struct MatchFinder {
     pub hash_tab: Vec<i32>,
     pub prev_tab: Vec<u16>,
     pub base_offset: usize,
-    match_len: MatchLenFn,
+    match_len: MatchLenStrategy,
 }
 
 impl MatchFinder {
@@ -570,7 +643,7 @@ impl MatchFinder {
             hash_tab: vec![-1; MATCHFINDER_HASH_SIZE],
             prev_tab: vec![0; MATCHFINDER_WINDOW_SIZE],
             base_offset: 0,
-            match_len: get_match_len_func(),
+            match_len: get_match_len_strategy(),
         }
     }
 
@@ -593,7 +666,7 @@ impl MatchFinder {
     }
 
     #[inline(always)]
-    unsafe fn find_match_impl<F>(
+    unsafe fn find_match_impl<F, M: MatchLen>(
         &mut self,
         data: &[u8],
         pos: usize,
@@ -681,7 +754,7 @@ impl MatchFinder {
                     let match_val_4 = (match_ptr as *const u32).read_unaligned();
                     if match_val_4 == src_val_4 {
                         let max_len = min(DEFLATE_MAX_MATCH_LEN, data.len() - pos);
-                        let len = (self.match_len)(match_ptr, src, max_len);
+                        let len = M::calc(match_ptr, src, max_len);
 
                         if len > best_len {
                             best_len = len;
@@ -708,7 +781,7 @@ impl MatchFinder {
 
                     if match_val == src_val {
                         let max_len = min(DEFLATE_MAX_MATCH_LEN, data.len() - pos);
-                        let len = (self.match_len)(match_ptr, src, max_len);
+                        let len = M::calc(match_ptr, src, max_len);
 
                         if len > best_len {
                             best_len = len;
@@ -743,17 +816,45 @@ impl MatchFinder {
         matches: &mut Vec<(u16, u16)>,
     ) -> (usize, usize) {
         matches.clear();
+        let mut on_match = |len: usize, offset: usize| {
+            if len >= 3 {
+                matches.push((len as u16, offset as u16));
+            }
+        };
         unsafe {
-            self.find_match_impl(data, pos, max_depth, |len, offset| {
-                if len >= 3 {
-                    matches.push((len as u16, offset as u16));
-                }
-            })
+            match self.match_len {
+                MatchLenStrategy::Scalar => self.find_match_impl::<_, ScalarStrategy>(data, pos, max_depth, &mut on_match),
+                #[cfg(target_arch = "x86_64")]
+                MatchLenStrategy::Sse2 => self.find_match_impl::<_, Sse2Strategy>(data, pos, max_depth, &mut on_match),
+                #[cfg(target_arch = "x86_64")]
+                MatchLenStrategy::Avx2 => self.find_match_impl::<_, Avx2Strategy>(data, pos, max_depth, &mut on_match),
+                #[cfg(target_arch = "x86_64")]
+                MatchLenStrategy::Avx512 => self.find_match_impl::<_, Avx512Strategy>(data, pos, max_depth, &mut on_match),
+                #[cfg(target_arch = "x86_64")]
+                MatchLenStrategy::Avx10 => self.find_match_impl::<_, Avx10Strategy>(data, pos, max_depth, &mut on_match),
+                #[cfg(target_arch = "aarch64")]
+                MatchLenStrategy::Neon => self.find_match_impl::<_, NeonStrategy>(data, pos, max_depth, &mut on_match),
+            }
         }
     }
 
     pub fn find_match(&mut self, data: &[u8], pos: usize, max_depth: usize) -> (usize, usize) {
-        unsafe { self.find_match_impl(data, pos, max_depth, |_, _| {}) }
+        let mut on_match = |_: usize, _: usize| {};
+        unsafe {
+            match self.match_len {
+                MatchLenStrategy::Scalar => self.find_match_impl::<_, ScalarStrategy>(data, pos, max_depth, &mut on_match),
+                #[cfg(target_arch = "x86_64")]
+                MatchLenStrategy::Sse2 => self.find_match_impl::<_, Sse2Strategy>(data, pos, max_depth, &mut on_match),
+                #[cfg(target_arch = "x86_64")]
+                MatchLenStrategy::Avx2 => self.find_match_impl::<_, Avx2Strategy>(data, pos, max_depth, &mut on_match),
+                #[cfg(target_arch = "x86_64")]
+                MatchLenStrategy::Avx512 => self.find_match_impl::<_, Avx512Strategy>(data, pos, max_depth, &mut on_match),
+                #[cfg(target_arch = "x86_64")]
+                MatchLenStrategy::Avx10 => self.find_match_impl::<_, Avx10Strategy>(data, pos, max_depth, &mut on_match),
+                #[cfg(target_arch = "aarch64")]
+                MatchLenStrategy::Neon => self.find_match_impl::<_, NeonStrategy>(data, pos, max_depth, &mut on_match),
+            }
+        }
     }
     pub fn skip_match(&mut self, data: &[u8], pos: usize) {
         if pos.checked_add(3).map_or(true, |end| end > data.len()) {
@@ -847,7 +948,7 @@ impl MatchFinder {
 pub struct HtMatchFinder {
     pub hash_tab: Vec<i32>,
     pub base_offset: usize,
-    match_len: MatchLenFn,
+    match_len: MatchLenStrategy,
 }
 
 impl HtMatchFinder {
@@ -855,7 +956,7 @@ impl HtMatchFinder {
         Self {
             hash_tab: vec![-1; MATCHFINDER_HASH_SIZE],
             base_offset: 0,
-            match_len: get_match_len_func(),
+            match_len: get_match_len_strategy(),
         }
     }
 
@@ -927,7 +1028,19 @@ impl HtMatchFinder {
 
             if src_val == match_val {
                 let max_len = min(DEFLATE_MAX_MATCH_LEN, data.len() - pos);
-                let len = (self.match_len)(match_ptr, src, max_len);
+                let len = match self.match_len {
+                    MatchLenStrategy::Scalar => match_len_sw(match_ptr, src, max_len),
+                    #[cfg(target_arch = "x86_64")]
+                    MatchLenStrategy::Sse2 => match_len_sse2(match_ptr, src, max_len),
+                    #[cfg(target_arch = "x86_64")]
+                    MatchLenStrategy::Avx2 => match_len_avx2(match_ptr, src, max_len),
+                    #[cfg(target_arch = "x86_64")]
+                    MatchLenStrategy::Avx512 => match_len_avx512(match_ptr, src, max_len),
+                    #[cfg(target_arch = "x86_64")]
+                    MatchLenStrategy::Avx10 => match_len_avx10(match_ptr, src, max_len),
+                    #[cfg(target_arch = "aarch64")]
+                    MatchLenStrategy::Neon => match_len_neon(match_ptr, src, max_len),
+                };
                 if len >= 3 {
                     return (len, offset);
                 }
@@ -968,7 +1081,7 @@ pub struct BtMatchFinder {
     pub hash4_tab: Vec<i32>,
     pub child_tab: Vec<[i32; 2]>,
     pub base_offset: usize,
-    match_len: MatchLenFn,
+    match_len: MatchLenStrategy,
 }
 
 impl BtMatchFinder {
@@ -978,7 +1091,7 @@ impl BtMatchFinder {
             hash4_tab: vec![-1; 1 << 16],
             child_tab: vec![[0; 2]; MATCHFINDER_WINDOW_SIZE],
             base_offset: 0,
-            match_len: get_match_len_func(),
+            match_len: get_match_len_strategy(),
         }
     }
 
@@ -1078,7 +1191,19 @@ impl BtMatchFinder {
                 let p_rel = p_abs - self.base_offset;
                 let match_ptr = data.as_ptr().add(p_rel);
 
-                let len = (self.match_len)(match_ptr, src, max_len_clamped);
+                let len = match self.match_len {
+                    MatchLenStrategy::Scalar => match_len_sw(match_ptr, src, max_len_clamped),
+                    #[cfg(target_arch = "x86_64")]
+                    MatchLenStrategy::Sse2 => match_len_sse2(match_ptr, src, max_len_clamped),
+                    #[cfg(target_arch = "x86_64")]
+                    MatchLenStrategy::Avx2 => match_len_avx2(match_ptr, src, max_len_clamped),
+                    #[cfg(target_arch = "x86_64")]
+                    MatchLenStrategy::Avx512 => match_len_avx512(match_ptr, src, max_len_clamped),
+                    #[cfg(target_arch = "x86_64")]
+                    MatchLenStrategy::Avx10 => match_len_avx10(match_ptr, src, max_len_clamped),
+                    #[cfg(target_arch = "aarch64")]
+                    MatchLenStrategy::Neon => match_len_neon(match_ptr, src, max_len_clamped),
+                };
 
                 if len > best_len {
                     best_len = len;
@@ -1212,7 +1337,19 @@ impl BtMatchFinder {
                 let p_rel = p_abs - self.base_offset;
                 let match_ptr = data.as_ptr().add(p_rel);
 
-                let len = (self.match_len)(match_ptr, src, max_len_clamped);
+                let len = match self.match_len {
+                    MatchLenStrategy::Scalar => match_len_sw(match_ptr, src, max_len_clamped),
+                    #[cfg(target_arch = "x86_64")]
+                    MatchLenStrategy::Sse2 => match_len_sse2(match_ptr, src, max_len_clamped),
+                    #[cfg(target_arch = "x86_64")]
+                    MatchLenStrategy::Avx2 => match_len_avx2(match_ptr, src, max_len_clamped),
+                    #[cfg(target_arch = "x86_64")]
+                    MatchLenStrategy::Avx512 => match_len_avx512(match_ptr, src, max_len_clamped),
+                    #[cfg(target_arch = "x86_64")]
+                    MatchLenStrategy::Avx10 => match_len_avx10(match_ptr, src, max_len_clamped),
+                    #[cfg(target_arch = "aarch64")]
+                    MatchLenStrategy::Neon => match_len_neon(match_ptr, src, max_len_clamped),
+                };
 
                 if record_matches && len > best_len {
                     best_len = len;
@@ -1323,7 +1460,19 @@ mod tests {
         let a = b"abcdef";
         let b = b"abcxyz";
         unsafe {
-            let len = (mf.match_len)(a.as_ptr(), b.as_ptr(), 6);
+            let len = match mf.match_len {
+                MatchLenStrategy::Scalar => match_len_sw(a.as_ptr(), b.as_ptr(), 6),
+                #[cfg(target_arch = "x86_64")]
+                MatchLenStrategy::Sse2 => match_len_sse2(a.as_ptr(), b.as_ptr(), 6),
+                #[cfg(target_arch = "x86_64")]
+                MatchLenStrategy::Avx2 => match_len_avx2(a.as_ptr(), b.as_ptr(), 6),
+                #[cfg(target_arch = "x86_64")]
+                MatchLenStrategy::Avx512 => match_len_avx512(a.as_ptr(), b.as_ptr(), 6),
+                #[cfg(target_arch = "x86_64")]
+                MatchLenStrategy::Avx10 => match_len_avx10(a.as_ptr(), b.as_ptr(), 6),
+                #[cfg(target_arch = "aarch64")]
+                MatchLenStrategy::Neon => match_len_neon(a.as_ptr(), b.as_ptr(), 6),
+            };
             assert_eq!(len, 3);
         }
     }
