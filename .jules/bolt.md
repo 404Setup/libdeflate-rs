@@ -27,3 +27,7 @@
 ## 2026-06-04 - [Vector Precomputation vs Alignr Chain]
 **Learning:** For overlapping patterns where offset is a multiple of 8 (e.g., offset 24), breaking the `alignr` dependency chain by precomputing all vectors in the cycle (LCM of offset and vector size) allowed for effective loop unrolling. This yielded a 32% throughput improvement (7.7 GiB/s -> 10.2 GiB/s) by increasing ILP compared to the serial dependency of iterative `alignr`.
 **Action:** When optimizing decompression loops for specific offsets, determine if the pattern cycle is short enough to precompute fully. If so, prefer storing precomputed vectors in an unrolled loop over calculating the next vector from the previous one.
+
+## 2026-06-04 - [Offset 3 Optimization]
+**Learning:** Decompressing `offset == 3` using a byte-by-byte scalar loop is extremely slow (~1.44 GiB/s). By using precomputed shuffle masks (3 vectors for the 48-byte cycle, LCM(3, 16)) and loading 16 bytes from `src` (safely masking out garbage), we can process 48 bytes per iteration using SIMD. This yielded a ~540% throughput improvement (~9.2 GiB/s).
+**Action:** For small offsets (like 3) that don't fit power-of-2 optimizations, use `pshufb` with precomputed cyclic masks to construct the pattern vectors.
