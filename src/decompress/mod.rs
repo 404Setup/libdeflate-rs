@@ -152,7 +152,10 @@ impl Decompressor {
     ) -> (DecompressResult, usize, usize) {
         #[cfg(target_arch = "x86_64")]
         {
-            if is_x86_feature_detected!("bmi2") && is_x86_feature_detected!("ssse3") {
+            if is_x86_feature_detected!("bmi2")
+                && is_x86_feature_detected!("ssse3")
+                && is_x86_feature_detected!("sse4.1")
+            {
                 let res = unsafe { x86::decompress_bmi2(self, input, output) };
                 // Security: Reset state because x86 implementation clobbers internal tables.
                 // This prevents state corruption if the Decompressor is reused for streaming.
