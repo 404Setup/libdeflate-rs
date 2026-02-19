@@ -61,27 +61,6 @@ const OFFSET_EXTRA_BITS_TABLE: [u8; 30] = [
     13,
 ];
 
-// Optimization: Large table to avoid runtime calculation of offset slots.
-// This increases binary size by ~32KB but speeds up the hot path of match cost calculation.
-const OFFSET_SLOT_TABLE: [u8; DEFLATE_MAX_MATCH_OFFSET] = {
-    let mut table = [0; DEFLATE_MAX_MATCH_OFFSET];
-    let mut i = 0;
-    while i < DEFLATE_MAX_MATCH_OFFSET {
-        let offset = i + 1;
-        let slot = if offset <= 2 {
-            offset as u8 - 1
-        } else {
-            let off = (offset - 1) as u32;
-            let l = 31 - off.leading_zeros();
-            let slot = 2 * l;
-            (slot + ((off >> (l - 1)) & 1)) as u8
-        };
-        table[i] = slot;
-        i += 1;
-    }
-    table
-};
-
 pub const MAX_LITLEN_CODEWORD_LEN: usize = 14;
 pub const MAX_OFFSET_CODEWORD_LEN: usize = 15;
 pub const MAX_PRE_CODEWORD_LEN: usize = 7;
@@ -1870,9 +1849,13 @@ impl Compressor {
     }
 
     fn get_offset_slot(&self, offset: usize) -> usize {
-        // Optimization: Use a precomputed table for all possible offsets (up to 32768)
-        // to avoid expensive bitwise operations and branches in the hot loop.
-        unsafe { *OFFSET_SLOT_TABLE.get_unchecked(offset - 1) as usize }
+        if offset <= 2 {
+            offset - 1
+        } else {
+            let off = (offset - 1) as u32;
+            let l = bsr32(off);
+            ((2 * l) + ((off >> (l - 1)) & 1)) as usize
+        }
     }
 
     fn update_costs(&mut self) {
