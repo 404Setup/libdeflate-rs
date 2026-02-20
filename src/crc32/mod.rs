@@ -8,6 +8,7 @@ pub fn crc32_slice1(mut crc: u32, p: &[u8]) -> u32 {
     crc
 }
 
+#[inline]
 pub fn crc32_slice8(mut crc: u32, p: &[u8]) -> u32 {
     let mut len = p.len();
     let mut ptr = p.as_ptr();

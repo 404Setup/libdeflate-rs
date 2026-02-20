@@ -1047,9 +1047,8 @@ impl HtMatchFinder {
                     #[cfg(target_arch = "aarch64")]
                     MatchLenStrategy::Neon => match_len_neon(match_ptr, src, max_len),
                 };
-                if len >= 3 {
-                    return (len, offset);
-                }
+                // len >= 3 is guaranteed because src_val == match_val implies the first 3 bytes match.
+                return (len, offset);
             }
         }
         (0, 0)
