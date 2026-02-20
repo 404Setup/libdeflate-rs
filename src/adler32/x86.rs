@@ -4,7 +4,7 @@ use core::arch::x86::*;
 use core::arch::x86_64::*;
 
 const DIVISOR: u32 = 65521;
-const BLOCK_SIZE: usize = 5504;
+const BLOCK_SIZE: usize = 4096;
 
 // Optimization: Manual loop unrolling for Adler32 tail processing.
 // This processes 4 bytes per iteration to reduce loop overhead and improve instruction pipelining.
