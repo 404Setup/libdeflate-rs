@@ -216,23 +216,7 @@ pub unsafe fn crc32_x86_vpclmulqdq_avx512_vl512(crc: u32, p: &[u8]) -> u32 {
     if len < 512 {
         if len < 64 {
             if len < 16 {
-                if len < 4 {
-                    return crate::crc32::crc32_slice8(crc, data);
-                }
-                let mask = (1u32 << len) - 1;
-                x0 = _mm_xor_si128(
-                    x0,
-                    _mm_maskz_loadu_epi8(mask as u16, data.as_ptr() as *const i8),
-                );
-
-                let shift_tab = [
-                    0xffu8, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
-                    0xff, 0xff, 0xff, 0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09,
-                    0x0a, 0x0b, 0x0c, 0x0d, 0x0e, 0x0f, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
-                    0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
-                ];
-                let shifts = _mm_loadu_si128(shift_tab.as_ptr().add(len) as *const __m128i);
-                x0 = _mm_shuffle_epi8(x0, shifts);
+                return crate::crc32::crc32_slice8(crc, data);
             } else {
                 x0 = _mm_xor_si128(_mm_loadu_si128(data.as_ptr() as *const __m128i), x0);
                 if len >= 32 {
