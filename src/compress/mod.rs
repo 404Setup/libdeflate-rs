@@ -770,9 +770,11 @@ impl Compressor {
 
         mf.reset();
         let mut matches = Vec::new();
-        for pos in 0..processed {
+        let mut pos = 0;
+        while pos < processed {
             let cur_cost = self.dp_nodes[pos].cost;
             if cur_cost >= 0x3FFFFFFF {
+                pos += 1;
                 continue;
             }
 
@@ -786,10 +788,14 @@ impl Compressor {
             }
 
             mf.find_matches(block_input, pos, self.max_search_depth, &mut matches);
+            let mut best_len = 0;
             for &(len, offset) in &matches {
                 let len = len as usize;
                 if pos + len > processed {
                     continue;
+                }
+                if len > best_len {
+                    best_len = len;
                 }
                 let cost = self.get_match_cost(len, offset as usize);
                 if cur_cost + cost < self.dp_nodes[pos + len].cost {
@@ -799,6 +805,14 @@ impl Compressor {
                         offset,
                     };
                 }
+            }
+
+            if best_len >= self.nice_match_length {
+                let skip = best_len;
+                mf.skip_positions(block_input, pos + 1, skip - 1, self.max_search_depth);
+                pos += skip;
+            } else {
+                pos += 1;
             }
         }
 
@@ -1518,9 +1532,11 @@ impl Compressor {
 
         mf.reset();
         let mut matches = Vec::new();
-        for pos in 0..processed {
+        let mut pos = 0;
+        while pos < processed {
             let cur_cost = self.dp_nodes[pos].cost;
             if cur_cost >= 0x3FFFFFFF {
+                pos += 1;
                 continue;
             }
 
@@ -1534,10 +1550,14 @@ impl Compressor {
             }
 
             mf.find_matches(block_input, pos, self.max_search_depth, &mut matches);
+            let mut best_len = 0;
             for &(len, offset) in &matches {
                 let len = len as usize;
                 if pos + len > processed {
                     continue;
+                }
+                if len > best_len {
+                    best_len = len;
                 }
                 let cost = self.get_match_cost(len, offset as usize);
                 if cur_cost + cost < self.dp_nodes[pos + len].cost {
@@ -1547,6 +1567,14 @@ impl Compressor {
                         offset,
                     };
                 }
+            }
+
+            if best_len >= self.nice_match_length {
+                let skip = best_len;
+                mf.skip_positions(block_input, pos + 1, skip - 1, self.max_search_depth);
+                pos += skip;
+            } else {
+                pos += 1;
             }
         }
 
