@@ -303,27 +303,32 @@ unsafe fn match_len_sse2(a: *const u8, b: *const u8, max_len: usize) -> usize {
         }
 
         // Mismatch found. Locate it using the already computed diffs.
-        let cmp1 = _mm_cmpeq_epi8(diff1, v_zero);
-        let mask1 = _mm_movemask_epi8(cmp1) as u32;
-        if mask1 != 0xFFFF {
-            return len + (!mask1).trailing_zeros() as usize;
-        }
-
-        let cmp2 = _mm_cmpeq_epi8(diff2, v_zero);
-        let mask2 = _mm_movemask_epi8(cmp2) as u32;
-        if mask2 != 0xFFFF {
+        // Optimization: Use binary search to find the mismatch location.
+        // We check or1 (diff1 | diff2) first.
+        let cmp_or1 = _mm_cmpeq_epi8(or1, v_zero);
+        if _mm_movemask_epi8(cmp_or1) != 0xFFFF {
+            // Mismatch in first 32 bytes (diff1 or diff2)
+            let cmp1 = _mm_cmpeq_epi8(diff1, v_zero);
+            let mask1 = _mm_movemask_epi8(cmp1) as u32;
+            if mask1 != 0xFFFF {
+                return len + (!mask1).trailing_zeros() as usize;
+            }
+            // Must be in diff2
+            let cmp2 = _mm_cmpeq_epi8(diff2, v_zero);
+            let mask2 = _mm_movemask_epi8(cmp2) as u32;
             return len + 16 + (!mask2).trailing_zeros() as usize;
+        } else {
+            // Mismatch in second 32 bytes (diff3 or diff4)
+            let cmp3 = _mm_cmpeq_epi8(diff3, v_zero);
+            let mask3 = _mm_movemask_epi8(cmp3) as u32;
+            if mask3 != 0xFFFF {
+                return len + 32 + (!mask3).trailing_zeros() as usize;
+            }
+            // Must be in diff4
+            let cmp4 = _mm_cmpeq_epi8(diff4, v_zero);
+            let mask4 = _mm_movemask_epi8(cmp4) as u32;
+            return len + 48 + (!mask4).trailing_zeros() as usize;
         }
-
-        let cmp3 = _mm_cmpeq_epi8(diff3, v_zero);
-        let mask3 = _mm_movemask_epi8(cmp3) as u32;
-        if mask3 != 0xFFFF {
-            return len + 32 + (!mask3).trailing_zeros() as usize;
-        }
-
-        let cmp4 = _mm_cmpeq_epi8(diff4, v_zero);
-        let mask4 = _mm_movemask_epi8(cmp4) as u32;
-        return len + 48 + (!mask4).trailing_zeros() as usize;
     }
 
     while len + 16 <= max_len {
