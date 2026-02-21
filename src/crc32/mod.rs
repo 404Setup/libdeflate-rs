@@ -26,14 +26,14 @@ pub fn crc32_slice8(mut crc: u32, p: &[u8]) -> u32 {
         let idx6 = ((v2 >> 16) as u8) as usize;
         let idx7 = ((v2 >> 24) as u8) as usize;
 
-        let t0 = CRC32_SLICE8_TABLE[0x700 + idx0];
-        let t1 = CRC32_SLICE8_TABLE[0x600 + idx1];
-        let t2 = CRC32_SLICE8_TABLE[0x500 + idx2];
-        let t3 = CRC32_SLICE8_TABLE[0x400 + idx3];
-        let t4 = CRC32_SLICE8_TABLE[0x300 + idx4];
-        let t5 = CRC32_SLICE8_TABLE[0x200 + idx5];
-        let t6 = CRC32_SLICE8_TABLE[0x100 + idx6];
-        let t7 = CRC32_SLICE8_TABLE[0x000 + idx7];
+        let t0 = unsafe { *CRC32_SLICE8_TABLE.get_unchecked(0x700 + idx0) };
+        let t1 = unsafe { *CRC32_SLICE8_TABLE.get_unchecked(0x600 + idx1) };
+        let t2 = unsafe { *CRC32_SLICE8_TABLE.get_unchecked(0x500 + idx2) };
+        let t3 = unsafe { *CRC32_SLICE8_TABLE.get_unchecked(0x400 + idx3) };
+        let t4 = unsafe { *CRC32_SLICE8_TABLE.get_unchecked(0x300 + idx4) };
+        let t5 = unsafe { *CRC32_SLICE8_TABLE.get_unchecked(0x200 + idx5) };
+        let t6 = unsafe { *CRC32_SLICE8_TABLE.get_unchecked(0x100 + idx6) };
+        let t7 = unsafe { *CRC32_SLICE8_TABLE.get_unchecked(0x000 + idx7) };
 
         // Optimization: Use tree-based XOR reduction to break dependency chains and increase ILP.
         crc = ((t0 ^ t1) ^ (t2 ^ t3)) ^ ((t4 ^ t5) ^ (t6 ^ t7));
@@ -46,10 +46,12 @@ pub fn crc32_slice8(mut crc: u32, p: &[u8]) -> u32 {
     if len >= 4 {
         let v = u32::from_le(unsafe { std::ptr::read_unaligned(ptr as *const u32) });
         crc ^= v;
-        crc = CRC32_SLICE8_TABLE[0x300 + (crc as u8) as usize]
-            ^ CRC32_SLICE8_TABLE[0x200 + ((crc >> 8) as u8) as usize]
-            ^ CRC32_SLICE8_TABLE[0x100 + ((crc >> 16) as u8) as usize]
-            ^ CRC32_SLICE8_TABLE[0x000 + ((crc >> 24) as u8) as usize];
+        crc = unsafe {
+            *CRC32_SLICE8_TABLE.get_unchecked(0x300 + (crc as u8) as usize)
+                ^ *CRC32_SLICE8_TABLE.get_unchecked(0x200 + ((crc >> 8) as u8) as usize)
+                ^ *CRC32_SLICE8_TABLE.get_unchecked(0x100 + ((crc >> 16) as u8) as usize)
+                ^ *CRC32_SLICE8_TABLE.get_unchecked(0x000 + ((crc >> 24) as u8) as usize)
+        };
         unsafe {
             ptr = ptr.add(4);
         }
@@ -67,10 +69,12 @@ pub fn crc32_slice8(mut crc: u32, p: &[u8]) -> u32 {
                 let idx1 = ((crc >> 8) as u8 as u32) ^ b1;
                 let idx2 = ((crc >> 16) as u8 as u32) ^ b2;
 
-                crc = (crc >> 24)
-                    ^ CRC32_SLICE8_TABLE[0x200 + idx0 as usize]
-                    ^ CRC32_SLICE8_TABLE[0x100 + idx1 as usize]
-                    ^ CRC32_SLICE8_TABLE[0x000 + idx2 as usize];
+                crc = unsafe {
+                    (crc >> 24)
+                        ^ *CRC32_SLICE8_TABLE.get_unchecked(0x200 + idx0 as usize)
+                        ^ *CRC32_SLICE8_TABLE.get_unchecked(0x100 + idx1 as usize)
+                        ^ *CRC32_SLICE8_TABLE.get_unchecked(0x000 + idx2 as usize)
+                };
             }
             2 => {
                 let v = u16::from_le(unsafe { (ptr as *const u16).read_unaligned() }) as u32;
@@ -80,13 +84,17 @@ pub fn crc32_slice8(mut crc: u32, p: &[u8]) -> u32 {
                 let idx0 = (crc as u8 as u32) ^ b0;
                 let idx1 = ((crc >> 8) as u8 as u32) ^ b1;
 
-                crc = (crc >> 16)
-                    ^ CRC32_SLICE8_TABLE[0x100 + idx0 as usize]
-                    ^ CRC32_SLICE8_TABLE[0x000 + idx1 as usize];
+                crc = unsafe {
+                    (crc >> 16)
+                        ^ *CRC32_SLICE8_TABLE.get_unchecked(0x100 + idx0 as usize)
+                        ^ *CRC32_SLICE8_TABLE.get_unchecked(0x000 + idx1 as usize)
+                };
             }
             1 => {
                 let b0 = unsafe { *ptr } as u32;
-                crc = (crc >> 8) ^ CRC32_SLICE8_TABLE[((crc as u8 as u32) ^ b0) as usize];
+                crc = unsafe {
+                    (crc >> 8) ^ *CRC32_SLICE8_TABLE.get_unchecked(((crc as u8 as u32) ^ b0) as usize)
+                };
             }
             _ => unsafe { std::hint::unreachable_unchecked() },
         }
