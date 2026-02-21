@@ -159,6 +159,18 @@ unsafe fn decompress_shuffle_pattern<const N: usize>(
             copied += 16;
             idx += 1;
         }
+
+        if copied < length {
+            let mut tmp = [0u8; 16];
+            // Safety: `idx` tracks the current 16-byte block index within the cycle N.
+            // Since the previous loop handles chunks of 16 bytes while `copied + 16 <= length`,
+            // and the outer loop ensures `length - copied < N * 16` before entering the inner loop,
+            // `idx` will not exceed `N - 1` here.
+            _mm_storeu_si128(tmp.as_mut_ptr() as *mut __m128i, vectors[idx]);
+            let remaining = length - copied;
+            std::ptr::copy_nonoverlapping(tmp.as_ptr(), out_next.add(copied), remaining);
+            return;
+        }
     }
 
     while copied < length {
