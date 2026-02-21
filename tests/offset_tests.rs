@@ -894,3 +894,25 @@ fn test_offset_35_pattern() {
         .unwrap();
     assert_eq!(decompressed, pattern);
 }
+
+#[test]
+fn test_offset_16_tail() {
+    let mut compressor = Compressor::new(6).unwrap();
+    let mut decompressor = Decompressor::new();
+
+    // Pattern length 16. Offset 16.
+    // Length not divisible by 16 to test tail handling.
+    // 1600 + 7 bytes.
+    let pattern: Vec<u8> = b"ABCDEFGHIJKLMNOP"
+        .iter()
+        .cloned()
+        .cycle()
+        .take(1600 + 7)
+        .collect();
+    let compressed = compressor.compress_deflate(&pattern).unwrap();
+
+    let decompressed = decompressor
+        .decompress_deflate(&compressed, pattern.len())
+        .unwrap();
+    assert_eq!(decompressed, pattern);
+}
