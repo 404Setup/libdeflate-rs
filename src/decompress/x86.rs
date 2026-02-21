@@ -201,6 +201,31 @@ unsafe fn decompress_write_cycle_vectors<const N: usize>(
 
 #[cfg(target_arch = "x86_64")]
 #[target_feature(enable = "bmi2,ssse3,sse4.1")]
+unsafe fn decompress_fill_pattern_16(
+    out_next: *mut u8,
+    v: __m128i,
+    src: *const u8,
+    length: usize,
+) {
+    let mut i = 0;
+    while i + 64 <= length {
+        _mm_storeu_si128(out_next.add(i) as *mut __m128i, v);
+        _mm_storeu_si128(out_next.add(i + 16) as *mut __m128i, v);
+        _mm_storeu_si128(out_next.add(i + 32) as *mut __m128i, v);
+        _mm_storeu_si128(out_next.add(i + 48) as *mut __m128i, v);
+        i += 64;
+    }
+    while i + 16 <= length {
+        _mm_storeu_si128(out_next.add(i) as *mut __m128i, v);
+        i += 16;
+    }
+    if i < length {
+        std::ptr::copy_nonoverlapping(src.add(i), out_next.add(i), length - i);
+    }
+}
+
+#[cfg(target_arch = "x86_64")]
+#[target_feature(enable = "bmi2,ssse3,sse4.1")]
 unsafe fn decompress_fill_pattern(out_next: *mut u8, v_pattern: __m128i, length: usize) {
     let mut i = 0;
     while i + 64 <= length {
@@ -576,9 +601,6 @@ pub unsafe fn decompress_bmi2(
                                             );
                                         } else {
                                             match offset {
-                                                16 => {
-                                                    decompress_fill_pattern(out_next, v, length);
-                                                }
                                                 34 => decompress_offset_cycle3::<14>(out_next, src, v, length),
                                                 35 => decompress_offset_cycle3::<13>(out_next, src, v, length),
                                                 38 => decompress_offset_cycle3::<10>(out_next, src, v, length),
@@ -784,6 +806,11 @@ pub unsafe fn decompress_bmi2(
                                                         &[v1, v2, v3, v],
                                                         length,
                                                         16,
+                                                    );
+                                                }
+                                                16 => {
+                                                    decompress_fill_pattern_16(
+                                                        out_next, v, src, length,
                                                     );
                                                 }
                                                 17 => {
