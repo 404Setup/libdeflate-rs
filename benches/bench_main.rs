@@ -973,6 +973,33 @@ fn bench_compress(c: &mut Criterion) {
     group.finish();
 }
 
+fn bench_compress_alloc(c: &mut Criterion) {
+    let path = "bench_data/data_L.bin";
+    if !Path::new(path).exists() {
+        return;
+    }
+    let data = read_file(path);
+    let size = data.len();
+
+    let mut group = c.benchmark_group("Compress Alloc");
+    group.throughput(Throughput::Bytes(size as u64));
+
+    // Measure Compressor::compress_deflate which handles allocation
+    group.bench_with_input(
+        BenchmarkId::new("libdeflate-rs compress_deflate", size),
+        &size,
+        |b, &_size| {
+            let mut compressor = Compressor::new(6).unwrap();
+            b.iter(|| {
+                // compress_deflate returns Vec<u8>, allocating internally
+                compressor.compress_deflate(&data).unwrap()
+            });
+        },
+    );
+
+    group.finish();
+}
+
 fn bench_decompress(c: &mut Criterion) {
     let files = [
         ("XXS", "bench_data/data_XXS.bin"),
@@ -1983,6 +2010,7 @@ criterion_group!(
     bench_crc32_large,
     bench_bitstream_micro,
     bench_compress_micro,
+    bench_compress_alloc,
     bench_decompress_offset10_micro,
     bench_decompress_offset40_micro,
     bench_decompress_offset17_micro,
