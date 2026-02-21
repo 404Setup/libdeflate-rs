@@ -80,18 +80,19 @@ impl Compressor {
         output
             .try_reserve_exact(bound)
             .map_err(|e| io::Error::new(io::ErrorKind::Other, e))?;
-        output.resize(bound, 0);
 
-        let out_uninit = unsafe {
-            std::slice::from_raw_parts_mut(
-                output.as_mut_ptr() as *mut std::mem::MaybeUninit<u8>,
-                output.len(),
-            )
-        };
+        // Use spare_capacity_mut to avoid zero-initialization.
+        // Since len is 0, this returns the entire capacity as MaybeUninit.
+        // We slice it to 'bound' to match the requested size.
+        let out_uninit = output.spare_capacity_mut();
+        let out_uninit = &mut out_uninit[..bound];
+
         let (res, size) = f(&mut self.inner, data, out_uninit);
         match res {
             CompressResult::Success => {
-                output.truncate(size);
+                unsafe {
+                    output.set_len(size);
+                }
                 Ok(output)
             }
             CompressResult::InsufficientSpace => {
