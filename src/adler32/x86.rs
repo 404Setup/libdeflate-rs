@@ -175,8 +175,8 @@ pub unsafe fn adler32_x86_sse2(adler: u32, p: &[u8]) -> u32 {
             // v_s1_sums += 4 * v_s1 (initial) + 3*sad_1 + 2*sad_2 + 1*sad_3
             let s1_x4 = _mm_slli_epi32(v_s1, 2);
             let inc_1 = _mm_add_epi32(
-                _mm_add_epi32(sad_1, _mm_slli_epi32(sad_1, 1)), // 3*sad_1
-                _mm_add_epi32(_mm_slli_epi32(sad_2, 1), sad_3), // 2*sad_2 + sad_3
+                _mm_add_epi32(sad_1, _mm_add_epi32(sad_1, sad_1)), // 3*sad_1
+                _mm_add_epi32(_mm_add_epi32(sad_2, sad_2), sad_3), // 2*sad_2 + sad_3
             );
             v_s1_sums = _mm_add_epi32(v_s1_sums, _mm_add_epi32(s1_x4, inc_1));
 
@@ -202,7 +202,7 @@ pub unsafe fn adler32_x86_sse2(adler: u32, p: &[u8]) -> u32 {
             let sad_1 = _mm_add_epi32(sad_a_1, sad_b_1);
             let sad_2 = _mm_add_epi32(sad_a_2, sad_b_2);
 
-            let v_s1_sh = _mm_slli_epi32(v_s1, 1);
+            let v_s1_sh = _mm_add_epi32(v_s1, v_s1);
             v_s1_sums = _mm_add_epi32(v_s1_sums, _mm_add_epi32(v_s1_sh, sad_1));
             v_s1 = _mm_add_epi32(v_s1, _mm_add_epi32(sad_1, sad_2));
 
@@ -370,7 +370,7 @@ pub unsafe fn adler32_x86_avx2(adler: u32, p: &[u8]) -> u32 {
                 let s34_a = _mm256_add_epi32(sad3_a, sad4_a);
                 let sum_sads_a = _mm256_add_epi32(s12_a, s34_a);
 
-                let s12_x2_a = _mm256_slli_epi32(s12_a, 1);
+                let s12_x2_a = _mm256_add_epi32(s12_a, s12_a);
                 let inc_part_a = _mm256_add_epi32(_mm256_add_epi32(s12_x2_a, sad1_a), sad3_a);
                 v_inc_acc_a = _mm256_add_epi32(v_inc_acc_a, inc_part_a);
 
@@ -403,7 +403,7 @@ pub unsafe fn adler32_x86_avx2(adler: u32, p: &[u8]) -> u32 {
                 let s34_b = _mm256_add_epi32(sad3_b, sad4_b);
                 let sum_sads_b = _mm256_add_epi32(s12_b, s34_b);
 
-                let s12_x2_b = _mm256_slli_epi32(s12_b, 1);
+                let s12_x2_b = _mm256_add_epi32(s12_b, s12_b);
                 let inc_part_b = _mm256_add_epi32(_mm256_add_epi32(s12_x2_b, sad1_b), sad3_b);
                 v_inc_acc_a = _mm256_add_epi32(v_inc_acc_a, inc_part_b);
 
@@ -426,7 +426,7 @@ pub unsafe fn adler32_x86_avx2(adler: u32, p: &[u8]) -> u32 {
                 // For Block 1: v_s1_acc += v_s1 (current)
                 // For Block 2: v_s1_acc += v_s1 + sum_sads_a
                 // Combined: v_s1_acc += 2*v_s1 + sum_sads_a
-                let v_s1_x2 = _mm256_slli_epi32(v_s1, 1);
+                let v_s1_x2 = _mm256_add_epi32(v_s1, v_s1);
                 v_s1_acc = _mm256_add_epi32(v_s1_acc, _mm256_add_epi32(v_s1_x2, sum_sads_a));
 
                 // v_s1 accumulates sum_sads from both blocks
@@ -453,7 +453,7 @@ pub unsafe fn adler32_x86_avx2(adler: u32, p: &[u8]) -> u32 {
             let s34 = _mm256_add_epi32(sad3, sad4);
             let sum_sads = _mm256_add_epi32(s12, s34);
 
-            let s12_x2 = _mm256_slli_epi32(s12, 1);
+            let s12_x2 = _mm256_add_epi32(s12, s12);
             let inc_part = _mm256_add_epi32(_mm256_add_epi32(s12_x2, sad1), sad3);
 
             v_s1_acc = _mm256_add_epi32(v_s1_acc, v_s1);
@@ -680,7 +680,7 @@ pub unsafe fn adler32_x86_avx2_vnni(adler: u32, p: &[u8]) -> u32 {
                 let u34 = _mm256_add_epi32(u3, u4);
                 let total_u_a = _mm256_add_epi32(u12, u34);
 
-                let u12_x2 = _mm256_slli_epi32(u12, 1);
+                let u12_x2 = _mm256_add_epi32(u12, u12);
                 let inc_a = _mm256_add_epi32(_mm256_add_epi32(u12_x2, u1), u3);
 
                 let s1_x4 = _mm256_slli_epi32(v_s1, 2);
@@ -709,7 +709,7 @@ pub unsafe fn adler32_x86_avx2_vnni(adler: u32, p: &[u8]) -> u32 {
                 let u78 = _mm256_add_epi32(u7, u8);
                 let total_u_b = _mm256_add_epi32(u56, u78);
 
-                let u56_x2 = _mm256_slli_epi32(u56, 1);
+                let u56_x2 = _mm256_add_epi32(u56, u56);
                 let inc_b = _mm256_add_epi32(_mm256_add_epi32(u56_x2, u5), u7);
 
                 let s1_x4_b = _mm256_slli_epi32(v_s1, 2);
@@ -762,7 +762,7 @@ pub unsafe fn adler32_x86_avx2_vnni(adler: u32, p: &[u8]) -> u32 {
                 v_s1_sums = _mm256_add_epi32(v_s1_sums, s1_x4);
 
                 let u12 = _mm256_add_epi32(u1, u2);
-                let u12_x2 = _mm256_slli_epi32(u12, 1);
+                let u12_x2 = _mm256_add_epi32(u12, u12);
 
                 let inc = _mm256_add_epi32(_mm256_add_epi32(u1, u12_x2), u3);
                 v_s1_sums = _mm256_add_epi32(v_s1_sums, inc);
@@ -809,7 +809,7 @@ pub unsafe fn adler32_x86_avx2_vnni(adler: u32, p: &[u8]) -> u32 {
 
             let s1_x4 = _mm256_slli_epi32(v_s1, 2);
             let u12 = _mm256_add_epi32(u1, u2);
-            let u12_x2 = _mm256_slli_epi32(u12, 1);
+            let u12_x2 = _mm256_add_epi32(u12, u12);
             let inc = _mm256_add_epi32(_mm256_add_epi32(u1, u12_x2), u3);
             v_s1_sums = _mm256_add_epi32(v_s1_sums, _mm256_add_epi32(s1_x4, inc));
 
@@ -977,11 +977,11 @@ pub unsafe fn adler32_x86_avx512_vnni(adler: u32, p: &[u8]) -> u32 {
                 let u8 = _mm512_dpbusd_epi32(v_zero, d8, ones_u8);
 
                 let u12 = _mm512_add_epi32(u1, u2);
-                let u12_x2 = _mm512_slli_epi32(u12, 1);
+                let u12_x2 = _mm512_add_epi32(u12, u12);
                 let inc_a = _mm512_add_epi32(_mm512_add_epi32(u1, u12_x2), u3);
 
                 let u56 = _mm512_add_epi32(u5, u6);
-                let u56_x2 = _mm512_slli_epi32(u56, 1);
+                let u56_x2 = _mm512_add_epi32(u56, u56);
                 let inc_b = _mm512_add_epi32(_mm512_add_epi32(u5, u56_x2), u7);
 
                 let u34 = _mm512_add_epi32(u3, u4);
@@ -1022,7 +1022,7 @@ pub unsafe fn adler32_x86_avx512_vnni(adler: u32, p: &[u8]) -> u32 {
                 v_s1_sums = _mm512_add_epi32(v_s1_sums, s1_x4);
 
                 let u12 = _mm512_add_epi32(u1, u2);
-                let u12_x2 = _mm512_slli_epi32(u12, 1);
+                let u12_x2 = _mm512_add_epi32(u12, u12);
                 let inc = _mm512_add_epi32(_mm512_add_epi32(u1, u12_x2), u3);
                 v_s1_sums = _mm512_add_epi32(v_s1_sums, inc);
 
@@ -1054,7 +1054,7 @@ pub unsafe fn adler32_x86_avx512_vnni(adler: u32, p: &[u8]) -> u32 {
             v_s2 = _mm512_dpbusd_epi32(v_s2, d1, mults);
             v_s2 = _mm512_dpbusd_epi32(v_s2, d2, mults);
 
-            let s1_x2 = _mm512_slli_epi32(v_s1, 1);
+            let s1_x2 = _mm512_add_epi32(v_s1, v_s1);
             let inc = _mm512_add_epi32(s1_x2, u1);
             v_s1_sums = _mm512_add_epi32(v_s1_sums, inc);
 
