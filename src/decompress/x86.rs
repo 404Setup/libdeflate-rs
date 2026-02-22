@@ -43,12 +43,6 @@ static OFFSET9_MASKS: [u8; 144] = [
     2, 3, 4, 5, 6, 7, 8, 0, 1, 2, 3, 4, 5, 6, 7, 8,
 ];
 
-// LCM(12, 16) = 48. 3 vectors.
-static OFFSET12_MASKS: [u8; 48] = [
-    0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 0, 1, 2, 3, 4, 5,
-    6, 7, 8, 9, 10, 11, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11,
-];
-
 // LCM(3, 16) = 48. 3 vectors.
 static OFFSET3_MASKS: [u8; 48] = [
     0, 1, 2, 0, 1, 2, 0, 1, 2, 0, 1, 2, 0, 1, 2, 0, 1, 2, 0, 1, 2, 0, 1, 2, 0, 1, 2, 0, 1, 2, 0, 1,
@@ -91,26 +85,6 @@ static OFFSET11_MASKS: [u8; 176] = [
     5, 6, 7, 8, 9, 10, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 0, 1, 2,
     3, 4, 5, 6, 7, 8, 9, 10, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 0,
     1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10,
-];
-
-// LCM(14, 16) = 112. 7 vectors.
-static OFFSET14_MASKS: [u8; 112] = [
-    0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 0,
-    1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 0, 1,
-    2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 0, 1, 2,
-    3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13,
-];
-
-// LCM(13, 16) = 208. 13 vectors.
-static OFFSET13_MASKS: [u8; 208] = [
-    0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 0, 1, 2, 3,
-    4, 5, 6, 7, 8, 9, 10, 11, 12, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 0, 1, 2, 3, 4, 5, 6, 7,
-    8, 9, 10, 11, 12, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10,
-    11, 12, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 0,
-    1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 0, 1, 2, 3, 4,
-    5, 6, 7, 8, 9, 10, 11, 12, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 0, 1, 2, 3, 4, 5, 6, 7, 8,
-    9, 10, 11, 12, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11,
-    12,
 ];
 
 #[cfg(target_arch = "x86_64")]
@@ -522,6 +496,108 @@ unsafe fn decompress_offset_cycle4<const SHIFT: i32>(
         v1 = next_v1;
         v2 = next_v2;
         v3 = next_v3;
+    }
+
+    if copied < length {
+        std::ptr::copy_nonoverlapping(src.add(copied), out_next.add(copied), length - copied);
+    }
+}
+
+// Optimization: Specialized implementation for offset 12.
+// The pattern has length 12. We construct a 16-byte vector [P0...P11, P0...P3]
+// using a single insert instruction. This vector allows us to write 16 bytes
+// at a time with a stride of 12 bytes.
+#[cfg(target_arch = "x86_64")]
+#[target_feature(enable = "bmi2,ssse3,sse4.1")]
+unsafe fn decompress_offset_12(
+    out_next: *mut u8,
+    src: *const u8,
+    length: usize,
+) {
+    let v_raw = _mm_loadu_si128(src as *const __m128i);
+    let p0 = _mm_cvtsi128_si32(v_raw);
+    let v_pat = _mm_insert_epi32::<3>(v_raw, p0);
+
+    let mut copied = 0;
+    while copied + 64 <= length {
+        _mm_storeu_si128(out_next.add(copied) as *mut __m128i, v_pat);
+        _mm_storeu_si128(out_next.add(copied + 12) as *mut __m128i, v_pat);
+        _mm_storeu_si128(out_next.add(copied + 24) as *mut __m128i, v_pat);
+        _mm_storeu_si128(out_next.add(copied + 36) as *mut __m128i, v_pat);
+        copied += 48;
+    }
+
+    while copied + 16 <= length {
+        _mm_storeu_si128(out_next.add(copied) as *mut __m128i, v_pat);
+        copied += 12;
+    }
+
+    if copied < length {
+        std::ptr::copy_nonoverlapping(src.add(copied), out_next.add(copied), length - copied);
+    }
+}
+
+// Optimization: Specialized implementation for offset 13.
+// The pattern has length 13. We construct a 16-byte vector [P0...P12, P0...P2]
+// using a single shuffle instruction.
+#[cfg(target_arch = "x86_64")]
+#[target_feature(enable = "bmi2,ssse3,sse4.1")]
+unsafe fn decompress_offset_13(
+    out_next: *mut u8,
+    src: *const u8,
+    length: usize,
+) {
+    let v_raw = _mm_loadu_si128(src as *const __m128i);
+    let mask = _mm_setr_epi8(
+        0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 0, 1, 2,
+    );
+    let v_pat = _mm_shuffle_epi8(v_raw, mask);
+
+    let mut copied = 0;
+    while copied + 64 <= length {
+        _mm_storeu_si128(out_next.add(copied) as *mut __m128i, v_pat);
+        _mm_storeu_si128(out_next.add(copied + 13) as *mut __m128i, v_pat);
+        _mm_storeu_si128(out_next.add(copied + 26) as *mut __m128i, v_pat);
+        _mm_storeu_si128(out_next.add(copied + 39) as *mut __m128i, v_pat);
+        copied += 52;
+    }
+
+    while copied + 16 <= length {
+        _mm_storeu_si128(out_next.add(copied) as *mut __m128i, v_pat);
+        copied += 13;
+    }
+
+    if copied < length {
+        std::ptr::copy_nonoverlapping(src.add(copied), out_next.add(copied), length - copied);
+    }
+}
+
+// Optimization: Specialized implementation for offset 14.
+// The pattern has length 14. We construct a 16-byte vector [P0...P13, P0...P1]
+// using a single insert instruction.
+#[cfg(target_arch = "x86_64")]
+#[target_feature(enable = "bmi2,ssse3,sse4.1")]
+unsafe fn decompress_offset_14(
+    out_next: *mut u8,
+    src: *const u8,
+    length: usize,
+) {
+    let v_raw = _mm_loadu_si128(src as *const __m128i);
+    let p0 = _mm_cvtsi128_si32(v_raw);
+    let v_pat = _mm_insert_epi16::<7>(v_raw, p0);
+
+    let mut copied = 0;
+    while copied + 64 <= length {
+        _mm_storeu_si128(out_next.add(copied) as *mut __m128i, v_pat);
+        _mm_storeu_si128(out_next.add(copied + 14) as *mut __m128i, v_pat);
+        _mm_storeu_si128(out_next.add(copied + 28) as *mut __m128i, v_pat);
+        _mm_storeu_si128(out_next.add(copied + 42) as *mut __m128i, v_pat);
+        copied += 56;
+    }
+
+    while copied + 16 <= length {
+        _mm_storeu_si128(out_next.add(copied) as *mut __m128i, v_pat);
+        copied += 14;
     }
 
     if copied < length {
@@ -1444,26 +1520,23 @@ pub unsafe fn decompress_bmi2_ptr(
                                             );
                                         }
                                         12 => {
-                                            decompress_shuffle_pattern::<3>(
+                                            decompress_offset_12(
                                                 out_next,
                                                 src,
-                                                &OFFSET12_MASKS,
                                                 length,
                                             );
                                         }
                                         13 => {
-                                            decompress_shuffle_pattern::<13>(
+                                            decompress_offset_13(
                                                 out_next,
                                                 src,
-                                                &OFFSET13_MASKS,
                                                 length,
                                             );
                                         }
                                         14 => {
-                                            decompress_shuffle_pattern::<7>(
+                                            decompress_offset_14(
                                                 out_next,
                                                 src,
-                                                &OFFSET14_MASKS,
                                                 length,
                                             );
                                         }
