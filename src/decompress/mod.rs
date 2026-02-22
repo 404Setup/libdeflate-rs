@@ -145,10 +145,29 @@ impl Decompressor {
         )
     }
 
+    pub unsafe fn decompress_uninit(
+        &mut self,
+        input: &[u8],
+        output: &mut [std::mem::MaybeUninit<u8>],
+    ) -> (DecompressResult, usize, usize) {
+        let out_ptr = output.as_mut_ptr() as *mut u8;
+        let out_len = output.len();
+        self.decompress_ptr(input, out_ptr, out_len)
+    }
+
     pub fn decompress(
         &mut self,
         input: &[u8],
         output: &mut [u8],
+    ) -> (DecompressResult, usize, usize) {
+        self.decompress_ptr(input, output.as_mut_ptr(), output.len())
+    }
+
+    fn decompress_ptr(
+        &mut self,
+        input: &[u8],
+        out_ptr: *mut u8,
+        out_len: usize,
     ) -> (DecompressResult, usize, usize) {
         #[cfg(target_arch = "x86_64")]
         {
@@ -156,7 +175,7 @@ impl Decompressor {
                 && is_x86_feature_detected!("ssse3")
                 && is_x86_feature_detected!("sse4.1")
             {
-                let res = unsafe { x86::decompress_bmi2(self, input, output) };
+                let res = unsafe { x86::decompress_bmi2_ptr(self, input, out_ptr, out_len) };
                 // Security: Reset state because x86 implementation clobbers internal tables.
                 // This prevents state corruption if the Decompressor is reused for streaming.
                 self.state = DecompressorState::Start;
@@ -173,13 +192,25 @@ impl Decompressor {
         self.is_final_block = false;
 
         let mut out_idx = 0;
-        self.decompress_streaming(input, output, &mut out_idx)
+        unsafe { self.decompress_streaming_ptr(input, out_ptr, out_len, &mut out_idx) }
     }
 
     pub fn decompress_streaming(
         &mut self,
         input: &[u8],
         output: &mut [u8],
+        out_idx: &mut usize,
+    ) -> (DecompressResult, usize, usize) {
+        unsafe {
+            self.decompress_streaming_ptr(input, output.as_mut_ptr(), output.len(), out_idx)
+        }
+    }
+
+    unsafe fn decompress_streaming_ptr(
+        &mut self,
+        input: &[u8],
+        out_ptr: *mut u8,
+        out_len: usize,
         out_idx: &mut usize,
     ) -> (DecompressResult, usize, usize) {
         let mut in_idx = 0;
@@ -224,7 +255,15 @@ impl Decompressor {
                     }
                 }
                 DecompressorState::BlockBody | DecompressorState::BlockBodyOffset { .. } => {
-                    let res = self.decompress_huffman_block(input, &mut in_idx, output, out_idx);
+                    let res = unsafe {
+                        self.decompress_huffman_block_ptr(
+                            input,
+                            &mut in_idx,
+                            out_ptr,
+                            out_len,
+                            out_idx,
+                        )
+                    };
                     if res == DecompressResult::Success {
                         if self.is_final_block {
                             self.state = DecompressorState::Done;
@@ -262,11 +301,16 @@ impl Decompressor {
                 DecompressorState::UncompressedBody { len } => {
                     let remaining = len;
                     let available_in = input.len() - in_idx;
-                    let available_out = output.len() - *out_idx;
+                    let available_out = out_len - *out_idx;
                     let copy_len = min(remaining, min(available_in, available_out));
 
-                    output[*out_idx..*out_idx + copy_len]
-                        .copy_from_slice(&input[in_idx..in_idx + copy_len]);
+                    unsafe {
+                        std::ptr::copy_nonoverlapping(
+                            input.as_ptr().add(in_idx),
+                            out_ptr.add(*out_idx),
+                            copy_len,
+                        );
+                    }
                     in_idx += copy_len;
                     *out_idx += copy_len;
                     let new_len = remaining - copy_len;
@@ -458,11 +502,12 @@ impl Decompressor {
         DecompressResult::Success
     }
 
-    pub(crate) fn decompress_huffman_block(
+    pub(crate) unsafe fn decompress_huffman_block_ptr(
         &mut self,
         input: &[u8],
         in_idx: &mut usize,
-        output: &mut [u8],
+        out_ptr_start: *mut u8,
+        out_len: usize,
         out_idx: &mut usize,
     ) -> DecompressResult {
         let litlen_tablemask = (1 << self.litlen_tablebits) - 1;
@@ -507,11 +552,11 @@ impl Decompressor {
             }
             let dest = *out_idx;
             let src = dest - offset;
-            if dest + length > output.len() {
+            if dest + length > out_len {
                 return DecompressResult::InsufficientSpace;
             }
             unsafe {
-                let out_ptr = output.as_mut_ptr();
+                let out_ptr = out_ptr_start;
                 if offset >= length {
                     std::ptr::copy_nonoverlapping(out_ptr.add(src), out_ptr.add(dest), length);
                 } else if offset == 1 {
@@ -572,8 +617,8 @@ impl Decompressor {
         let in_ptr_start = input.as_ptr();
         let in_ptr_end = unsafe { in_ptr_start.add(input.len()) };
         let mut in_next = unsafe { in_ptr_start.add(*in_idx) };
-        let out_ptr_start = output.as_mut_ptr();
-        let out_ptr_end = unsafe { out_ptr_start.add(output.len()) };
+        // out_ptr_start is argument
+        let out_ptr_end = unsafe { out_ptr_start.add(out_len) };
         let mut out_next = unsafe { out_ptr_start.add(*out_idx) };
 
         unsafe {
@@ -728,7 +773,7 @@ impl Decompressor {
         *out_idx = unsafe { out_next.offset_from(out_ptr_start) as usize };
 
         loop {
-            while *in_idx + 15 < input.len() && *out_idx + 258 < output.len() {
+            while *in_idx + 15 < input.len() && *out_idx + 258 < out_len {
                 if self.bitsleft < 32 {
                     let word =
                         unsafe { (input.as_ptr().add(*in_idx) as *const u64).read_unaligned() };
@@ -756,7 +801,7 @@ impl Decompressor {
 
                 if entry & HUFFDEC_LITERAL != 0 {
                     unsafe {
-                        *output.get_unchecked_mut(*out_idx) = (entry >> 16) as u8;
+                        *out_ptr_start.add(*out_idx) = (entry >> 16) as u8;
                     }
                     *out_idx += 1;
                 } else {
@@ -820,7 +865,7 @@ impl Decompressor {
                         let dest = *out_idx;
 
                         unsafe {
-                            let out_ptr = output.as_mut_ptr();
+                            let out_ptr = out_ptr_start;
                             if offset < 8 {
                                 let src_ptr = out_ptr.add(src);
                                 let dest_ptr = out_ptr.add(dest);
@@ -919,11 +964,11 @@ impl Decompressor {
             self.bitbuf >>= total_bits;
             self.bitsleft -= total_bits;
             if entry & HUFFDEC_LITERAL != 0 {
-                if *out_idx >= output.len() {
+                if *out_idx >= out_len {
                     return DecompressResult::InsufficientSpace;
                 }
                 unsafe {
-                    *output.get_unchecked_mut(*out_idx) = (entry >> 16) as u8;
+                    *out_ptr_start.add(*out_idx) = (entry >> 16) as u8;
                 }
                 *out_idx += 1;
             } else {
@@ -974,12 +1019,12 @@ impl Decompressor {
                 }
                 let dest = *out_idx;
                 let src = dest - offset;
-                if dest + length > output.len() {
+                if dest + length > out_len {
                     return DecompressResult::InsufficientSpace;
                 }
 
                 unsafe {
-                    let out_ptr = output.as_mut_ptr();
+                    let out_ptr = out_ptr_start;
                     if offset >= length {
                         std::ptr::copy_nonoverlapping(out_ptr.add(src), out_ptr.add(dest), length);
                     } else if offset == 1 {
@@ -1024,10 +1069,10 @@ impl Decompressor {
         }
     }
 
-    pub fn decompress_zlib(
+    pub unsafe fn decompress_zlib_uninit(
         &mut self,
         input: &[u8],
-        output: &mut [u8],
+        output: &mut [std::mem::MaybeUninit<u8>],
     ) -> (DecompressResult, usize, usize) {
         if input.len() < ZLIB_MIN_OVERHEAD {
             return (DecompressResult::ShortInput, 0, 0);
@@ -1048,13 +1093,16 @@ impl Decompressor {
         }
 
         let (res, in_consumed, out_produced) =
-            self.decompress(&input[2..input.len() - ZLIB_FOOTER_SIZE], output);
+            unsafe { self.decompress_uninit(&input[2..input.len() - ZLIB_FOOTER_SIZE], output) };
 
         if res != DecompressResult::Success {
             return (res, in_consumed + 2, out_produced);
         }
 
-        let actual_adler = crate::adler32::adler32(1, &output[..out_produced]);
+        let out_slice = unsafe {
+            std::slice::from_raw_parts(output.as_ptr() as *const u8, out_produced)
+        };
+        let actual_adler = crate::adler32::adler32(1, out_slice);
         let expected_adler = u32::from_be_bytes([
             input[2 + in_consumed],
             input[2 + in_consumed + 1],
@@ -1077,10 +1125,25 @@ impl Decompressor {
         )
     }
 
-    pub fn decompress_gzip(
+    pub fn decompress_zlib(
         &mut self,
         input: &[u8],
         output: &mut [u8],
+    ) -> (DecompressResult, usize, usize) {
+        // Safe because output is initialized
+        let output_uninit = unsafe {
+            std::slice::from_raw_parts_mut(
+                output.as_mut_ptr() as *mut std::mem::MaybeUninit<u8>,
+                output.len(),
+            )
+        };
+        unsafe { self.decompress_zlib_uninit(input, output_uninit) }
+    }
+
+    pub unsafe fn decompress_gzip_uninit(
+        &mut self,
+        input: &[u8],
+        output: &mut [std::mem::MaybeUninit<u8>],
     ) -> (DecompressResult, usize, usize) {
         if input.len() < GZIP_MIN_OVERHEAD {
             return (DecompressResult::ShortInput, 0, 0);
@@ -1128,13 +1191,16 @@ impl Decompressor {
         }
 
         let (res, in_consumed, out_produced) =
-            self.decompress(&input[in_idx..input.len() - GZIP_FOOTER_SIZE], output);
+            unsafe { self.decompress_uninit(&input[in_idx..input.len() - GZIP_FOOTER_SIZE], output) };
 
         if res != DecompressResult::Success {
             return (res, in_idx + in_consumed, out_produced);
         }
 
-        let actual_crc = crate::crc32::crc32(0, &output[..out_produced]);
+        let out_slice = unsafe {
+            std::slice::from_raw_parts(output.as_ptr() as *const u8, out_produced)
+        };
+        let actual_crc = crate::crc32::crc32(0, out_slice);
         let expected_crc = u32::from_le_bytes([
             input[in_idx + in_consumed],
             input[in_idx + in_consumed + 1],
@@ -1170,6 +1236,21 @@ impl Decompressor {
             in_idx + in_consumed + GZIP_FOOTER_SIZE,
             out_produced,
         )
+    }
+
+    pub fn decompress_gzip(
+        &mut self,
+        input: &[u8],
+        output: &mut [u8],
+    ) -> (DecompressResult, usize, usize) {
+        // Safe because output is initialized
+        let output_uninit = unsafe {
+            std::slice::from_raw_parts_mut(
+                output.as_mut_ptr() as *mut std::mem::MaybeUninit<u8>,
+                output.len(),
+            )
+        };
+        unsafe { self.decompress_gzip_uninit(input, output_uninit) }
     }
 }
 

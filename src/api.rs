@@ -160,31 +160,39 @@ impl Decompressor {
     }
 
     pub fn decompress_deflate(&mut self, data: &[u8], expected_size: usize) -> io::Result<Vec<u8>> {
-        self.decompress_helper(data, expected_size, |d, data, out| d.decompress(data, out))
+        self.decompress_helper(data, expected_size, |d, data, out| unsafe {
+            d.decompress_uninit(data, out)
+        })
     }
 
     pub fn decompress_deflate_into(&mut self, data: &[u8], output: &mut [u8]) -> io::Result<usize> {
-        self.decompress_into_helper(data, output, |d, data, out| d.decompress(data, out))
+        self.decompress_into_helper(data, output, |d, data, out| unsafe {
+            d.decompress_uninit(data, out)
+        })
     }
 
     pub fn decompress_zlib(&mut self, data: &[u8], expected_size: usize) -> io::Result<Vec<u8>> {
-        self.decompress_helper(data, expected_size, |d, data, out| {
-            d.decompress_zlib(data, out)
+        self.decompress_helper(data, expected_size, |d, data, out| unsafe {
+            d.decompress_zlib_uninit(data, out)
         })
     }
 
     pub fn decompress_zlib_into(&mut self, data: &[u8], output: &mut [u8]) -> io::Result<usize> {
-        self.decompress_into_helper(data, output, |d, data, out| d.decompress_zlib(data, out))
+        self.decompress_into_helper(data, output, |d, data, out| unsafe {
+            d.decompress_zlib_uninit(data, out)
+        })
     }
 
     pub fn decompress_gzip(&mut self, data: &[u8], expected_size: usize) -> io::Result<Vec<u8>> {
-        self.decompress_helper(data, expected_size, |d, data, out| {
-            d.decompress_gzip(data, out)
+        self.decompress_helper(data, expected_size, |d, data, out| unsafe {
+            d.decompress_gzip_uninit(data, out)
         })
     }
 
     pub fn decompress_gzip_into(&mut self, data: &[u8], output: &mut [u8]) -> io::Result<usize> {
-        self.decompress_into_helper(data, output, |d, data, out| d.decompress_gzip(data, out))
+        self.decompress_into_helper(data, output, |d, data, out| unsafe {
+            d.decompress_gzip_uninit(data, out)
+        })
     }
 
     fn decompress_helper<F>(
@@ -197,7 +205,7 @@ impl Decompressor {
         F: FnOnce(
             &mut InternalDecompressor,
             &[u8],
-            &mut [u8],
+            &mut [std::mem::MaybeUninit<u8>],
         ) -> (crate::decompress::DecompressResult, usize, usize),
     {
         // Security check: prevent massive allocations for small inputs (Zip bomb prevention)
@@ -232,11 +240,17 @@ impl Decompressor {
         output
             .try_reserve_exact(expected_size)
             .map_err(|e| io::Error::new(io::ErrorKind::Other, e))?;
-        output.resize(expected_size, 0);
 
-        let (res, _, size) = f(&mut self.inner, data, &mut output);
+        // Use spare_capacity_mut to avoid zero-initialization.
+        let out_uninit = output.spare_capacity_mut();
+        // Ensure we only use the expected size
+        let out_uninit = &mut out_uninit[..expected_size];
+
+        let (res, _, size) = f(&mut self.inner, data, out_uninit);
         if res == crate::decompress::DecompressResult::Success {
-            output.truncate(size);
+            unsafe {
+                output.set_len(size);
+            }
             Ok(output)
         } else {
             Err(io::Error::new(
@@ -256,7 +270,7 @@ impl Decompressor {
         F: FnOnce(
             &mut InternalDecompressor,
             &[u8],
-            &mut [u8],
+            &mut [std::mem::MaybeUninit<u8>],
         ) -> (crate::decompress::DecompressResult, usize, usize),
     {
         if is_overlapping(data, output) {
@@ -265,7 +279,14 @@ impl Decompressor {
                 "Input and output buffers overlap",
             ));
         }
-        let (res, _, size) = f(&mut self.inner, data, output);
+        // Safe to cast &mut [u8] to &mut [MaybeUninit<u8>]
+        let out_uninit = unsafe {
+            std::slice::from_raw_parts_mut(
+                output.as_mut_ptr() as *mut std::mem::MaybeUninit<u8>,
+                output.len(),
+            )
+        };
+        let (res, _, size) = f(&mut self.inner, data, out_uninit);
         if res == crate::decompress::DecompressResult::Success {
             Ok(size)
         } else {
