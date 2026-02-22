@@ -1186,12 +1186,11 @@ pub(crate) unsafe fn prepare_pattern(offset: usize, src_ptr: *const u8) -> u64 {
                 w | (w << 16) | (w << 32) | (w << 48)
             }
             3 => {
-                // Optimization: Read 4 bytes, mask to 3 bytes, then replicate the pattern.
-                // This reduces memory accesses compared to byte-wise reads.
-                // Safe because caller guards availability.
-                // Masking avoids using the potentially uninitialized 4th byte.
-                let val = (src_ptr as *const u32).read_unaligned();
-                let p = (val.to_le() & 0xFFFFFF) as u64;
+                // Optimization: Read u16 + u8 to avoid reading the uninitialized 4th byte.
+                // Reading uninitialized memory is UB even if masked out later.
+                let w = (src_ptr as *const u16).read_unaligned().to_le() as u64;
+                let b = *src_ptr.add(2) as u64;
+                let p = w | (b << 16);
                 let p_le = p | (p << 24) | (p << 48);
                 u64::from_le(p_le)
             }
@@ -1200,20 +1199,24 @@ pub(crate) unsafe fn prepare_pattern(offset: usize, src_ptr: *const u8) -> u64 {
                 w | (w << 32)
             }
             5 => {
-                let val = (src_ptr as *const u64).read_unaligned();
-                let p = val.to_le() & 0xFFFFFFFFFF;
+                let d = (src_ptr as *const u32).read_unaligned().to_le() as u64;
+                let b = *src_ptr.add(4) as u64;
+                let p = d | (b << 32);
                 let p_le = p | (p << 40);
                 u64::from_le(p_le)
             }
             6 => {
-                let val = (src_ptr as *const u64).read_unaligned();
-                let p = val.to_le() & 0xFFFFFFFFFFFF;
+                let d = (src_ptr as *const u32).read_unaligned().to_le() as u64;
+                let w = (src_ptr.add(4) as *const u16).read_unaligned().to_le() as u64;
+                let p = d | (w << 32);
                 let p_le = p | (p << 48);
                 u64::from_le(p_le)
             }
             7 => {
-                let val = (src_ptr as *const u64).read_unaligned();
-                let p = val.to_le() & 0xFFFFFFFFFFFFFF;
+                let d = (src_ptr as *const u32).read_unaligned().to_le() as u64;
+                let w = (src_ptr.add(4) as *const u16).read_unaligned().to_le() as u64;
+                let b = *src_ptr.add(6) as u64;
+                let p = d | (w << 32) | (b << 48);
                 let p_le = p | (p << 56);
                 u64::from_le(p_le)
             }
