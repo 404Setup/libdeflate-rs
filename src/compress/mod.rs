@@ -1990,8 +1990,12 @@ impl Compressor {
         unsafe { bs.write_bits_upto_32(off_val, off_len_total) }
     }
 
+    #[inline(always)]
     fn get_length_slot(&self, len: usize) -> usize {
-        (LENGTH_WRITE_TABLE[len] >> 24) as usize
+        debug_assert!(len < LENGTH_WRITE_TABLE.len());
+        // SAFETY: The match finder guarantees len <= DEFLATE_MAX_MATCH_LEN (258),
+        // which is within the table bounds (260).
+        unsafe { (*LENGTH_WRITE_TABLE.get_unchecked(len) >> 24) as usize }
     }
 
     #[inline(always)]
