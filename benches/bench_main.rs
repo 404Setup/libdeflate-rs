@@ -1310,6 +1310,39 @@ fn bench_decompress_offset3_small(c: &mut Criterion) {
     group.finish();
 }
 
+fn bench_decompress_offset3_micro(c: &mut Criterion) {
+    let size = 1024 * 1024; // 1MB
+    // 3 bytes pattern
+    let pattern = b"123";
+    let mut original_data = Vec::with_capacity(size);
+    while original_data.len() < size {
+        original_data.extend_from_slice(pattern);
+    }
+    original_data.truncate(size);
+
+    let mut compressor = Compressor::new(6).unwrap();
+    let mut compressed_data = vec![0u8; size + size / 2 + 1024];
+    let compressed_size = compressor
+        .compress_deflate_into(&original_data, &mut compressed_data)
+        .unwrap();
+
+    let mut out_buf = vec![0u8; size];
+
+    let mut group = c.benchmark_group("Decompress offset3 Micro");
+    group.throughput(Throughput::Bytes(size as u64));
+
+    group.bench_with_input("libdeflate-rs offset3 micro", &size, |b, &_size| {
+        let mut decompressor = Decompressor::new();
+        b.iter(|| {
+            decompressor
+                .decompress_deflate_into(&compressed_data[..compressed_size], &mut out_buf)
+                .unwrap_or(0)
+        });
+    });
+
+    group.finish();
+}
+
 fn bench_decompress_offset9_small(c: &mut Criterion) {
     let path = "bench_data/data_offset9_small.bin";
     if !Path::new(path).exists() {
@@ -2030,6 +2063,7 @@ criterion_group!(
     bench_decompress_offset8,
     bench_decompress_offset3,
     bench_decompress_offset3_small,
+    bench_decompress_offset3_micro,
     bench_decompress_offset9_small,
     bench_decompress_offset5,
     bench_decompress_offset7,
