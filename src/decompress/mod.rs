@@ -1,5 +1,6 @@
 #![deny(unsafe_op_in_unsafe_fn)]
 mod tables;
+mod tests;
 
 use self::tables::*;
 use crate::common::*;

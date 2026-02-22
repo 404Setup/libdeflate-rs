@@ -1,5 +1,6 @@
-use libdeflate::compress::{Compressor, FlushMode};
-use libdeflate::decompress::{DecompressResult, Decompressor, DecompressorState};
+
+use super::{Decompressor, DecompressorState, DecompressResult};
+use crate::compress::{Compressor, FlushMode};
 
 #[test]
 fn test_state_corruption_after_one_shot_decompress() {
@@ -13,8 +14,7 @@ fn test_state_corruption_after_one_shot_decompress() {
 
     let mut compressed = vec![std::mem::MaybeUninit::uninit(); 20000];
     let (res, size, _) = compressor.compress(&data, &mut compressed, FlushMode::Finish);
-    assert_eq!(res, libdeflate::compress::CompressResult::Success);
-    println!("Compressed size: {}", size);
+    assert_eq!(res, crate::compress::CompressResult::Success);
 
     let compressed_data =
         unsafe { std::slice::from_raw_parts(compressed.as_ptr() as *const u8, size) };
@@ -28,29 +28,26 @@ fn test_state_corruption_after_one_shot_decompress() {
         );
     }
     let split_point = size / 2;
-    let (part1, part2) = compressed_data.split_at(split_point);
+    let (part1, _part2) = compressed_data.split_at(split_point);
 
     let mut decompressor = Decompressor::new();
     let mut output = vec![0u8; 20000];
     let mut out_idx = 0;
 
     // 3. Start streaming part 1
-    let (res1, in1, out1) = decompressor.decompress_streaming(part1, &mut output, &mut out_idx);
+    let _ = decompressor.decompress_streaming(part1, &mut output, &mut out_idx);
 
-    // We expect ShortInput because we didn't provide full data
-    println!(
-        "Streaming part 1 result: {:?}, consumed: {}, produced: {}",
-        res1, in1, out1
-    );
+    // We expect ShortInput because we didn't provide full data, but we don't assert it here
+    // as we are interested in the state.
 
     match decompressor.state {
         DecompressorState::BlockBody | DecompressorState::BlockBodyOffset { .. } => {
-            println!("State after part1: BlockBody (Correct)");
+            // Correct, we should be in the middle of a block
         }
         state => {
-            println!("State after part1: {:?}", state);
             // If we are not in BlockBody, we might have finished a block?
             // With 10000 bytes, likely one block.
+            println!("State after part1: {:?}", state);
         }
     }
 
@@ -65,7 +62,7 @@ fn test_state_corruption_after_one_shot_decompress() {
 
     let mut other_out = vec![0u8; 1000];
     let res_other = decompressor.decompress(other_compressed_slice, &mut other_out);
-    println!("One-shot result: {:?}", res_other);
+    assert_eq!(res_other.0, DecompressResult::Success);
 
     // 5. Check state
     // Vulnerable: State is still BlockBody (from step 3).
