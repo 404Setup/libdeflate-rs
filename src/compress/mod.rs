@@ -83,6 +83,13 @@ const OFFSET_SLOT_TABLE: [u8; 32769] = {
     table
 };
 
+const OFF_IDX_TABLE: [u8; 32] = [
+    0, 0, 0, 0, 0, 0, 0, 0, // 0-7: offset < 256
+    1, 1, 1, 1, // 8-11: offset < 4096
+    2, 2, 2, // 12-14: offset < 32768
+    3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, // 15-31: offset >= 32768
+];
+
 pub const MAX_LITLEN_CODEWORD_LEN: usize = 14;
 pub const MAX_OFFSET_CODEWORD_LEN: usize = 15;
 pub const MAX_PRE_CODEWORD_LEN: usize = 7;
@@ -175,17 +182,14 @@ impl BlockSplitStats {
             *self.new_observations.get_unchecked_mut(len_idx) += 1;
         }
 
+        // Optimization: Use table lookup to avoid branch mispredictions.
+        // offset is always >= 1, so bsr32 is safe.
+        debug_assert!(offset >= 1);
+        let off_idx_base = unsafe { *OFF_IDX_TABLE.get_unchecked(bsr32(offset as u32) as usize) };
+
         let off_idx = NUM_LITERAL_OBSERVATION_TYPES
             + NUM_MATCH_OBSERVATION_TYPES
-            + if offset < 256 {
-                0
-            } else if offset < 4096 {
-                1
-            } else if offset < 32768 {
-                2
-            } else {
-                3
-            };
+            + off_idx_base as usize;
         unsafe {
             *self.new_observations.get_unchecked_mut(off_idx) += 1;
         }
