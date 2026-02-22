@@ -2174,6 +2174,7 @@ criterion_group!(
     bench_decompress_offset62_micro,
     bench_decompress_offset33_micro,
     bench_decompress_offset15_micro,
+    bench_decompress_large_synthetic,
 );
 criterion_main!(benches);
 
@@ -2647,6 +2648,36 @@ fn bench_crc32_large(c: &mut Criterion) {
 
     group.bench_with_input(BenchmarkId::new("libdeflater", size), &size, |b, &_size| {
         b.iter(|| libdeflater::crc32(&data));
+    });
+
+    group.finish();
+}
+
+fn bench_decompress_large_synthetic(c: &mut Criterion) {
+    let size = 10 * 1024 * 1024; // 10MB
+    // Create compressible data: repeating pattern
+    let pattern = b"This is a repetitive pattern to ensure good compression ratio and test buffer management.";
+    let mut original_data = Vec::with_capacity(size);
+    while original_data.len() < size {
+        original_data.extend_from_slice(pattern);
+    }
+    original_data.truncate(size);
+
+    let mut compressor = Compressor::new(1).unwrap();
+    let mut compressed_data = vec![0u8; size + size / 2 + 1024];
+    let compressed_size = compressor
+        .compress_deflate_into(&original_data, &mut compressed_data)
+        .unwrap();
+
+    let mut group = c.benchmark_group("Decompress Large Synthetic");
+    group.throughput(Throughput::Bytes(size as u64));
+
+    group.bench_with_input("libdeflate-rs decompress_deflate 10MB", &size, |b, &_size| {
+        let mut decompressor = Decompressor::new();
+        b.iter(|| {
+            // Use decompress_deflate which allocates memory
+            decompressor.decompress_deflate(&compressed_data[..compressed_size], size).unwrap()
+        });
     });
 
     group.finish();

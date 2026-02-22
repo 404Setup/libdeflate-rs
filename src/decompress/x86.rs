@@ -960,13 +960,13 @@ unsafe fn decompress_offset_64(
 
 #[cfg(target_arch = "x86_64")]
 #[target_feature(enable = "bmi2,ssse3,sse4.1")]
-pub unsafe fn decompress_bmi2(
+pub unsafe fn decompress_bmi2_ptr(
     d: &mut Decompressor,
     input: &[u8],
-    output: &mut [u8],
+    out_ptr: *mut u8,
+    out_len: usize,
 ) -> (DecompressResult, usize, usize) {
     let mut out_idx = 0;
-    let out_len = output.len();
     let mut in_idx = 0;
     let in_len = input.len();
     let mut bitbuf = 0u64;
@@ -1007,7 +1007,7 @@ pub unsafe fn decompress_bmi2(
                 }
                 std::ptr::copy_nonoverlapping(
                     input.as_ptr().add(in_idx),
-                    output.as_mut_ptr().add(out_idx),
+                    out_ptr.add(out_idx),
                     len,
                 );
                 in_idx += len;
@@ -1033,7 +1033,7 @@ pub unsafe fn decompress_bmi2(
                         let in_ptr_start = input.as_ptr();
                         let in_ptr_end = in_ptr_start.add(in_len);
                         let mut in_next = in_ptr_start.add(in_idx);
-                        let out_ptr_start = output.as_mut_ptr();
+                        let out_ptr_start = out_ptr;
                         let out_ptr_end = out_ptr_start.add(out_len);
                         let mut out_next = out_ptr_start.add(out_idx);
 
@@ -1481,7 +1481,15 @@ pub unsafe fn decompress_bmi2(
                     d.bitsleft = bitsleft;
                     d.state = crate::decompress::DecompressorState::BlockBody;
 
-                    let res = d.decompress_huffman_block(input, &mut in_idx, output, &mut out_idx);
+                    let res = unsafe {
+                        d.decompress_huffman_block_ptr(
+                            input,
+                            &mut in_idx,
+                            out_ptr,
+                            out_len,
+                            &mut out_idx,
+                        )
+                    };
 
                     bitbuf = d.bitbuf;
                     bitsleft = d.bitsleft;
