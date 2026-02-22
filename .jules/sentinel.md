@@ -1,9 +1,4 @@
-## 2025-02-23 - Prevention of OOM Panics in API
-**Vulnerability:** The public API `compress_deflate` and `decompress_deflate` used `vec![0u8; size]`, which panics on allocation failure. This allows DoS attacks via memory exhaustion.
-**Learning:** Rust's default allocation panics. For libraries exposing allocation based on user input, always use `Vec::try_reserve` or similar fallible allocation methods.
-**Prevention:** Audit all `vec![]` macros or `Vec::with_capacity` calls where the size is user-controlled.
-
-## 2025-02-19 - State Corruption in Mixed Decompression Modes
-**Vulnerability:** A `Decompressor` reused for both streaming (`decompress_streaming`) and one-shot (`decompress`) operations could enter a corrupted state. The one-shot x86 BMI2 optimization overwrote internal Huffman tables without resetting the state machine. If streaming was subsequently resumed on the same instance, it would use the clobbered tables on the pending data stream, leading to data corruption or crashes.
-**Learning:** "Stateless" optimization paths in stateful objects must explicitly reset or invalidate the object's state to prevent side effects on future stateful operations. Performance optimizations that bypass the main state machine are risky if they share mutable state (like tables).
-**Prevention:** When implementing optimized fast-paths that bypass the standard state machine, verify they leave the object in a consistent known state (e.g., `Start` or `Invalid`). Add regression tests that mix different API modes (streaming vs one-shot) on the same object instance.
+## 2025-02-18 - Unsafe Vector Folding in CRC32
+**Vulnerability:** A specialized SIMD tail handling function `fold_lessthan16bytes_avx512` in `crc32/x86.rs` contained a potential out-of-bounds read (`p.offset(len - 16)` where `len < 16`) and performed incorrect folding calculations, leading to CRC mismatches for certain tail lengths.
+**Learning:** Complexity in SIMD optimization for cold paths (like small tails) often introduces subtle correctness and security bugs that outweigh the negligible performance benefits.
+**Prevention:** Prefer robust, simple scalar fallbacks for small tails and edge cases in SIMD algorithms. Avoid complex pointer arithmetic with negative offsets unless strictly verified safe.
