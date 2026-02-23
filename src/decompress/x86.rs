@@ -869,7 +869,50 @@ unsafe fn decompress_offset_28(out_next: *mut u8, src: *const u8, v: __m128i, le
     let v2 = _mm_blend_epi16(_mm_srli_si128(v0, 4), _mm_slli_si128(v_align, 8), 0xC0);
     let v4 = _mm_blend_epi16(_mm_srli_si128(v0, 8), _mm_slli_si128(v_align, 4), 0xF0);
 
-    decompress_write_cycle_vectors(out_next, src, &[v1, v2, v3, v4, v5, v6, v0], length, 16);
+    let mut copied = 16;
+    while copied + 112 <= length {
+        _mm_storeu_si128(out_next.add(copied) as *mut __m128i, v1);
+        _mm_storeu_si128(out_next.add(copied + 16) as *mut __m128i, v2);
+        _mm_storeu_si128(out_next.add(copied + 32) as *mut __m128i, v3);
+        _mm_storeu_si128(out_next.add(copied + 48) as *mut __m128i, v4);
+        _mm_storeu_si128(out_next.add(copied + 64) as *mut __m128i, v5);
+        _mm_storeu_si128(out_next.add(copied + 80) as *mut __m128i, v6);
+        _mm_storeu_si128(out_next.add(copied + 96) as *mut __m128i, v0);
+        copied += 112;
+    }
+
+    if copied + 16 <= length {
+        _mm_storeu_si128(out_next.add(copied) as *mut __m128i, v1);
+        copied += 16;
+    }
+    if copied + 16 <= length {
+        _mm_storeu_si128(out_next.add(copied) as *mut __m128i, v2);
+        copied += 16;
+    }
+    if copied + 16 <= length {
+        _mm_storeu_si128(out_next.add(copied) as *mut __m128i, v3);
+        copied += 16;
+    }
+    if copied + 16 <= length {
+        _mm_storeu_si128(out_next.add(copied) as *mut __m128i, v4);
+        copied += 16;
+    }
+    if copied + 16 <= length {
+        _mm_storeu_si128(out_next.add(copied) as *mut __m128i, v5);
+        copied += 16;
+    }
+    if copied + 16 <= length {
+        _mm_storeu_si128(out_next.add(copied) as *mut __m128i, v6);
+        copied += 16;
+    }
+    if copied + 16 <= length {
+        _mm_storeu_si128(out_next.add(copied) as *mut __m128i, v0);
+        copied += 16;
+    }
+
+    if copied < length {
+        std::ptr::copy_nonoverlapping(src.add(copied), out_next.add(copied), length - copied);
+    }
 }
 
 #[cfg(target_arch = "x86_64")]
