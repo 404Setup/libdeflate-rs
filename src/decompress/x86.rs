@@ -281,6 +281,48 @@ unsafe fn decompress_offset_alignr_cycle<const SHIFT: i32>(
             v_align = v_next2;
             copied += 64;
         }
+    } else if SHIFT == 10 {
+        // Optimization for Offset 22: Unroll loop to write 96 bytes (6 vectors) per iteration.
+        while copied + 96 <= length {
+            let v_next0 = _mm_alignr_epi8::<10>(v_prev, v_align);
+            let v_next1 = _mm_alignr_epi8::<10>(v_next0, v_prev);
+            let v_next2 = _mm_alignr_epi8::<4>(v_next0, v_prev);
+            let v_next3 = _mm_alignr_epi8::<4>(v_next1, v_next0);
+            let v_next4 = _mm_alignr_epi8::<14>(v_next0, v_prev);
+            let v_next5 = _mm_alignr_epi8::<14>(v_next1, v_next0);
+
+            _mm_storeu_si128(out_next.add(copied) as *mut __m128i, v_next0);
+            _mm_storeu_si128(out_next.add(copied + 16) as *mut __m128i, v_next1);
+            _mm_storeu_si128(out_next.add(copied + 32) as *mut __m128i, v_next2);
+            _mm_storeu_si128(out_next.add(copied + 48) as *mut __m128i, v_next3);
+            _mm_storeu_si128(out_next.add(copied + 64) as *mut __m128i, v_next4);
+            _mm_storeu_si128(out_next.add(copied + 80) as *mut __m128i, v_next5);
+
+            v_prev = v_next5;
+            v_align = v_next4;
+            copied += 96;
+        }
+    } else if SHIFT == 6 {
+        // Optimization for Offset 26: Unroll loop to write 96 bytes (6 vectors) per iteration.
+        while copied + 96 <= length {
+            let v_next0 = _mm_alignr_epi8::<6>(v_prev, v_align);
+            let v_next1 = _mm_alignr_epi8::<6>(v_next0, v_prev);
+            let v_next2 = _mm_alignr_epi8::<6>(v_next1, v_next0);
+            let v_next3 = _mm_alignr_epi8::<12>(v_next0, v_prev);
+            let v_next4 = _mm_alignr_epi8::<12>(v_next1, v_next0);
+            let v_next5 = _mm_alignr_epi8::<2>(v_next1, v_next0);
+
+            _mm_storeu_si128(out_next.add(copied) as *mut __m128i, v_next0);
+            _mm_storeu_si128(out_next.add(copied + 16) as *mut __m128i, v_next1);
+            _mm_storeu_si128(out_next.add(copied + 32) as *mut __m128i, v_next2);
+            _mm_storeu_si128(out_next.add(copied + 48) as *mut __m128i, v_next3);
+            _mm_storeu_si128(out_next.add(copied + 64) as *mut __m128i, v_next4);
+            _mm_storeu_si128(out_next.add(copied + 80) as *mut __m128i, v_next5);
+
+            v_prev = v_next5;
+            v_align = v_next4;
+            copied += 96;
+        }
     } else {
         while copied + 128 <= length {
             let v_next0 = _mm_alignr_epi8::<SHIFT>(v_prev, v_align);
