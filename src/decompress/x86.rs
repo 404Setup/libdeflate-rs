@@ -272,9 +272,30 @@ unsafe fn decompress_fill_pattern(out_next: *mut u8, v_pattern: __m128i, length:
         std::ptr::write_unaligned(out_next.add(i) as *mut u64, pattern);
         i += 8;
     }
-    while i < length {
-        *out_next.add(i) = (pattern >> ((i & 7) * 8)) as u8;
-        i += 1;
+    // Optimization: If the remaining length is small (tail), use a single overlapping 8-byte write
+    // instead of a byte-by-byte loop.
+    //
+    // Safety:
+    // 1. `decompress_bmi2_ptr` ensures `out_next` has at least 258 bytes of available space
+    //    before calling this function (via `out_next.add(258) <= out_ptr_end`).
+    // 2. We write 8 bytes at offset `i`.
+    // 3. `i` is a multiple of 8 and `i < length`.
+    // 4. `length` is the match length, bounded by 258.
+    // 5. To be safe, we need `i + 8 <= 258`.
+    // 6. Since `i <= length - 1`, we need `length - 1 + 8 <= 258` => `length <= 251`.
+    // 7. We conservatively check `length <= 250`.
+    //
+    // This allows us to overwrite valid memory within the output buffer (which will be overwritten
+    // by subsequent operations anyway) without exceeding the buffer bounds.
+    if i < length {
+        if length <= 250 {
+            std::ptr::write_unaligned(out_next.add(i) as *mut u64, pattern);
+        } else {
+            while i < length {
+                *out_next.add(i) = (pattern >> ((i & 7) * 8)) as u8;
+                i += 1;
+            }
+        }
     }
 }
 
