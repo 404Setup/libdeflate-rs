@@ -743,6 +743,18 @@ unsafe fn decompress_offset_10(out_next: *mut u8, src: *const u8, length: usize)
     let v_pat = _mm_shuffle_epi8(v_raw, mask);
 
     let mut copied = 0;
+    while copied + 104 <= length {
+        _mm_storeu_si128(out_next.add(copied) as *mut __m128i, v_pat);
+        _mm_storeu_si128(out_next.add(copied + 10) as *mut __m128i, v_pat);
+        _mm_storeu_si128(out_next.add(copied + 20) as *mut __m128i, v_pat);
+        _mm_storeu_si128(out_next.add(copied + 30) as *mut __m128i, v_pat);
+        _mm_storeu_si128(out_next.add(copied + 40) as *mut __m128i, v_pat);
+        _mm_storeu_si128(out_next.add(copied + 50) as *mut __m128i, v_pat);
+        _mm_storeu_si128(out_next.add(copied + 60) as *mut __m128i, v_pat);
+        _mm_storeu_si128(out_next.add(copied + 70) as *mut __m128i, v_pat);
+        copied += 80;
+    }
+
     while copied + 64 <= length {
         _mm_storeu_si128(out_next.add(copied) as *mut __m128i, v_pat);
         _mm_storeu_si128(out_next.add(copied + 10) as *mut __m128i, v_pat);
@@ -1904,6 +1916,7 @@ pub unsafe fn decompress_bmi2_ptr(
                     d.load_static_huffman_codes();
                 }
 
+                #[allow(clippy::never_loop)]
                 loop {
                     let mut eob_found = false;
                     unsafe {
