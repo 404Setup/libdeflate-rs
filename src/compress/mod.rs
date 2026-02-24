@@ -110,6 +110,19 @@ const OFF_IDX_TABLE: [u8; 32] = [
     3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, // 15-31: offset >= 32768
 ];
 
+// Mapping from offset slot to observation index.
+// Slots 0-15 (offsets 1-256) -> 0
+// Slots 16-23 (offsets 257-4096) -> 1
+// Slots 24-29 (offsets 4097-32768) -> 2
+// Note: Offset 32768 (Slot 29) is effectively mapped to Type 2,
+// whereas OFF_IDX_TABLE maps it to Type 3. This minor deviation is acceptable.
+const SLOT_TO_OBS_IDX: [u8; 32] = [
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, // 0-15
+    1, 1, 1, 1, 1, 1, 1, 1, // 16-23
+    2, 2, 2, 2, 2, 2, // 24-29
+    0, 0, // 30-31
+];
+
 pub const MAX_LITLEN_CODEWORD_LEN: usize = 14;
 pub const MAX_OFFSET_CODEWORD_LEN: usize = 15;
 pub const MAX_PRE_CODEWORD_LEN: usize = 7;
@@ -207,6 +220,23 @@ impl BlockSplitStats {
         debug_assert!(offset >= 1);
         let off_idx_base = unsafe { *OFF_IDX_TABLE.get_unchecked(bsr32(offset as u32) as usize) };
 
+        let off_idx =
+            NUM_LITERAL_OBSERVATION_TYPES + NUM_MATCH_OBSERVATION_TYPES + off_idx_base as usize;
+        unsafe {
+            *self.new_observations.get_unchecked_mut(off_idx) += 1;
+        }
+
+        self.num_new_observations += 2;
+    }
+
+    #[inline(always)]
+    fn observe_match_with_slot(&mut self, length: usize, off_slot: usize) {
+        let len_idx = NUM_LITERAL_OBSERVATION_TYPES + if length >= 8 { 1 } else { 0 };
+        unsafe {
+            *self.new_observations.get_unchecked_mut(len_idx) += 1;
+        }
+
+        let off_idx_base = unsafe { *SLOT_TO_OBS_IDX.get_unchecked(off_slot) };
         let off_idx =
             NUM_LITERAL_OBSERVATION_TYPES + NUM_MATCH_OBSERVATION_TYPES + off_idx_base as usize;
         unsafe {
@@ -982,9 +1012,10 @@ impl Compressor {
                 mf.find_match(input, in_idx, self.max_search_depth, self.nice_match_length);
 
             if len >= 3 {
-                self.split_stats.observe_match(len, offset);
+                let off_slot = self.get_offset_slot(offset);
+                self.split_stats.observe_match_with_slot(len, off_slot);
                 self.litlen_freqs[257 + self.get_length_slot(len)] += 1;
-                self.offset_freqs[self.get_offset_slot(offset)] += 1;
+                self.offset_freqs[off_slot] += 1;
                 mf.skip_positions(
                     input,
                     in_idx + 1,
@@ -1211,7 +1242,7 @@ impl Compressor {
                     offset as u16,
                     off_slot as u8,
                 ));
-                self.split_stats.observe_match(len, offset);
+                self.split_stats.observe_match_with_slot(len, off_slot);
                 self.litlen_freqs[257 + self.get_length_slot(len)] += 1;
                 self.offset_freqs[off_slot] += 1;
                 litrunlen = 0;
@@ -1568,9 +1599,10 @@ impl Compressor {
             let (len, offset) =
                 mf.find_match(input, in_idx, self.max_search_depth, self.nice_match_length);
             if len >= 3 {
-                self.split_stats.observe_match(len, offset);
+                let off_slot = self.get_offset_slot(offset);
+                self.split_stats.observe_match_with_slot(len, off_slot);
                 self.litlen_freqs[257 + self.get_length_slot(len)] += 1;
-                self.offset_freqs[self.get_offset_slot(offset)] += 1;
+                self.offset_freqs[off_slot] += 1;
                 mf.skip_positions(
                     input,
                     in_idx + 1,
