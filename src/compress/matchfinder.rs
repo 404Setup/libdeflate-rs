@@ -87,6 +87,71 @@ impl MatchLen for NeonStrategy {
     }
 }
 
+macro_rules! impl_matchfinder_trait {
+    ($t:ty,
+     find_match($self:ident, $d:ident, $p:ident, $md:ident, $nl:ident) $fm_body:block,
+     skip_match($self2:ident, $sd:ident, $sp:ident, $smd:ident, $snl:ident) $sm_body:block,
+     skip_positions($self3:ident, $spd:ident, $spp:ident, $spc:ident, $spmd:ident, $spnl:ident) $sp_body:block,
+     find_matches($self4:ident, $fmd:ident, $fmp:ident, $fmmd:ident, $fmnl:ident, $fmm:ident) $fm_matches_body:block
+    ) => {
+        impl MatchFinderTrait for $t {
+            fn reset(&mut self) {
+                self.reset();
+            }
+
+            fn prepare(&mut self, len: usize) {
+                self.prepare(len);
+            }
+
+            fn advance(&mut self, len: usize) {
+                self.advance(len);
+            }
+
+            fn find_match(
+                &mut $self,
+                $d: &[u8],
+                $p: usize,
+                $md: usize,
+                $nl: usize,
+            ) -> (usize, usize) {
+                $fm_body
+            }
+
+            fn skip_match(
+                &mut $self2,
+                $sd: &[u8],
+                $sp: usize,
+                $smd: usize,
+                $snl: usize,
+            ) {
+                $sm_body
+            }
+
+            fn skip_positions(
+                &mut $self3,
+                $spd: &[u8],
+                $spp: usize,
+                $spc: usize,
+                $spmd: usize,
+                $spnl: usize,
+            ) {
+                $sp_body
+            }
+
+            fn find_matches(
+                &mut $self4,
+                $fmd: &[u8],
+                $fmp: usize,
+                $fmmd: usize,
+                $fmnl: usize,
+                $fmm: &mut Vec<(u16, u16)>,
+            ) -> (usize, usize) {
+                $fm_matches_body
+            }
+        }
+    };
+}
+
 pub trait MatchFinderTrait {
     fn reset(&mut self);
     fn prepare(&mut self, len: usize);
@@ -121,90 +186,34 @@ pub trait MatchFinderTrait {
     ) -> (usize, usize);
 }
 
-impl MatchFinderTrait for MatchFinder {
-    fn reset(&mut self) {
-        self.reset();
-    }
-    fn prepare(&mut self, len: usize) {
-        self.prepare(len);
-    }
-    fn advance(&mut self, len: usize) {
-        self.advance(len);
-    }
-    fn find_match(
-        &mut self,
-        data: &[u8],
-        pos: usize,
-        max_depth: usize,
-        nice_len: usize,
-    ) -> (usize, usize) {
+impl_matchfinder_trait!(
+    MatchFinder,
+    find_match(self, data, pos, max_depth, nice_len) {
         self.find_match(data, pos, max_depth, nice_len)
-    }
-    fn skip_match(&mut self, data: &[u8], pos: usize, _max_depth: usize, _nice_len: usize) {
+    },
+    skip_match(self, data, pos, _max_depth, _nice_len) {
         self.skip_match(data, pos);
-    }
-    fn skip_positions(
-        &mut self,
-        data: &[u8],
-        pos: usize,
-        count: usize,
-        _max_depth: usize,
-        _nice_len: usize,
-    ) {
+    },
+    skip_positions(self, data, pos, count, _max_depth, _nice_len) {
         self.skip_positions(data, pos, count);
-    }
-    fn find_matches(
-        &mut self,
-        data: &[u8],
-        pos: usize,
-        max_depth: usize,
-        nice_len: usize,
-        matches: &mut Vec<(u16, u16)>,
-    ) -> (usize, usize) {
+    },
+    find_matches(self, data, pos, max_depth, nice_len, matches) {
         self.find_matches(data, pos, max_depth, nice_len, matches)
     }
-}
+);
 
-impl MatchFinderTrait for HtMatchFinder {
-    fn reset(&mut self) {
-        self.reset();
-    }
-    fn prepare(&mut self, len: usize) {
-        self.prepare(len);
-    }
-    fn advance(&mut self, len: usize) {
-        self.advance(len);
-    }
-    fn find_match(
-        &mut self,
-        data: &[u8],
-        pos: usize,
-        _max_depth: usize,
-        _nice_len: usize,
-    ) -> (usize, usize) {
+impl_matchfinder_trait!(
+    HtMatchFinder,
+    find_match(self, data, pos, _max_depth, _nice_len) {
         self.find_match(data, pos)
-    }
-    fn skip_match(&mut self, data: &[u8], pos: usize, _max_depth: usize, _nice_len: usize) {
+    },
+    skip_match(self, data, pos, _max_depth, _nice_len) {
         self.skip_match(data, pos);
-    }
-    fn skip_positions(
-        &mut self,
-        data: &[u8],
-        pos: usize,
-        count: usize,
-        _max_depth: usize,
-        _nice_len: usize,
-    ) {
+    },
+    skip_positions(self, data, pos, count, _max_depth, _nice_len) {
         self.skip_positions(data, pos, count);
-    }
-    fn find_matches(
-        &mut self,
-        data: &[u8],
-        pos: usize,
-        _max_depth: usize,
-        _nice_len: usize,
-        matches: &mut Vec<(u16, u16)>,
-    ) -> (usize, usize) {
+    },
+    find_matches(self, data, pos, _max_depth, _nice_len, matches) {
         let (len, offset) = self.find_match(data, pos);
         matches.clear();
         if len >= 3 {
@@ -214,51 +223,23 @@ impl MatchFinderTrait for HtMatchFinder {
             (0, 0)
         }
     }
-}
+);
 
-impl MatchFinderTrait for BtMatchFinder {
-    fn reset(&mut self) {
-        self.reset();
-    }
-    fn prepare(&mut self, len: usize) {
-        self.prepare(len);
-    }
-    fn advance(&mut self, len: usize) {
-        self.advance(len);
-    }
-    fn find_match(
-        &mut self,
-        data: &[u8],
-        pos: usize,
-        max_depth: usize,
-        nice_len: usize,
-    ) -> (usize, usize) {
+impl_matchfinder_trait!(
+    BtMatchFinder,
+    find_match(self, data, pos, max_depth, nice_len) {
         self.find_match(data, pos, max_depth, nice_len)
-    }
-    fn skip_match(&mut self, data: &[u8], pos: usize, max_depth: usize, nice_len: usize) {
+    },
+    skip_match(self, data, pos, max_depth, nice_len) {
         self.skip_match(data, pos, max_depth, nice_len);
-    }
-    fn skip_positions(
-        &mut self,
-        data: &[u8],
-        pos: usize,
-        count: usize,
-        max_depth: usize,
-        nice_len: usize,
-    ) {
+    },
+    skip_positions(self, data, pos, count, max_depth, nice_len) {
         self.skip_positions(data, pos, count, max_depth, nice_len);
-    }
-    fn find_matches(
-        &mut self,
-        data: &[u8],
-        pos: usize,
-        max_depth: usize,
-        nice_len: usize,
-        matches: &mut Vec<(u16, u16)>,
-    ) -> (usize, usize) {
+    },
+    find_matches(self, data, pos, max_depth, nice_len, matches) {
         self.find_matches(data, pos, max_depth, nice_len, matches)
     }
-}
+);
 
 #[inline(always)]
 unsafe fn match_len_sw(a: *const u8, b: *const u8, max_len: usize) -> usize {
