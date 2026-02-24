@@ -679,6 +679,24 @@ unsafe fn decompress_offset_6(out_next: *mut u8, src: *const u8, length: usize) 
     let v_pat = _mm_shuffle_epi8(v_raw, mask);
 
     let mut copied = 0;
+
+    // Optimization: Precompute rotated vectors to write 48 bytes using 3 stores (stride 16).
+    // LCM(6, 16) = 48.
+    // This reduces the store traffic by ~2.6x compared to 1 store per 6 bytes.
+    if length >= 48 {
+        let mask1 = _mm_setr_epi8(4, 5, 0, 1, 2, 3, 4, 5, 0, 1, 2, 3, 4, 5, 0, 1);
+        let mask2 = _mm_setr_epi8(2, 3, 4, 5, 0, 1, 2, 3, 4, 5, 0, 1, 2, 3, 4, 5);
+        let v_pat1 = _mm_shuffle_epi8(v_raw, mask1);
+        let v_pat2 = _mm_shuffle_epi8(v_raw, mask2);
+
+        while copied + 48 <= length {
+            _mm_storeu_si128(out_next.add(copied) as *mut __m128i, v_pat);
+            _mm_storeu_si128(out_next.add(copied + 16) as *mut __m128i, v_pat1);
+            _mm_storeu_si128(out_next.add(copied + 32) as *mut __m128i, v_pat2);
+            copied += 48;
+        }
+    }
+
     while copied + 64 <= length {
         _mm_storeu_si128(out_next.add(copied) as *mut __m128i, v_pat);
         _mm_storeu_si128(out_next.add(copied + 6) as *mut __m128i, v_pat);
