@@ -1541,6 +1541,8 @@ impl Compressor {
         final_block: bool,
     ) -> usize {
         self.split_stats.reset();
+        self.litlen_freqs.fill(0);
+        self.offset_freqs.fill(0);
         let mut in_idx = start_pos;
 
         while in_idx < input.len() {
@@ -1555,6 +1557,8 @@ impl Compressor {
                 mf.find_match(input, in_idx, self.max_search_depth, self.nice_match_length);
             if len >= 3 {
                 self.split_stats.observe_match(len, offset);
+                self.litlen_freqs[257 + self.get_length_slot(len)] += 1;
+                self.offset_freqs[self.get_offset_slot(offset)] += 1;
                 mf.skip_positions(
                     input,
                     in_idx + 1,
@@ -1565,6 +1569,7 @@ impl Compressor {
                 in_idx += len;
             } else {
                 self.split_stats.observe_literal(input[in_idx]);
+                self.litlen_freqs[input[in_idx] as usize] += 1;
                 in_idx += 1;
             }
         }
@@ -1574,46 +1579,6 @@ impl Compressor {
         let is_final = (start_pos + processed >= input.len()) && final_block;
 
         self.sequences.clear();
-        let mut litrunlen = 0;
-        let mut cur_in_idx = 0;
-        self.litlen_freqs.fill(0);
-        self.offset_freqs.fill(0);
-
-        mf.reset();
-
-        while cur_in_idx < block_input.len() {
-            let (len, offset) = mf.find_match(
-                block_input,
-                cur_in_idx,
-                self.max_search_depth,
-                self.nice_match_length,
-            );
-            if len >= 3 {
-                let off_slot = self.get_offset_slot(offset);
-                self.sequences.push(Sequence::new(
-                    litrunlen,
-                    len as u16,
-                    offset as u16,
-                    off_slot as u8,
-                ));
-                self.litlen_freqs[257 + self.get_length_slot(len)] += 1;
-                self.offset_freqs[off_slot] += 1;
-                litrunlen = 0;
-                cur_in_idx += len;
-                for i in 1..len {
-                    mf.skip_match(
-                        block_input,
-                        cur_in_idx - len + i,
-                        self.max_search_depth,
-                        self.nice_match_length,
-                    );
-                }
-            } else {
-                self.litlen_freqs[block_input[cur_in_idx] as usize] += 1;
-                litrunlen += 1;
-                cur_in_idx += 1;
-            }
-        }
         self.litlen_freqs[256] += 1;
 
         make_huffman_code(
