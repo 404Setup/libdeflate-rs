@@ -107,3 +107,95 @@ fn test_decompression_ratio_limit() {
         );
     }
 }
+
+#[test]
+fn test_memory_limit_with_real_data() {
+    let mut compressor = Compressor::new(1).unwrap();
+    let mut decompressor = Decompressor::new();
+
+    // Create a 1MB buffer of zeros (highly compressible)
+    let original = vec![0u8; 1_000_000];
+    let compressed = compressor.compress_deflate(&original).unwrap();
+    // Compressed size should be very small (e.g. < 200 bytes)
+
+    // Set max memory limit to 500KB (less than 1MB)
+    decompressor.set_max_memory_limit(500_000);
+
+    // Try to decompress, requesting 1MB
+    let result = decompressor.decompress_deflate(&compressed, original.len());
+
+    // Expect failure due to memory limit
+    assert!(result.is_err());
+    let err = result.err().unwrap();
+    assert_eq!(err.kind(), io::ErrorKind::InvalidInput);
+    assert!(err.to_string().contains("maximum memory limit"));
+}
+
+#[test]
+fn test_ratio_limit_with_real_data() {
+    let mut decompressor = Decompressor::new();
+
+    // Create a 1MB buffer of zeros
+    let original = vec![0u8; 1_000_000];
+
+    // Use level 12 for high compression
+    let mut compressor = Compressor::new(12).unwrap();
+    let compressed = compressor.compress_deflate(&original).unwrap();
+
+    // Set ratio limit to a value that definitely fails.
+    // With level 12, 1MB zeros compresses to ~1000 bytes.
+    // Limit = 1000 * 100 + 4096 = 104096.
+    // 1,000,000 > 104096.
+    decompressor.set_limit_ratio(100);
+
+    // Try to decompress high compression
+    let result = decompressor.decompress_deflate(&compressed, original.len());
+
+    assert!(result.is_err());
+    let err = result.err().unwrap();
+    assert_eq!(err.kind(), io::ErrorKind::InvalidInput);
+    assert!(err.to_string().contains("safety limit"));
+
+    // Set ratio limit back to something permissive
+    decompressor.set_limit_ratio(100_000);
+
+    let result = decompressor.decompress_deflate(&compressed, original.len());
+    assert!(result.is_ok());
+    assert_eq!(result.unwrap(), original);
+}
+
+#[test]
+fn test_gzip_zlib_limits() {
+    let mut compressor = Compressor::new(1).unwrap();
+    let mut decompressor = Decompressor::new();
+
+    let original = vec![0u8; 1_000_000];
+
+    // Zlib
+    let compressed_zlib = compressor.compress_zlib(&original).unwrap();
+    decompressor.set_max_memory_limit(500_000);
+    let result = decompressor.decompress_zlib(&compressed_zlib, original.len());
+    assert!(result.is_err());
+    assert_eq!(result.unwrap_err().kind(), io::ErrorKind::InvalidInput);
+
+    // Reset limit
+    decompressor.set_max_memory_limit(usize::MAX);
+    // Set ratio limit
+    decompressor.set_limit_ratio(10);
+    let result = decompressor.decompress_zlib(&compressed_zlib, original.len());
+    assert!(result.is_err());
+    assert_eq!(result.unwrap_err().kind(), io::ErrorKind::InvalidInput);
+
+    // Gzip
+    let compressed_gzip = compressor.compress_gzip(&original).unwrap();
+    decompressor.set_max_memory_limit(500_000);
+    let result = decompressor.decompress_gzip(&compressed_gzip, original.len());
+    assert!(result.is_err());
+    assert_eq!(result.unwrap_err().kind(), io::ErrorKind::InvalidInput);
+
+    decompressor.set_max_memory_limit(usize::MAX);
+    decompressor.set_limit_ratio(10);
+    let result = decompressor.decompress_gzip(&compressed_gzip, original.len());
+    assert!(result.is_err());
+    assert_eq!(result.unwrap_err().kind(), io::ErrorKind::InvalidInput);
+}
