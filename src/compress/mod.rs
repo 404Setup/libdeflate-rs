@@ -455,6 +455,7 @@ pub struct Compressor {
     dp_costs: Vec<u32>,
     dp_path: Vec<u32>,
     split_stats: BlockSplitStats,
+    matches: Vec<(u16, u16)>,
 }
 
 impl Compressor {
@@ -498,6 +499,7 @@ impl Compressor {
                 Vec::new()
             },
             split_stats: BlockSplitStats::new(),
+            matches: Vec::new(),
         };
         c.init_params();
         c
@@ -960,7 +962,8 @@ impl Compressor {
         }
 
         mf.reset();
-        let mut matches = Vec::new();
+        let mut matches = std::mem::take(&mut self.matches);
+        matches.clear();
         let mut pos = 0;
         while pos < processed {
             let cur_cost = self.dp_costs[pos];
@@ -1012,6 +1015,7 @@ impl Compressor {
                 pos += 1;
             }
         }
+        self.matches = matches;
 
         self.sequences.clear();
         self.litlen_freqs.fill(0);
