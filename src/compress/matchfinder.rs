@@ -238,6 +238,16 @@ impl MatchFinderTrait for BtMatchFinder {
     fn skip_match(&mut self, data: &[u8], pos: usize, max_depth: usize, nice_len: usize) {
         self.skip_match(data, pos, max_depth, nice_len);
     }
+    fn skip_positions(
+        &mut self,
+        data: &[u8],
+        pos: usize,
+        count: usize,
+        max_depth: usize,
+        nice_len: usize,
+    ) {
+        self.skip_positions(data, pos, count, max_depth, nice_len);
+    }
     fn find_matches(
         &mut self,
         data: &[u8],
@@ -1513,6 +1523,103 @@ impl BtMatchFinder {
                         max_depth,
                         visitor,
                     );
+                }
+            }
+        }
+    }
+
+    pub fn skip_positions(
+        &mut self,
+        data: &[u8],
+        mut pos: usize,
+        count: usize,
+        max_depth: usize,
+        nice_len: usize,
+    ) {
+        unsafe {
+            match self.match_len {
+                MatchLenStrategy::Scalar => {
+                    for _ in 0..count {
+                        self.advance_one_byte_generic::<ScalarStrategy, _>(
+                            data,
+                            pos,
+                            DEFLATE_MAX_MATCH_LEN,
+                            nice_len,
+                            max_depth,
+                            NoOpVisitor,
+                        );
+                        pos += 1;
+                    }
+                }
+                #[cfg(target_arch = "x86_64")]
+                MatchLenStrategy::Sse2 => {
+                    for _ in 0..count {
+                        self.advance_one_byte_generic::<Sse2Strategy, _>(
+                            data,
+                            pos,
+                            DEFLATE_MAX_MATCH_LEN,
+                            nice_len,
+                            max_depth,
+                            NoOpVisitor,
+                        );
+                        pos += 1;
+                    }
+                }
+                #[cfg(target_arch = "x86_64")]
+                MatchLenStrategy::Avx2 => {
+                    for _ in 0..count {
+                        self.advance_one_byte_generic::<Avx2Strategy, _>(
+                            data,
+                            pos,
+                            DEFLATE_MAX_MATCH_LEN,
+                            nice_len,
+                            max_depth,
+                            NoOpVisitor,
+                        );
+                        pos += 1;
+                    }
+                }
+                #[cfg(target_arch = "x86_64")]
+                MatchLenStrategy::Avx512 => {
+                    for _ in 0..count {
+                        self.advance_one_byte_generic::<Avx512Strategy, _>(
+                            data,
+                            pos,
+                            DEFLATE_MAX_MATCH_LEN,
+                            nice_len,
+                            max_depth,
+                            NoOpVisitor,
+                        );
+                        pos += 1;
+                    }
+                }
+                #[cfg(target_arch = "x86_64")]
+                MatchLenStrategy::Avx10 => {
+                    for _ in 0..count {
+                        self.advance_one_byte_generic::<Avx10Strategy, _>(
+                            data,
+                            pos,
+                            DEFLATE_MAX_MATCH_LEN,
+                            nice_len,
+                            max_depth,
+                            NoOpVisitor,
+                        );
+                        pos += 1;
+                    }
+                }
+                #[cfg(target_arch = "aarch64")]
+                MatchLenStrategy::Neon => {
+                    for _ in 0..count {
+                        self.advance_one_byte_generic::<NeonStrategy, _>(
+                            data,
+                            pos,
+                            DEFLATE_MAX_MATCH_LEN,
+                            nice_len,
+                            max_depth,
+                            NoOpVisitor,
+                        );
+                        pos += 1;
+                    }
                 }
             }
         }
