@@ -51,17 +51,21 @@ impl<'a> Bitstream<'a> {
         debug_assert!(count <= 32);
         debug_assert!(self.out_idx + 8 <= self.output.len());
 
-        self.bitbuf |= (bits as u64) << self.bitcount;
-        self.bitcount += count;
+        let bitcount = self.bitcount;
+        let new_bitcount = bitcount + count;
 
-        if self.bitcount >= 32 {
+        if new_bitcount >= 32 {
+            let bitbuf = self.bitbuf | ((bits as u64) << bitcount);
             std::ptr::write_unaligned(
                 self.output.as_mut_ptr().add(self.out_idx) as *mut u64,
-                self.bitbuf.to_le(),
+                bitbuf.to_le(),
             );
             self.out_idx += 4;
-            self.bitbuf >>= 32;
-            self.bitcount -= 32;
+            self.bitbuf = bitbuf >> 32;
+            self.bitcount = new_bitcount - 32;
+        } else {
+            self.bitbuf |= (bits as u64) << bitcount;
+            self.bitcount = new_bitcount;
         }
     }
 
@@ -79,13 +83,15 @@ impl<'a> Bitstream<'a> {
         // preventing u64 bitbuf overflow.
         debug_assert!(count <= 32);
 
-        self.bitbuf |= (bits as u64) << self.bitcount;
-        self.bitcount += count;
+        let bitcount = self.bitcount;
+        let new_bitcount = bitcount + count;
 
         // Flush when we have at least 4 bytes (32 bits).
         // This reduces store frequency compared to flushing at 4 bytes (32 bits) with byte-wise writes,
         // but more frequent than 48 bits. However, it simplifies logic for 32-bit writes.
-        if self.bitcount >= 32 {
+        if new_bitcount >= 32 {
+            let bitbuf = self.bitbuf | ((bits as u64) << bitcount);
+
             // Optimization: Write 64 bits (8 bytes) at once if buffer space allows.
             // This is safe even if we only have 32 bits of valid data because we only advance `out_idx` by 4.
             // The extra 4 bytes written are speculative and will be overwritten by the next write.
@@ -94,12 +100,12 @@ impl<'a> Bitstream<'a> {
                 unsafe {
                     std::ptr::write_unaligned(
                         self.output.as_mut_ptr().add(self.out_idx) as *mut u64,
-                        self.bitbuf.to_le(),
+                        bitbuf.to_le(),
                     );
                 }
                 self.out_idx += 4;
-                self.bitbuf >>= 32;
-                self.bitcount -= 32;
+                self.bitbuf = bitbuf >> 32;
+                self.bitcount = new_bitcount - 32;
                 return true;
             }
 
@@ -109,14 +115,17 @@ impl<'a> Bitstream<'a> {
                 unsafe {
                     std::ptr::write_unaligned(
                         self.output.as_mut_ptr().add(self.out_idx) as *mut u32,
-                        (self.bitbuf as u32).to_le(),
+                        (bitbuf as u32).to_le(),
                     );
                 }
                 self.out_idx += 4;
-                self.bitbuf >>= 32;
-                self.bitcount -= 32;
+                self.bitbuf = bitbuf >> 32;
+                self.bitcount = new_bitcount - 32;
                 return true;
             }
+
+            self.bitbuf = bitbuf;
+            self.bitcount = new_bitcount;
 
             while self.bitcount >= 8 {
                 if self.out_idx >= self.output.len() {
@@ -131,6 +140,9 @@ impl<'a> Bitstream<'a> {
                 self.bitbuf >>= 8;
                 self.bitcount -= 8;
             }
+        } else {
+            self.bitbuf |= (bits as u64) << bitcount;
+            self.bitcount = new_bitcount;
         }
         true
     }
