@@ -1173,12 +1173,18 @@ impl Decompressor {
             while in_idx < input.len() && input[in_idx] != 0 {
                 in_idx += 1;
             }
+            if in_idx >= input.len() {
+                return (DecompressResult::ShortInput, 0, 0);
+            }
             in_idx += 1;
         }
 
         if flg & GZIP_FCOMMENT != 0 {
             while in_idx < input.len() && input[in_idx] != 0 {
                 in_idx += 1;
+            }
+            if in_idx >= input.len() {
+                return (DecompressResult::ShortInput, 0, 0);
             }
             in_idx += 1;
         }

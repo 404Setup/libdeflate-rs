@@ -1916,13 +1916,7 @@ impl Compressor {
     }
 
     #[inline(always)]
-    unsafe fn get_literals_4_code(
-        &self,
-        lit1: u8,
-        lit2: u8,
-        lit3: u8,
-        lit4: u8,
-    ) -> (u64, u32) {
+    unsafe fn get_literals_4_code(&self, lit1: u8, lit2: u8, lit3: u8, lit4: u8) -> (u64, u32) {
         let entry1 = *self.litlen_table.get_unchecked(lit1 as usize);
         let entry2 = *self.litlen_table.get_unchecked(lit2 as usize);
         let entry3 = *self.litlen_table.get_unchecked(lit3 as usize);
