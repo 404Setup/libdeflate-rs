@@ -196,7 +196,12 @@ impl Decompressor {
         self.is_final_block = false;
 
         let mut out_idx = 0;
-        unsafe { self.decompress_streaming_ptr(input, out_ptr, out_len, &mut out_idx) }
+        let res = unsafe { self.decompress_streaming_ptr(input, out_ptr, out_len, &mut out_idx) };
+        self.state = DecompressorState::Start;
+        self.is_final_block = false;
+        self.bitbuf = 0;
+        self.bitsleft = 0;
+        res
     }
 
     pub fn decompress_streaming(
