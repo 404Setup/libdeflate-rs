@@ -1060,19 +1060,17 @@ impl MatchFinder {
         if count == 0 {
             return;
         }
-        if pos
-            .checked_add(count + 3)
-            .is_none_or(|end| end > data.len())
-        {
-            for i in 0..count {
-                self.skip_match(data, pos + i);
-            }
-            return;
-        }
+
+        let end_limit = data.len().saturating_sub(3);
+        let batch_count = if pos < end_limit {
+            std::cmp::min(count, end_limit - pos)
+        } else {
+            0
+        };
 
         unsafe {
             let mut ptr = data.as_ptr().add(pos);
-            let end_ptr = ptr.add(count);
+            let end_ptr = ptr.add(batch_count);
             let mut abs_pos = self.base_offset + pos;
 
             while ptr < end_ptr {
@@ -1102,6 +1100,10 @@ impl MatchFinder {
                 ptr = ptr.add(1);
                 abs_pos += 1;
             }
+        }
+
+        for i in batch_count..count {
+            self.skip_match(data, pos + i);
         }
     }
 }
