@@ -20,7 +20,8 @@ exclude = [
     ".github/",
     ".jules/",
     "bench_data/",
-    ".idea/"
+    ".idea/",
+    "bench_info.txt"
 ]
 
 [dependencies]
