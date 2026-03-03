@@ -1,9 +1,0 @@
-1. **Understand the Problem:** The security vulnerability reported is "Missing bounds check on input slice index for expected size during GZIP verification". The report states "Just like the CRC-32 check, the size extracted right after the CRC is extracted without making sure `in_idx + in_consumed + 7` is within the slice bounds."
-2. **Identify Code Location:** In `src/decompress/mod.rs`, the function `decompress_gzip_uninit` reads the CRC from `input[in_idx + in_consumed .. in_idx + in_consumed + 4]` and the expected size from `input[in_idx + in_consumed + 4 .. in_idx + in_consumed + 8]`. The same happens for ZLIB with Adler-32 in `decompress_zlib_uninit`.
-3. **Analyze Risk:** Although `decompress_uninit` mathematically guarantees that `in_consumed` will not exceed the passed sub-slice's length (which would keep the read indices within `input.len()`), relying on the internal bounded behavior of `decompress_uninit` for memory safety when extracting the footer without explicit bounds checks is poor practice and can be flagged by security audits. If `decompress_uninit` were ever to have a bug where it returns an `in_consumed` greater than the sub-slice length, it would result in an out-of-bounds read panic (DoS vulnerability).
-4. **Implement Fix:** Add explicit bounds checks right after verifying that decompression succeeded:
-   - For GZIP: `if in_idx + in_consumed + GZIP_FOOTER_SIZE > input.len() { return (DecompressResult::ShortInput, 0, 0); }`
-   - For ZLIB: `if 2 + in_consumed + ZLIB_FOOTER_SIZE > input.len() { return (DecompressResult::ShortInput, 0, 0); }`
-5. **Verify Fix:** Run `cargo test` and `cargo check` to ensure everything compiles and passes.
-6. **Pre-commit Steps:** Run `pre_commit_instructions` and follow them to ensure code formatting, linting, tests, etc. are passed.
-7. **Submit:** Commit the changes and request user approval.
