@@ -680,14 +680,14 @@ unsafe fn match_len_neon(a: *const u8, b: *const u8, max_len: usize) -> usize {
         if vmaxvq_u8(xor) == 0 {
             len += 16;
         } else {
-            let mut bytes = [0u8; 16];
-            vst1q_u8(bytes.as_mut_ptr(), xor);
-            for i in 0..16 {
-                if bytes[i] != 0 {
-                    return len + i;
-                }
+            let xor64 = vreinterpretq_u64_u8(xor);
+            let low = vgetq_lane_u64::<0>(xor64);
+            if low == 0 {
+                let high = vgetq_lane_u64::<1>(xor64);
+                return len + 8 + (high.to_le().trailing_zeros() as usize >> 3);
+            } else {
+                return len + (low.to_le().trailing_zeros() as usize >> 3);
             }
-            return len;
         }
     }
     len + match_len_sw(a.add(len), b.add(len), max_len - len)
