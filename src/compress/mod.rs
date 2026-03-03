@@ -1916,13 +1916,7 @@ impl Compressor {
     }
 
     #[inline(always)]
-    unsafe fn get_literals_4_code(
-        &self,
-        lit1: u8,
-        lit2: u8,
-        lit3: u8,
-        lit4: u8,
-    ) -> (u64, u32) {
+    unsafe fn get_literals_4_code(&self, lit1: u8, lit2: u8, lit3: u8, lit4: u8) -> (u64, u32) {
         let entry1 = *self.litlen_table.get_unchecked(lit1 as usize);
         let entry2 = *self.litlen_table.get_unchecked(lit2 as usize);
         let entry3 = *self.litlen_table.get_unchecked(lit3 as usize);
@@ -2013,7 +2007,7 @@ impl Compressor {
                             );
                             let new_bitcount = bitcount + len;
                             if new_bitcount >= 32 {
-                                let buf = bitbuf | ((code as u64) << bitcount);
+                                let buf = bitbuf | (code << bitcount);
                                 std::ptr::write_unaligned(
                                     out_ptr.add(out_idx) as *mut u32,
                                     (buf as u32).to_le(),
@@ -2022,7 +2016,7 @@ impl Compressor {
                                 bitbuf = buf >> 32;
                                 bitcount = new_bitcount - 32;
                             } else {
-                                bitbuf |= (code as u64) << bitcount;
+                                bitbuf |= code << bitcount;
                                 bitcount = new_bitcount;
                             }
                         }
@@ -2034,7 +2028,7 @@ impl Compressor {
                             let (code, len) = self.get_literal_code(*input.get_unchecked(in_pos));
                             let new_bitcount = bitcount + len;
                             if new_bitcount >= 32 {
-                                let buf = bitbuf | ((code as u64) << bitcount);
+                                let buf = bitbuf | (code << bitcount);
                                 std::ptr::write_unaligned(
                                     out_ptr.add(out_idx) as *mut u32,
                                     (buf as u32).to_le(),
@@ -2043,7 +2037,7 @@ impl Compressor {
                                 bitbuf = buf >> 32;
                                 bitcount = new_bitcount - 32;
                             } else {
-                                bitbuf |= (code as u64) << bitcount;
+                                bitbuf |= code << bitcount;
                                 bitcount = new_bitcount;
                             }
                         }
