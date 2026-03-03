@@ -1,3 +1,0 @@
-## 2025-02-18 - SIMD Dependency Chain Optimization for Decompression
-**Learning:** In x86 SIMD loops involving `alignr`, serial dependency chains on the destination vector (e.g. `v_next1` depending on `v_next0`, `v_next2` on `v_next1`) can significantly limit throughput. By mathematically re-deriving the required bytes from the source registers (`v_prev` and `v_align`), intermediate vectors can often be computed directly or with shallower dependency depth, enabling better instruction-level parallelism.
-**Action:** When optimizing tight SIMD loops with data dependencies, inspect if the data flow can be "flattened". For `alignr` chains, trace the exact byte indices to see if a later vector can be formed directly from earlier inputs, bypassing intermediate results.
