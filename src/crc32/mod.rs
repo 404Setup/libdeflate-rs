@@ -13,17 +13,12 @@ pub fn crc32_slice8(mut crc: u32, p: &[u8]) -> u32 {
     let mut len = p.len();
     let mut ptr = p.as_ptr();
 
-    // Optimization: Unroll loop to process 64 bytes per iteration.
-    // This allows lookups for the high 4 bytes of each 8-byte chunk (which depend only on data)
-    // to be interleaved with the dependency chain of the low 4 bytes (which depend on CRC).
     while len >= 64 {
-        // First 32 bytes
         let va = u64::from_le(unsafe { std::ptr::read_unaligned(ptr as *const u64) });
         let vb = u64::from_le(unsafe { std::ptr::read_unaligned(ptr.add(8) as *const u64) });
         let vc = u64::from_le(unsafe { std::ptr::read_unaligned(ptr.add(16) as *const u64) });
         let vd = u64::from_le(unsafe { std::ptr::read_unaligned(ptr.add(24) as *const u64) });
 
-        // Second 32 bytes
         let ve = u64::from_le(unsafe { std::ptr::read_unaligned(ptr.add(32) as *const u64) });
         let vf = u64::from_le(unsafe { std::ptr::read_unaligned(ptr.add(40) as *const u64) });
         let vg = u64::from_le(unsafe { std::ptr::read_unaligned(ptr.add(48) as *const u64) });
@@ -47,29 +42,26 @@ pub fn crc32_slice8(mut crc: u32, p: &[u8]) -> u32 {
         let vh1 = vh as u32;
         let vh2 = (vh >> 32) as u32;
 
-        // Independent lookups for high parts (va2..vh2)
-        // Group A (va2)
         let idx4 = (va2 as u8) as usize;
         let idx5 = ((va2 >> 8) as u8) as usize;
         let idx6 = ((va2 >> 16) as u8) as usize;
         let idx7 = ((va2 >> 24) as u8) as usize;
-        // Group B (vb2)
+
         let idx12 = (vb2 as u8) as usize;
         let idx13 = ((vb2 >> 8) as u8) as usize;
         let idx14 = ((vb2 >> 16) as u8) as usize;
         let idx15 = ((vb2 >> 24) as u8) as usize;
-        // Group C (vc2)
+
         let idx20 = (vc2 as u8) as usize;
         let idx21 = ((vc2 >> 8) as u8) as usize;
         let idx22 = ((vc2 >> 16) as u8) as usize;
         let idx23 = ((vc2 >> 24) as u8) as usize;
-        // Group D (vd2)
+
         let idx28 = (vd2 as u8) as usize;
         let idx29 = ((vd2 >> 8) as u8) as usize;
         let idx30 = ((vd2 >> 16) as u8) as usize;
         let idx31 = ((vd2 >> 24) as u8) as usize;
 
-        // Start independent fetches for first 32 bytes
         let t4 = unsafe { *CRC32_SLICE8_TABLE.get_unchecked(0x300 + idx4) };
         let t5 = unsafe { *CRC32_SLICE8_TABLE.get_unchecked(0x200 + idx5) };
         let t6 = unsafe { *CRC32_SLICE8_TABLE.get_unchecked(0x100 + idx6) };
@@ -90,8 +82,6 @@ pub fn crc32_slice8(mut crc: u32, p: &[u8]) -> u32 {
         let t30 = unsafe { *CRC32_SLICE8_TABLE.get_unchecked(0x100 + idx30) };
         let t31 = unsafe { *CRC32_SLICE8_TABLE.get_unchecked(idx31) };
 
-        // Dependent chain for first 32 bytes
-        // Chunk A
         let idx0 = ((crc ^ va1) as u8) as usize;
         let idx1 = (((crc ^ va1) >> 8) as u8) as usize;
         let idx2 = (((crc ^ va1) >> 16) as u8) as usize;
@@ -102,7 +92,6 @@ pub fn crc32_slice8(mut crc: u32, p: &[u8]) -> u32 {
         let t3 = unsafe { *CRC32_SLICE8_TABLE.get_unchecked(0x400 + idx3) };
         crc = ((t0 ^ t1) ^ (t2 ^ t3)) ^ ((t4 ^ t5) ^ (t6 ^ t7));
 
-        // Chunk B
         let idx8 = ((crc ^ vb1) as u8) as usize;
         let idx9 = (((crc ^ vb1) >> 8) as u8) as usize;
         let idx10 = (((crc ^ vb1) >> 16) as u8) as usize;
@@ -113,7 +102,6 @@ pub fn crc32_slice8(mut crc: u32, p: &[u8]) -> u32 {
         let t11 = unsafe { *CRC32_SLICE8_TABLE.get_unchecked(0x400 + idx11) };
         crc = ((t8 ^ t9) ^ (t10 ^ t11)) ^ ((t12 ^ t13) ^ (t14 ^ t15));
 
-        // Chunk C
         let idx16 = ((crc ^ vc1) as u8) as usize;
         let idx17 = (((crc ^ vc1) >> 8) as u8) as usize;
         let idx18 = (((crc ^ vc1) >> 16) as u8) as usize;
@@ -124,7 +112,6 @@ pub fn crc32_slice8(mut crc: u32, p: &[u8]) -> u32 {
         let t19 = unsafe { *CRC32_SLICE8_TABLE.get_unchecked(0x400 + idx19) };
         crc = ((t16 ^ t17) ^ (t18 ^ t19)) ^ ((t20 ^ t21) ^ (t22 ^ t23));
 
-        // Chunk D
         let idx24 = ((crc ^ vd1) as u8) as usize;
         let idx25 = (((crc ^ vd1) >> 8) as u8) as usize;
         let idx26 = (((crc ^ vd1) >> 16) as u8) as usize;
@@ -135,29 +122,26 @@ pub fn crc32_slice8(mut crc: u32, p: &[u8]) -> u32 {
         let t27 = unsafe { *CRC32_SLICE8_TABLE.get_unchecked(0x400 + idx27) };
         crc = ((t24 ^ t25) ^ (t26 ^ t27)) ^ ((t28 ^ t29) ^ (t30 ^ t31));
 
-        // Now process second 32 bytes (chunks E, F, G, H)
-        // Group E (ve2)
         let idx36 = (ve2 as u8) as usize;
         let idx37 = ((ve2 >> 8) as u8) as usize;
         let idx38 = ((ve2 >> 16) as u8) as usize;
         let idx39 = ((ve2 >> 24) as u8) as usize;
-        // Group F (vf2)
+
         let idx44 = (vf2 as u8) as usize;
         let idx45 = ((vf2 >> 8) as u8) as usize;
         let idx46 = ((vf2 >> 16) as u8) as usize;
         let idx47 = ((vf2 >> 24) as u8) as usize;
-        // Group G (vg2)
+
         let idx52 = (vg2 as u8) as usize;
         let idx53 = ((vg2 >> 8) as u8) as usize;
         let idx54 = ((vg2 >> 16) as u8) as usize;
         let idx55 = ((vg2 >> 24) as u8) as usize;
-        // Group H (vh2)
+
         let idx60 = (vh2 as u8) as usize;
         let idx61 = ((vh2 >> 8) as u8) as usize;
         let idx62 = ((vh2 >> 16) as u8) as usize;
         let idx63 = ((vh2 >> 24) as u8) as usize;
 
-        // Independent fetches for second 32 bytes
         let t36 = unsafe { *CRC32_SLICE8_TABLE.get_unchecked(0x300 + idx36) };
         let t37 = unsafe { *CRC32_SLICE8_TABLE.get_unchecked(0x200 + idx37) };
         let t38 = unsafe { *CRC32_SLICE8_TABLE.get_unchecked(0x100 + idx38) };
@@ -178,8 +162,6 @@ pub fn crc32_slice8(mut crc: u32, p: &[u8]) -> u32 {
         let t62 = unsafe { *CRC32_SLICE8_TABLE.get_unchecked(0x100 + idx62) };
         let t63 = unsafe { *CRC32_SLICE8_TABLE.get_unchecked(idx63) };
 
-        // Dependent chain for second 32 bytes
-        // Chunk E
         let idx32 = ((crc ^ ve1) as u8) as usize;
         let idx33 = (((crc ^ ve1) >> 8) as u8) as usize;
         let idx34 = (((crc ^ ve1) >> 16) as u8) as usize;
@@ -190,7 +172,6 @@ pub fn crc32_slice8(mut crc: u32, p: &[u8]) -> u32 {
         let t35 = unsafe { *CRC32_SLICE8_TABLE.get_unchecked(0x400 + idx35) };
         crc = ((t32 ^ t33) ^ (t34 ^ t35)) ^ ((t36 ^ t37) ^ (t38 ^ t39));
 
-        // Chunk F
         let idx40 = ((crc ^ vf1) as u8) as usize;
         let idx41 = (((crc ^ vf1) >> 8) as u8) as usize;
         let idx42 = (((crc ^ vf1) >> 16) as u8) as usize;
@@ -201,7 +182,6 @@ pub fn crc32_slice8(mut crc: u32, p: &[u8]) -> u32 {
         let t43 = unsafe { *CRC32_SLICE8_TABLE.get_unchecked(0x400 + idx43) };
         crc = ((t40 ^ t41) ^ (t42 ^ t43)) ^ ((t44 ^ t45) ^ (t46 ^ t47));
 
-        // Chunk G
         let idx48 = ((crc ^ vg1) as u8) as usize;
         let idx49 = (((crc ^ vg1) >> 8) as u8) as usize;
         let idx50 = (((crc ^ vg1) >> 16) as u8) as usize;
@@ -212,7 +192,6 @@ pub fn crc32_slice8(mut crc: u32, p: &[u8]) -> u32 {
         let t51 = unsafe { *CRC32_SLICE8_TABLE.get_unchecked(0x400 + idx51) };
         crc = ((t48 ^ t49) ^ (t50 ^ t51)) ^ ((t52 ^ t53) ^ (t54 ^ t55));
 
-        // Chunk H
         let idx56 = ((crc ^ vh1) as u8) as usize;
         let idx57 = (((crc ^ vh1) >> 8) as u8) as usize;
         let idx58 = (((crc ^ vh1) >> 16) as u8) as usize;
@@ -229,7 +208,6 @@ pub fn crc32_slice8(mut crc: u32, p: &[u8]) -> u32 {
         len -= 64;
     }
 
-    // Fallback for remaining chunks < 64 bytes
     while len >= 8 {
         let v = u64::from_le(unsafe { std::ptr::read_unaligned(ptr as *const u64) });
         let v1 = v as u32;
@@ -253,7 +231,6 @@ pub fn crc32_slice8(mut crc: u32, p: &[u8]) -> u32 {
         let t6 = unsafe { *CRC32_SLICE8_TABLE.get_unchecked(0x100 + idx6) };
         let t7 = unsafe { *CRC32_SLICE8_TABLE.get_unchecked(idx7) };
 
-        // Optimization: Use tree-based XOR reduction to break dependency chains and increase ILP.
         crc = ((t0 ^ t1) ^ (t2 ^ t3)) ^ ((t4 ^ t5) ^ (t6 ^ t7));
 
         unsafe {

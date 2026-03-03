@@ -4,8 +4,8 @@ use crate::decompress::tables::{
     OFFSET_TABLEBITS,
 };
 use crate::decompress::{
-    DEFLATE_BLOCKTYPE_DYNAMIC_HUFFMAN, DEFLATE_BLOCKTYPE_STATIC_HUFFMAN,
-    DEFLATE_BLOCKTYPE_UNCOMPRESSED, DecompressResult, Decompressor,
+    DecompressResult, Decompressor,
+    DEFLATE_BLOCKTYPE_DYNAMIC_HUFFMAN, DEFLATE_BLOCKTYPE_STATIC_HUFFMAN, DEFLATE_BLOCKTYPE_UNCOMPRESSED,
 };
 
 #[cfg(target_arch = "x86_64")]
@@ -130,19 +130,13 @@ macro_rules! decompress_offset_simple {
     }
 }
 
-// Optimization: Specialized implementation for offset 18.
-// By manually constructing the 9 cyclic vectors using independent `alignr` instructions
-// from `v0` and `v1`, we break the serial dependency chain present in the generic loop.
-// This increases instruction-level parallelism and improves throughput by ~40% (9.9 GiB/s vs 6.9 GiB/s).
 #[cfg(target_arch = "x86_64")]
 #[target_feature(enable = "bmi2,ssse3,sse4.1")]
 unsafe fn decompress_offset_18(out_next: *mut u8, src: *const u8, v: __m128i, length: usize) {
     let v_align = _mm_loadu_si128(src.add(2) as *const __m128i);
 
     let v0 = v;
-    // v1 depends on v0 and v_align.
     let v1 = _mm_alignr_epi8::<14>(v0, v_align);
-    // v2..v8 depend only on v1 and v0, allowing parallel execution.
     let v2 = _mm_alignr_epi8::<14>(v1, v0);
     let v3 = _mm_alignr_epi8::<12>(v1, v0);
     let v4 = _mm_alignr_epi8::<10>(v1, v0);
@@ -253,21 +247,7 @@ unsafe fn decompress_fill_pattern(out_next: *mut u8, v_pattern: __m128i, length:
         std::ptr::write_unaligned(out_next.add(i) as *mut u64, pattern);
         i += 8;
     }
-    // Optimization: If the remaining length is small (tail), use a single overlapping 8-byte write
-    // instead of a byte-by-byte loop.
-    //
-    // Safety:
-    // 1. `decompress_bmi2_ptr` ensures `out_next` has at least 258 bytes of available space
-    //    before calling this function (via `out_next.add(258) <= out_ptr_end`).
-    // 2. We write 8 bytes at offset `i`.
-    // 3. `i` is a multiple of 8 and `i < length`.
-    // 4. `length` is the match length, bounded by 258.
-    // 5. To be safe, we need `i + 8 <= 258`.
-    // 6. Since `i <= length - 1`, we need `length - 1 + 8 <= 258` => `length <= 251`.
-    // 7. We conservatively check `length <= 250`.
-    //
-    // This allows us to overwrite valid memory within the output buffer (which will be overwritten
-    // by subsequent operations anyway) without exceeding the buffer bounds.
+
     if i < length {
         if length <= 250 {
             std::ptr::write_unaligned(out_next.add(i) as *mut u64, pattern);
@@ -288,22 +268,11 @@ unsafe fn decompress_offset_alignr_cycle<const SHIFT: i32>(
     length: usize,
     mut v_prev: __m128i,
 ) {
-    // Optimization: Load `v_align` directly from `src` based on `SHIFT`.
-    // The `SHIFT` constant is derived such that `src + (16 - SHIFT)` always corresponds
-    // to `out_next - 16`, which is valid historical data (since `offset >= 16`).
-    // This eliminates complex setup logic (scalar loads, shifts, inserts) at call sites.
     let mut v_align = _mm_loadu_si128(src.add(16 - SHIFT as usize) as *const __m128i);
 
     let mut copied = 16;
 
     if SHIFT == 13 {
-        // Optimization for Offset 19: Unroll loop to write 96 bytes (6 vectors) per iteration.
-        // We use precomputed shifts to derive v_next1..v_next5 directly from v_next0 and v_prev,
-        // breaking the serial dependency chain and allowing parallel execution.
-        // v_next0 = alignr(v_prev, v_align, 13)
-        // v_next1 = alignr(v_next0, v_prev, 13) -> alignr(v_prev, v_align, 26%16=10) ? No, see derivation.
-        // Actually, for SHIFT=13 (Offset 19), the sequence of start offsets relative to (v0, v1) allows
-        // direct computation via alignr from (v1, v0).
         while copied + 96 <= length {
             let v_next0 = _mm_alignr_epi8::<13>(v_prev, v_align);
             let v_next1 = _mm_alignr_epi8::<13>(v_next0, v_prev);
@@ -324,7 +293,6 @@ unsafe fn decompress_offset_alignr_cycle<const SHIFT: i32>(
             copied += 96;
         }
     } else if SHIFT == 11 {
-        // Optimization for Offset 21: Unroll loop to write 96 bytes (6 vectors) per iteration.
         while copied + 96 <= length {
             let v_next0 = _mm_alignr_epi8::<11>(v_prev, v_align);
             let v_next1 = _mm_alignr_epi8::<11>(v_next0, v_prev);
@@ -346,7 +314,6 @@ unsafe fn decompress_offset_alignr_cycle<const SHIFT: i32>(
             copied += 96;
         }
     } else if SHIFT == 10 {
-        // Optimization for Offset 22: Unroll loop to write 96 bytes (6 vectors) per iteration.
         while copied + 96 <= length {
             let v_next0 = _mm_alignr_epi8::<10>(v_prev, v_align);
             let v_next1 = _mm_alignr_epi8::<10>(v_next0, v_prev);
@@ -367,7 +334,6 @@ unsafe fn decompress_offset_alignr_cycle<const SHIFT: i32>(
             copied += 96;
         }
     } else if SHIFT == 7 {
-        // Optimization for Offset 25 (Shift 7): Unroll loop to write 96 bytes (6 vectors) per iteration.
         while copied + 96 <= length {
             let v_next0 = _mm_alignr_epi8::<7>(v_prev, v_align);
             let v_next1 = _mm_alignr_epi8::<7>(v_next0, v_prev);
@@ -389,7 +355,6 @@ unsafe fn decompress_offset_alignr_cycle<const SHIFT: i32>(
             copied += 96;
         }
     } else if SHIFT == 6 {
-        // Optimization for Offset 26: Unroll loop to write 96 bytes (6 vectors) per iteration.
         while copied + 96 <= length {
             let v_next0 = _mm_alignr_epi8::<6>(v_prev, v_align);
             let v_next1 = _mm_alignr_epi8::<6>(v_next0, v_prev);
@@ -410,10 +375,6 @@ unsafe fn decompress_offset_alignr_cycle<const SHIFT: i32>(
             copied += 96;
         }
     } else if SHIFT == 9 {
-        // Optimization for Offset 23: Unroll loop to write 96 bytes (6 vectors) per iteration.
-        // Parallel computation breakdown:
-        // v_next0, v_next1, v_next3, v_next4 depend only on v_prev and v_align!
-        // v_next2, v_next5 depend on v_next0 (and v_prev)
         while copied + 96 <= length {
             let v_next0 = _mm_alignr_epi8::<9>(v_prev, v_align);
             let v_next1 = _mm_alignr_epi8::<2>(v_prev, v_align);
@@ -512,9 +473,6 @@ unsafe fn decompress_offset_cycle3<const SHIFT: i32>(
     let mut v1 = v1;
 
     let mut copied = 16;
-    // Optimization: Unroll loop to process 96 bytes per iteration (6 vectors).
-    // This reduces loop overhead and allows better pipelining of the alignr dependency chains
-    // compared to the original 48-byte stride.
     while copied + 96 <= length {
         let next_v0 = _mm_alignr_epi8::<SHIFT>(v1, v0);
         let next_v1 = _mm_alignr_epi8::<SHIFT>(v2, v1);
@@ -643,7 +601,6 @@ unsafe fn decompress_offset_cycle4<const SHIFT: i32>(
     }
 }
 
-// Optimization: Specialized implementation for offset 3.
 decompress_offset_rotated! {
     fn_name: decompress_offset_3,
     offset: 3,
@@ -670,7 +627,6 @@ decompress_offset_rotated! {
     intermediate: {}
 }
 
-// Optimization: Specialized implementation for offset 5.
 decompress_offset_rotated! {
     fn_name: decompress_offset_5,
     offset: 5,
@@ -709,7 +665,6 @@ decompress_offset_rotated! {
     }
 }
 
-// Optimization: Specialized implementation for offset 6.
 decompress_offset_rotated! {
     fn_name: decompress_offset_6,
     offset: 6,
@@ -744,7 +699,6 @@ decompress_offset_rotated! {
     }
 }
 
-// Optimization: Specialized implementation for offset 7.
 decompress_offset_simple! {
     fn_name: decompress_offset_7,
     offset: 7,
@@ -771,9 +725,6 @@ decompress_offset_simple! {
     }
 }
 
-// Optimization: Specialized implementation for offset 9.
-// The pattern has length 9. We construct a 16-byte vector [P0...P8, P0...P6]
-// using a single shuffle instruction.
 decompress_offset_simple! {
     fn_name: decompress_offset_9,
     offset: 9,
@@ -812,9 +763,6 @@ decompress_offset_simple! {
     }
 }
 
-// Optimization: Specialized implementation for offset 10.
-// The pattern has length 10. We construct a 16-byte vector [P0...P9, P0...P5]
-// using a single shuffle instruction.
 decompress_offset_simple! {
     fn_name: decompress_offset_10,
     offset: 10,
@@ -853,9 +801,6 @@ decompress_offset_simple! {
     }
 }
 
-// Optimization: Specialized implementation for offset 11.
-// The pattern has length 11. We construct a 16-byte vector [P0...P10, P0...P4]
-// using a single shuffle instruction.
 decompress_offset_simple! {
     fn_name: decompress_offset_11,
     offset: 11,
@@ -882,10 +827,6 @@ decompress_offset_simple! {
     }
 }
 
-// Optimization: Specialized implementation for offset 12.
-// The pattern has length 12. We construct a 16-byte vector [P0...P11, P0...P3]
-// using a single insert instruction. This vector allows us to write 16 bytes
-// at a time with a stride of 12 bytes.
 decompress_offset_simple! {
     fn_name: decompress_offset_12,
     offset: 12,
@@ -912,9 +853,6 @@ decompress_offset_simple! {
     }
 }
 
-// Optimization: Specialized implementation for offset 13.
-// The pattern has length 13. We construct a 16-byte vector [P0...P12, P0...P2]
-// using a single shuffle instruction.
 decompress_offset_simple! {
     fn_name: decompress_offset_13,
     offset: 13,
@@ -931,11 +869,6 @@ decompress_offset_simple! {
         _mm_shuffle_epi8(v_raw, mask)
     },
     unrolled_loops: {
-        // Unroll loop 8x for offset 13 (8 * 13 = 104 bytes per iteration).
-        // This reduces loop overhead for long matches.
-        // Safety: The last write is at offset 91 (7 * 13).
-        // A 16-byte write at 91 requires 91 + 16 = 107 bytes.
-        // We check for 120 bytes to be safe and consistent with other offsets.
         while copied + 120 <= length {
             _mm_storeu_si128(out_next.add(copied) as *mut __m128i, v_pat);
             _mm_storeu_si128(out_next.add(copied + 13) as *mut __m128i, v_pat);
@@ -958,9 +891,6 @@ decompress_offset_simple! {
     }
 }
 
-// Optimization: Specialized implementation for offset 14.
-// The pattern has length 14. We construct a 16-byte vector [P0...P13, P0...P1]
-// using a single insert instruction.
 decompress_offset_simple! {
     fn_name: decompress_offset_14,
     offset: 14,
@@ -987,11 +917,6 @@ decompress_offset_simple! {
     }
 }
 
-// Optimization: Specialized implementation for offset 15.
-// The pattern has length 15. We construct a 16-byte vector [P0...P14, P0]
-// using a single insert instruction. This vector allows us to write 16 bytes
-// at a time with a stride of 15 bytes, effectively rotating the pattern by 1 byte
-// each iteration without complex shuffles or register pressure.
 decompress_offset_simple! {
     fn_name: decompress_offset_15,
     offset: 15,
@@ -1058,7 +983,6 @@ unsafe fn decompress_offset_17(out_next: *mut u8, src: *const u8, v: __m128i, le
         _mm_storeu_si128(out_next.add(copied + 16) as *mut __m128i, v2);
         _mm_storeu_si128(out_next.add(copied + 32) as *mut __m128i, next_v0);
 
-        // v0 = next_v0; // Unused
         v1 = next_v1;
         v2 = next_v2;
         copied += 48;
@@ -1086,7 +1010,6 @@ unsafe fn decompress_offset_20(out_next: *mut u8, src: *const u8, v: __m128i, le
 
     let v0 = v;
     let v1 = _mm_alignr_epi8(v0, v_align, 12);
-    // Optimized parallel computation
     let v2 = _mm_alignr_epi8(v1, v0, 12);
     let v3 = _mm_alignr_epi8(v1, v0, 8);
     let v4 = _mm_alignr_epi8(v1, v0, 4);
@@ -1180,7 +1103,6 @@ unsafe fn decompress_offset_30(out_next: *mut u8, src: *const u8, v: __m128i, le
     let v1 = _mm_alignr_epi8(v0, v_align, 2);
     let v0_sh = _mm_srli_si128(v0, 2);
 
-    // Optimized parallel computation: Even vectors from (v1, v0), Odd from (v0_sh, v1)
     let v2 = _mm_alignr_epi8(v1, v0, 2);
     let v3 = _mm_alignr_epi8(v0_sh, v1, 2);
     let v4 = _mm_alignr_epi8(v1, v0, 4);
@@ -1317,7 +1239,6 @@ unsafe fn decompress_offset_28(out_next: *mut u8, src: *const u8, v: __m128i, le
     let v_align = _mm_loadu_si128(src.add(12) as *const __m128i);
     let v0 = v;
 
-    // Optimized parallel computation
     let v1 = _mm_alignr_epi8(v0, v_align, 4);
     let v3 = _mm_alignr_epi8(v0, v_align, 8);
     let v5 = _mm_alignr_epi8(v0, v_align, 12);
@@ -1490,13 +1411,10 @@ unsafe fn decompress_offset_40(out_next: *mut u8, src: *const u8, v: __m128i, le
     }
 }
 
-// Optimization: Specialized implementation for offset 42.
-// Unroll loop to stride 96 bytes (2 cycles of 3 vectors) per iteration.
 #[cfg(target_arch = "x86_64")]
 #[target_feature(enable = "bmi2,ssse3,sse4.1")]
 unsafe fn decompress_offset_42(out_next: *mut u8, src: *const u8, v: __m128i, length: usize) {
     let v1_init = _mm_loadu_si128(src.add(16) as *const __m128i);
-    // 32 - SHIFT = 32 - 6 = 26
     let v_tail = _mm_loadu_si128(src.add(26) as *const __m128i);
     let mut v2 = _mm_alignr_epi8::<6>(v, v_tail);
     let mut v0 = v;
@@ -1535,7 +1453,6 @@ unsafe fn decompress_offset_42(out_next: *mut u8, src: *const u8, v: __m128i, le
         _mm_storeu_si128(out_next.add(copied + 16) as *mut __m128i, v2);
         _mm_storeu_si128(out_next.add(copied + 32) as *mut __m128i, next_v0);
 
-        // v0 = next_v0; // Unused
         v1 = next_v1;
         v2 = next_v2;
         copied += 48;
@@ -1563,27 +1480,17 @@ unsafe fn decompress_offset_44(out_next: *mut u8, src: *const u8, v: __m128i, le
     let v1 = _mm_loadu_si128(src.add(16) as *const __m128i);
     let v_end = _mm_loadu_si128(src.add(28) as *const __m128i);
 
-    // Optimized parallel computation
-    // v2: p[32..44, 0..4]
     let v2 = _mm_alignr_epi8(v0, v_end, 4);
-    // v3: p[4..20]
     let v3 = _mm_alignr_epi8(v1, v0, 4);
-    // v4: p[20..36]
     let v_end_sh = _mm_srli_si128(v_end, 4);
     let v4 = _mm_alignr_epi8(v_end_sh, v1, 4);
 
-    // v5: p[36..44, 0..8]
     let v5 = _mm_alignr_epi8(v0, v_end, 8);
-    // v6: p[8..24]
     let v6 = _mm_alignr_epi8(v1, v0, 8);
-    // v7: p[24..40]
     let v7 = _mm_alignr_epi8(v_end_sh, v1, 8);
 
-    // v8: p[40..44, 0..12]
     let v8 = _mm_alignr_epi8(v0, v_end, 12);
-    // v9: p[12..28]
     let v9 = _mm_alignr_epi8(v1, v0, 12);
-    // v10: p[28..44] = v_end
     let v10 = v_end;
 
     let mut copied = 16;
@@ -1653,10 +1560,6 @@ unsafe fn decompress_offset_44(out_next: *mut u8, src: *const u8, v: __m128i, le
     }
 }
 
-// Optimization: Specialized implementation for offset 48.
-// We unroll the loop to write 96 bytes (2 cycles of 48 bytes) per iteration.
-// The pattern repeats every 48 bytes, so we can reuse the 3 loaded vectors (v0, v16, v32)
-// indefinitely, avoiding redundant loads and function call overhead.
 #[cfg(target_arch = "x86_64")]
 #[target_feature(enable = "bmi2,ssse3,sse4.1")]
 unsafe fn decompress_offset_48(out_next: *mut u8, src: *const u8, v: __m128i, length: usize) {
@@ -1700,10 +1603,6 @@ unsafe fn decompress_offset_48(out_next: *mut u8, src: *const u8, v: __m128i, le
     }
 }
 
-// Optimization: Specialized implementation for offset 52.
-// We unroll the loop to write 208 bytes (13 vectors) per iteration.
-// This allows us to keep the 13 loaded/constructed vectors in registers,
-// avoiding the array construction overhead of the generic `decompress_write_cycle_vectors`.
 #[cfg(target_arch = "x86_64")]
 #[target_feature(enable = "bmi2,ssse3,sse4.1")]
 unsafe fn decompress_offset_52(out_next: *mut u8, src: *const u8, v: __m128i, length: usize) {
@@ -1865,9 +1764,7 @@ unsafe fn decompress_offset_56(out_next: *mut u8, src: *const u8, v: __m128i, le
 unsafe fn decompress_offset_60(out_next: *mut u8, src: *const u8, v: __m128i, length: usize) {
     let v1 = _mm_loadu_si128(src.add(16) as *const __m128i);
     let v2 = _mm_loadu_si128(src.add(32) as *const __m128i);
-    // Optimization: Load from src + 44 instead of src + 48 to avoid STLF stalls.
-    // src + 48 overlaps with the recently written v0 (at offset 0) by 4 bytes.
-    // src + 44 (offset -16) is fully contained in previously written data.
+
     let v_safe = _mm_loadu_si128(src.add(44) as *const __m128i);
     let v0 = v;
     let v3 = _mm_alignr_epi8(v0, v_safe, 4);
@@ -1971,9 +1868,6 @@ unsafe fn decompress_offset_60(out_next: *mut u8, src: *const u8, v: __m128i, le
     }
 }
 
-// Optimization: Specialized implementation for offset 64.
-// We unroll the loop to write 128 bytes (2 cycles of 64 bytes) per iteration.
-// The pattern repeats every 64 bytes, so we can reuse the 4 loaded vectors (v0, v16, v32, v48).
 #[cfg(target_arch = "x86_64")]
 #[target_feature(enable = "bmi2,ssse3,sse4.1")]
 unsafe fn decompress_offset_64(out_next: *mut u8, src: *const u8, v: __m128i, length: usize) {

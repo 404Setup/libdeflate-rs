@@ -70,8 +70,6 @@ impl<W: Write + Send> DeflateEncoder<W> {
                     output
                         .try_reserve(bound - output.len())
                         .map_err(io::Error::other)?;
-                    // SAFETY: We just reserved sufficient capacity. The compressor writes to
-                    // the buffer using `MaybeUninit` pointers, so uninitialized memory is fine.
                     unsafe {
                         output.set_len(bound);
                     }
@@ -111,8 +109,6 @@ impl<W: Write + Send> DeflateEncoder<W> {
                             output
                                 .try_reserve(bound - output.len())
                                 .map_err(io::Error::other)?;
-                            // SAFETY: We just reserved sufficient capacity. The compressor writes to
-                            // the buffer using `MaybeUninit` pointers, so uninitialized memory is fine.
                             unsafe {
                                 output.set_len(bound);
                             }
@@ -163,8 +159,6 @@ impl<W: Write + Send> DeflateEncoder<W> {
                 output
                     .try_reserve(bound - output.len())
                     .map_err(io::Error::other)?;
-                // SAFETY: We just reserved sufficient capacity. The compressor writes to
-                // the buffer using `MaybeUninit` pointers, so uninitialized memory is fine.
                 unsafe {
                     output.set_len(bound);
                 }

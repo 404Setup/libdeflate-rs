@@ -96,12 +96,6 @@ pub unsafe fn crc32_x86_pclmulqdq(mut crc: u32, p: &[u8]) -> u32 {
                 }
             }
 
-            // Fold x0..x3 into x4..x7? No, x0..x7 are parallel.
-            // We want to reduce 8 streams to 4.
-            // x0 (pos 0), x4 (pos 64).
-            // We want new x0 = fold(x0) ^ x4.
-            // Distance is 64 bytes (512 bits). Use mults_512b.
-
             let x0_low = _mm_clmulepi64_si128(x0, mults_512b, 0x00);
             let x0_high = _mm_clmulepi64_si128(x0, mults_512b, 0x11);
             x0 = _mm_xor_si128(x4, _mm_xor_si128(x0_low, x0_high));
@@ -171,8 +165,6 @@ pub unsafe fn crc32_x86_pclmulqdq(mut crc: u32, p: &[u8]) -> u32 {
             let v0 = _mm_loadu_si128(data.as_ptr() as *const __m128i);
             let v1 = _mm_loadu_si128(data.as_ptr().add(16) as *const __m128i);
 
-            // Optimization: Parallelize folding for 32-byte chunks to break dependency chains.
-            // We compute fold_32(x0) and fold_16(v0) ^ v1 in parallel.
             let t1 = fold_vec128(x0, _mm_setzero_si128(), mults_256b);
             let t2 = fold_vec128(v0, v1, mults_128b);
             x0 = _mm_xor_si128(t1, t2);

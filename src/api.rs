@@ -79,9 +79,6 @@ impl Compressor {
         let mut output = Vec::new();
         output.try_reserve_exact(bound).map_err(io::Error::other)?;
 
-        // Use spare_capacity_mut to avoid zero-initialization.
-        // Since len is 0, this returns the entire capacity as MaybeUninit.
-        // We slice it to 'bound' to match the requested size.
         let out_uninit = output.spare_capacity_mut();
         let out_uninit = &mut out_uninit[..bound];
 
@@ -210,9 +207,6 @@ impl Decompressor {
             &mut [std::mem::MaybeUninit<u8>],
         ) -> (crate::decompress::DecompressResult, usize, usize),
     {
-        // Security check: prevent massive allocations for small inputs (Zip bomb prevention)
-        // Max compression ratio for Deflate is ~1032:1. We use a generous limit of 2000:1 + overhead.
-        // This prevents allocating GBs of memory for small inputs.
         let limit = data
             .len()
             .saturating_mul(self.limit_ratio)
@@ -243,9 +237,7 @@ impl Decompressor {
             .try_reserve_exact(expected_size)
             .map_err(io::Error::other)?;
 
-        // Use spare_capacity_mut to avoid zero-initialization.
         let out_uninit = output.spare_capacity_mut();
-        // Ensure we only use the expected size
         let out_uninit = &mut out_uninit[..expected_size];
 
         let (res, _, size) = f(&mut self.inner, data, out_uninit);
@@ -281,7 +273,7 @@ impl Decompressor {
                 "Input and output buffers overlap",
             ));
         }
-        // Safe to cast &mut [u8] to &mut [MaybeUninit<u8>]
+
         let out_uninit = unsafe {
             std::slice::from_raw_parts_mut(
                 output.as_mut_ptr() as *mut std::mem::MaybeUninit<u8>,

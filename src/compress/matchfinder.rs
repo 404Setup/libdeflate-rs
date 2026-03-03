@@ -292,9 +292,6 @@ unsafe fn match_len_sse2(a: *const u8, b: *const u8, max_len: usize) -> usize {
     }
 
     while len + 64 <= max_len {
-        // Optimization: Process 64 bytes at once to reduce branches and increase ILP.
-        // We compare 4 vectors and check a combined mask. This reduces the branch count
-        // from 4 to 1 per 64 bytes in the common case (long matches).
         let v1 = _mm_loadu_si128(a.add(len) as *const __m128i);
         let v2 = _mm_loadu_si128(b.add(len) as *const __m128i);
         let cmp1 = _mm_cmpeq_epi8(v1, v2);
@@ -311,9 +308,6 @@ unsafe fn match_len_sse2(a: *const u8, b: *const u8, max_len: usize) -> usize {
         let v8 = _mm_loadu_si128(b.add(len + 48) as *const __m128i);
         let cmp4 = _mm_cmpeq_epi8(v7, v8);
 
-        // Optimization: AND the comparison results together before extracting the mask.
-        // This reduces the number of `pmovmskb` instructions (high latency/port pressure)
-        // from 4 to 1 in the common case (all match).
         let cmp12 = _mm_and_si128(cmp1, cmp2);
         let cmp34 = _mm_and_si128(cmp3, cmp4);
         let cmp_all = _mm_and_si128(cmp12, cmp34);
@@ -1063,7 +1057,7 @@ impl MatchFinder {
 
         let end_limit = data.len().saturating_sub(3);
         let batch_count = if pos < end_limit {
-            std::cmp::min(count, end_limit - pos)
+            min(count, end_limit - pos)
         } else {
             0
         };
@@ -1837,7 +1831,6 @@ mod tests {
     fn test_match_len_avx2_explicit() {
         #[cfg(target_arch = "x86_64")]
         if is_x86_feature_detected!("avx2") {
-            // Create a buffer large enough to test 128-byte unrolling
             let mut a = vec![0u8; 300];
             let mut b = vec![0u8; 300];
             for i in 0..300 {
@@ -1846,47 +1839,39 @@ mod tests {
             }
 
             unsafe {
-                // Test > 128 bytes match
                 let len = match_len_avx2(a.as_ptr(), b.as_ptr(), 200);
                 assert_eq!(len, 200);
 
-                // Test exact 128 bytes match
                 let len = match_len_avx2(a.as_ptr(), b.as_ptr(), 128);
                 assert_eq!(len, 128);
 
-                // Test < 128 bytes match
                 let len = match_len_avx2(a.as_ptr(), b.as_ptr(), 100);
                 assert_eq!(len, 100);
 
-                // Test mismatch in first 32 bytes
                 b[10] = 0xFF;
                 let len = match_len_avx2(a.as_ptr(), b.as_ptr(), 200);
                 assert_eq!(len, 10);
-                b[10] = a[10]; // Reset
+                b[10] = a[10];
 
-                // Test mismatch in second 32 bytes (offset 40)
                 b[40] = 0xFF;
                 let len = match_len_avx2(a.as_ptr(), b.as_ptr(), 200);
                 assert_eq!(len, 40);
-                b[40] = a[40]; // Reset
+                b[40] = a[40];
 
-                // Test mismatch in third 32 bytes (offset 70)
                 b[70] = 0xFF;
                 let len = match_len_avx2(a.as_ptr(), b.as_ptr(), 200);
                 assert_eq!(len, 70);
-                b[70] = a[70]; // Reset
+                b[70] = a[70];
 
-                // Test mismatch in fourth 32 bytes (offset 100)
                 b[100] = 0xFF;
                 let len = match_len_avx2(a.as_ptr(), b.as_ptr(), 200);
                 assert_eq!(len, 100);
-                b[100] = a[100]; // Reset
+                b[100] = a[100];
 
-                // Test mismatch after 128 bytes (offset 130)
                 b[130] = 0xFF;
                 let len = match_len_avx2(a.as_ptr(), b.as_ptr(), 200);
                 assert_eq!(len, 130);
-                b[130] = a[130]; // Reset
+                b[130] = a[130];
             }
         }
     }
@@ -1899,28 +1884,22 @@ mod tests {
             let b = b"abcdefghijklmnopqrstuvwxyz0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ";
 
             unsafe {
-                // Test full match
                 let len = match_len_avx10(a.as_ptr(), b.as_ptr(), a.len());
                 assert_eq!(len, a.len());
 
-                // Test partial match
                 let len = match_len_avx10(a.as_ptr(), b.as_ptr(), 10);
                 assert_eq!(len, 10);
 
-                // Test mismatch
                 let c = b"abcdefghijklmnopqrstuvwxyz0123456789ABCDEFGHIJKLMNOPQRSTUVWXY!";
                 let len = match_len_avx10(a.as_ptr(), c.as_ptr(), a.len());
                 assert_eq!(len, a.len() - 1);
 
-                // Test small lengths (tail handling)
                 for i in 0..35 {
                     let len = match_len_avx10(a.as_ptr(), b.as_ptr(), i);
                     assert_eq!(len, i);
                 }
 
-                // Test mismatch in tail
-                let d = b"abcdefghijklmnopqrstuvwxyz012345!"; // 33 chars, mismatch at 32
-                // a has '6' at 32.
+                let d = b"abcdefghijklmnopqrstuvwxyz012345!";
                 let len = match_len_avx10(a.as_ptr(), d.as_ptr(), 33);
                 assert_eq!(len, 32);
             }
@@ -1939,31 +1918,24 @@ mod tests {
             }
 
             unsafe {
-                // Test > 64 bytes match
                 let len = match_len_sse2(a.as_ptr(), b.as_ptr(), 200);
                 assert_eq!(len, 200);
 
-                // Test mismatch in first 16 bytes
                 b[10] = 0xFF;
                 let len = match_len_sse2(a.as_ptr(), b.as_ptr(), 200);
                 assert_eq!(len, 10);
                 b[10] = a[10];
 
-                // Test mismatch in second 16 bytes (offset 20)
                 b[20] = 0xFF;
                 let len = match_len_sse2(a.as_ptr(), b.as_ptr(), 200);
                 assert_eq!(len, 20);
                 b[20] = a[20];
 
-                // Test mismatch in unrolled loop (offset 70)
                 b[70] = 0xFF;
                 let len = match_len_sse2(a.as_ptr(), b.as_ptr(), 200);
                 assert_eq!(len, 70);
                 b[70] = a[70];
 
-                // Test match length preventing unrolled loop (max_len=70)
-                // With optimization: consumes 16 bytes. len=16. 16+64 > 70. Skips unrolled.
-                // Tail loop handles rest.
                 let len = match_len_sse2(a.as_ptr(), b.as_ptr(), 70);
                 assert_eq!(len, 70);
             }
@@ -1982,27 +1954,22 @@ mod tests {
             }
 
             unsafe {
-                // Case 1: Max len 35, mismatch at 34
                 b[34] = 0xFF;
                 let len = match_len_avx2(a.as_ptr(), b.as_ptr(), 35);
                 assert_eq!(len, 34);
                 b[34] = a[34];
 
-                // Case 2: Max len 35, mismatch at 32
                 b[32] = 0xFF;
                 let len = match_len_avx2(a.as_ptr(), b.as_ptr(), 35);
                 assert_eq!(len, 32);
                 b[32] = a[32];
 
-                // Case 3: Max len 35, full match
                 let len = match_len_avx2(a.as_ptr(), b.as_ptr(), 35);
                 assert_eq!(len, 35);
 
-                // Case 4: Max len 32 (boundary)
                 let len = match_len_avx2(a.as_ptr(), b.as_ptr(), 32);
                 assert_eq!(len, 32);
 
-                // Case 5: Max len 32, mismatch at 31
                 b[31] = 0xFF;
                 let len = match_len_avx2(a.as_ptr(), b.as_ptr(), 32);
                 assert_eq!(len, 31);

@@ -22,14 +22,11 @@ impl<'a> Bitstream<'a> {
         if count == 0 {
             return true;
         }
-        // Use u64 to handle count=32 case without branching (1u32 << 32 overflows)
         let mask = ((1u64 << count) - 1) as u32;
         unsafe { self.write_bits_unchecked(bits & mask, count) }
     }
 
     /// Writes up to 32 bits without checking count or masking bits.
-    ///
-    /// # Safety
     ///
     /// * `count` must be > 0.
     /// * `bits` must not have any bits set above `count`.
@@ -39,8 +36,6 @@ impl<'a> Bitstream<'a> {
     }
 
     /// Writes bits assuming sufficient buffer space (at least 8 bytes at current `out_idx`).
-    ///
-    /// # Safety
     ///
     /// * `count` must be > 0.
     /// * `bits` must not have any bits set above `count`.
@@ -70,8 +65,6 @@ impl<'a> Bitstream<'a> {
     }
 
     /// Writes up to 60 bits assuming sufficient buffer space (at least 8 bytes at current `out_idx`).
-    ///
-    /// # Safety
     ///
     /// * `count` must be > 0 and <= 60.
     /// * `bits` must not have any bits set above `count`.
@@ -115,31 +108,19 @@ impl<'a> Bitstream<'a> {
 
     /// Writes bits without checking count or masking bits.
     ///
-    /// # Safety
-    ///
     /// * `count` must be > 0.
     /// * `bits` must not have any bits set above `count` (i.e., `bits & !((1 << count) - 1) == 0`).
     #[inline(always)]
     pub unsafe fn write_bits_unchecked(&mut self, bits: u32, count: u32) -> bool {
         debug_assert!(count > 0);
-        // Optimization: Flush every 32 bits.
-        // This ensures that `self.bitcount` (max 31 before add) + count (max 32) <= 63,
-        // preventing u64 bitbuf overflow.
         debug_assert!(count <= 32);
 
         let bitcount = self.bitcount;
         let new_bitcount = bitcount + count;
 
-        // Flush when we have at least 4 bytes (32 bits).
-        // This reduces store frequency compared to flushing at 4 bytes (32 bits) with byte-wise writes,
-        // but more frequent than 48 bits. However, it simplifies logic for 32-bit writes.
         if new_bitcount >= 32 {
             let bitbuf = self.bitbuf | ((bits as u64) << bitcount);
 
-            // Optimization: Write 64 bits (8 bytes) at once if buffer space allows.
-            // This is safe even if we only have 32 bits of valid data because we only advance `out_idx` by 4.
-            // The extra 4 bytes written are speculative and will be overwritten by the next write.
-            // This avoids truncation to u32 and allows using full register width stores on 64-bit systems.
             if self.out_idx + 8 <= self.output.len() {
                 unsafe {
                     std::ptr::write_unaligned(
@@ -153,8 +134,6 @@ impl<'a> Bitstream<'a> {
                 return true;
             }
 
-            // Optimization: Write 32 bits at once if buffer space allows.
-            // Using u32 write avoids 8-byte boundary check and reduces memory bandwidth compared to u64 blind write.
             if self.out_idx + 4 <= self.output.len() {
                 unsafe {
                     std::ptr::write_unaligned(

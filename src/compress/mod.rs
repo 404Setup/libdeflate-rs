@@ -62,14 +62,9 @@ const OFFSET_EXTRA_BITS_TABLE: [u8; 30] = [
     13,
 ];
 
-// Precomputed table for get_offset_slot.
-// For offsets <= 256, table[offset] gives the slot.
-// For offsets > 256, table[256 + ((offset - 1) >> 7)] gives the slot.
-// This reduces the table size from 32KB to 512 bytes, improving cache locality.
 const OFFSET_SLOT_TABLE_512: [u8; 512] = {
     let mut table = [0; 512];
 
-    // Fill 0..=256 (used for direct lookup)
     let mut offset: usize = 1;
     while offset <= 256 {
         let slot = if offset <= 2 {
@@ -83,16 +78,9 @@ const OFFSET_SLOT_TABLE_512: [u8; 512] = {
         offset += 1;
     }
 
-    // Fill 257..511 (used for (offset - 1) >> 7)
-    // Index i corresponds to k = i - 256.
-    // k = (offset - 1) >> 7.
     let mut k: u32 = 0;
     while k < 256 {
-        // We only access this part for offset > 256, which implies k >= 2.
         if k >= 2 {
-            // Pick a representative offset value. k << 7 works because the slot
-            // depends only on the MSB and the bit below it, which are preserved
-            // in k for k >= 2.
             let off = k << 7;
             let l = 31 - off.leading_zeros();
             let slot = ((2 * l) + ((off >> (l - 1)) & 1)) as usize;
@@ -105,23 +93,11 @@ const OFFSET_SLOT_TABLE_512: [u8; 512] = {
 };
 
 const OFF_IDX_TABLE: [u8; 32] = [
-    0, 0, 0, 0, 0, 0, 0, 0, // 0-7: offset < 256
-    1, 1, 1, 1, // 8-11: offset < 4096
-    2, 2, 2, // 12-14: offset < 32768
-    3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, // 15-31: offset >= 32768
+    0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 2, 2, 2, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3,
 ];
 
-// Mapping from offset slot to observation index.
-// Slots 0-15 (offsets 1-256) -> 0
-// Slots 16-23 (offsets 257-4096) -> 1
-// Slots 24-29 (offsets 4097-32768) -> 2
-// Note: Offset 32768 (Slot 29) is effectively mapped to Type 2,
-// whereas OFF_IDX_TABLE maps it to Type 3. This minor deviation is acceptable.
 const SLOT_TO_OBS_IDX: [u8; 32] = [
-    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, // 0-15
-    1, 1, 1, 1, 1, 1, 1, 1, // 16-23
-    2, 2, 2, 2, 2, 2, // 24-29
-    0, 0, // 30-31
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 2, 2, 2, 2, 2, 2, 0, 0,
 ];
 
 pub const MAX_LITLEN_CODEWORD_LEN: usize = 14;
@@ -197,7 +173,6 @@ fn compute_static_tables() -> StaticTables {
     for i in 0..DEFLATE_NUM_OFFSET_SYMS {
         let mut entry = (offset_codewords[i] as u64) | ((offset_lens[i] as u64) << 32);
         if i < 30 {
-            // SAFETY: Arrays are static consts of size 30.
             entry |= (unsafe { *OFFSET_EXTRA_BITS_TABLE.get_unchecked(i) } as u64) << 40;
             entry |= (unsafe { *OFFSET_BASE_TABLE.get_unchecked(i) } as u64) << 48;
         }
@@ -214,9 +189,6 @@ fn compute_static_tables() -> StaticTables {
         let code = huff_entry as u16;
         let huff_len = (huff_entry >> 32) as u8;
 
-        // Optimization: Precompute the value to be written to bitstream.
-        // val = code | ((len - base) << huff_len)
-        // total_len = huff_len + extra_bits
         let diff = (len as u32).wrapping_sub(base as u32);
         let total_len = huff_len as u32 + extra as u32;
         let val = (code as u32) | (diff << huff_len);
@@ -314,8 +286,6 @@ impl BlockSplitStats {
             *self.new_observations.get_unchecked_mut(len_idx) += 1;
         }
 
-        // Optimization: Use table lookup to avoid branch mispredictions.
-        // offset is always >= 1, so bsr32 is safe.
         debug_assert!(offset >= 1);
         let off_idx_base = unsafe { *OFF_IDX_TABLE.get_unchecked(bsr32(offset as u32) as usize) };
 
@@ -385,9 +355,6 @@ impl BlockSplitStats {
 
     #[inline(always)]
     fn should_end_block(&mut self, block_length: usize, input_remaining: usize) -> bool {
-        // Optimization: Fast path for the common case where we are far from any block limit.
-        // This avoids checking `input_remaining` (which requires a subtraction) and other
-        // conditions in the hottest path (executed for every literal/match).
         if self.num_new_observations < NUM_OBSERVATIONS_PER_BLOCK_CHECK
             && block_length < SOFT_MAX_BLOCK_LENGTH
         {
@@ -401,10 +368,6 @@ impl BlockSplitStats {
             return true;
         }
 
-        // If we reach here, we know `block_length < SOFT_MAX_BLOCK_LENGTH`.
-        // Combined with the failure of the fast path check above, this implies that
-        // `self.num_new_observations >= NUM_OBSERVATIONS_PER_BLOCK_CHECK`.
-        // So we can proceed directly to the block split check without re-verifying the count.
         if block_length >= MIN_BLOCK_LENGTH {
             if self.do_end_block_check(block_length) {
                 return true;
@@ -515,7 +478,6 @@ impl Compressor {
             let mut entry =
                 (self.offset_codewords[i] as u64) | ((self.offset_lens[i] as u64) << 32);
             if i < 30 {
-                // SAFETY: Arrays are static consts of size 30.
                 entry |= (unsafe { *OFFSET_EXTRA_BITS_TABLE.get_unchecked(i) } as u64) << 40;
                 entry |= (unsafe { *OFFSET_BASE_TABLE.get_unchecked(i) } as u64) << 48;
             }
@@ -989,9 +951,6 @@ impl Compressor {
             let mut best_len = 0;
             for &(len, offset) in &self.matches {
                 let len = len as usize;
-                // Optimization: The bounds check `if pos + len > processed { continue; }` is redundant.
-                // `MatchFinder` guarantees that any match returned fits within the `block_input` buffer.
-                // Since `processed` equals `block_input.len()`, `pos + len` is always <= `processed`.
                 if len > best_len {
                     best_len = len;
                 }
@@ -1286,7 +1245,7 @@ impl Compressor {
 
             if len >= 3 {
                 let mut skipped = 0;
-                // Optimization: Skip lazy check if the current match is "nice" enough.
+
                 if lazy_depth >= 1 && in_idx + 1 < input.len() && len < self.nice_match_length {
                     let (next_len, next_offset) = mf.find_match(
                         input,
@@ -1687,9 +1646,7 @@ impl Compressor {
             let mut best_len = 0;
             for &(len, offset) in &self.matches {
                 let len = len as usize;
-                // Optimization: The bounds check `if pos + len > processed { continue; }` is redundant.
-                // `MatchFinder` guarantees that any match returned fits within the `block_input` buffer.
-                // Since `processed` equals `block_input.len()`, `pos + len` is always <= `processed`.
+
                 debug_assert!(pos + len <= processed);
                 if len > best_len {
                     best_len = len;
@@ -1969,7 +1926,7 @@ impl Compressor {
                                 *input.get_unchecked(in_pos + 2),
                                 *input.get_unchecked(in_pos + 3),
                             );
-                            // Inline write_bits_unchecked_fast_64
+
                             let new_bitcount = bitcount + len;
                             if new_bitcount >= 64 {
                                 let low = bitbuf | (code << bitcount);
@@ -2182,8 +2139,6 @@ impl Compressor {
     #[inline(always)]
     fn get_length_slot(&self, len: usize) -> usize {
         debug_assert!(len < LENGTH_WRITE_TABLE.len());
-        // SAFETY: The match finder guarantees len <= DEFLATE_MAX_MATCH_LEN (258),
-        // which is within the table bounds (260).
         unsafe { (*LENGTH_WRITE_TABLE.get_unchecked(len) >> 24) as usize }
     }
 
@@ -2191,11 +2146,8 @@ impl Compressor {
     fn get_offset_slot(&self, offset: usize) -> usize {
         debug_assert!(offset <= 32768);
         if offset <= 256 {
-            // SAFETY: table has size 512, offset <= 256 is within bounds.
             unsafe { *OFFSET_SLOT_TABLE_512.get_unchecked(offset) as usize }
         } else {
-            // SAFETY: offset <= 32768 implies (offset - 1) >> 7 <= 255.
-            // Index <= 256 + 255 = 511. Within bounds.
             unsafe { *OFFSET_SLOT_TABLE_512.get_unchecked(256 + ((offset - 1) >> 7)) as usize }
         }
     }

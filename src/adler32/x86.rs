@@ -38,16 +38,8 @@ macro_rules! adler32_chunk8 {
     };
 }
 
-// Optimization: Manual loop unrolling for Adler32 tail processing.
-// This processes 4 bytes per iteration to reduce loop overhead and improve instruction pipelining.
-// It is significantly faster than a scalar iterator loop for small tails (e.g., 15-63 bytes).
-//
-// Safety:
-// * `$ptr` must be valid for reads of `$len` bytes.
-// * `$s1` and `$s2` must not overflow u32 before modulo (guaranteed by BLOCK_SIZE check in caller).
 macro_rules! adler32_tail {
     ($s1:expr, $s2:expr, $ptr:expr, $len:expr) => {
-        // We know len < 16 here because larger chunks are handled by SIMD or unrolled loops before calling this macro.
         if $len > 0 {
             if $len >= 8 {
                 adler32_chunk8!($s1, $s2, $ptr, $len);
@@ -66,7 +58,6 @@ macro_rules! adler32_tail {
                 $len -= 4;
             }
 
-            // Remaining 0-3 bytes.
             match $len {
                 3 => {
                     let v = ($ptr as *const u16).read_unaligned() as u32;
@@ -120,8 +111,7 @@ pub unsafe fn adler32_x86_sse2(adler: u32, p: &[u8]) -> u32 {
         let mut v_byte_sums_d = _mm_setzero_si128();
 
         let mut chunk_n = n;
-        // Optimization: Unroll loop to process 64 bytes per iteration (two 32-byte chunks).
-        // This amortizes loop overhead and allows better pipelining of the `sad` and `unpack` operations.
+
         while chunk_n >= 128 {
             let data_a_1 = _mm_loadu_si128(data.as_ptr() as *const __m128i);
             let data_b_1 = _mm_loadu_si128(data.as_ptr().add(16) as *const __m128i);
@@ -132,7 +122,6 @@ pub unsafe fn adler32_x86_sse2(adler: u32, p: &[u8]) -> u32 {
             let data_a_4 = _mm_loadu_si128(data.as_ptr().add(96) as *const __m128i);
             let data_b_4 = _mm_loadu_si128(data.as_ptr().add(112) as *const __m128i);
 
-            // Accumulate byte sums
             v_byte_sums_a = _mm_add_epi16(v_byte_sums_a, _mm_unpacklo_epi8(data_a_1, v_zero));
             v_byte_sums_b = _mm_add_epi16(v_byte_sums_b, _mm_unpackhi_epi8(data_a_1, v_zero));
             v_byte_sums_c = _mm_add_epi16(v_byte_sums_c, _mm_unpacklo_epi8(data_b_1, v_zero));
@@ -153,7 +142,6 @@ pub unsafe fn adler32_x86_sse2(adler: u32, p: &[u8]) -> u32 {
             v_byte_sums_c = _mm_add_epi16(v_byte_sums_c, _mm_unpacklo_epi8(data_b_4, v_zero));
             v_byte_sums_d = _mm_add_epi16(v_byte_sums_d, _mm_unpackhi_epi8(data_b_4, v_zero));
 
-            // SAD calculation
             let sad_1 = _mm_add_epi32(
                 _mm_sad_epu8(data_a_1, v_zero),
                 _mm_sad_epu8(data_b_1, v_zero),
@@ -171,16 +159,13 @@ pub unsafe fn adler32_x86_sse2(adler: u32, p: &[u8]) -> u32 {
                 _mm_sad_epu8(data_b_4, v_zero),
             );
 
-            // Update v_s1_sums
-            // v_s1_sums += 4 * v_s1 (initial) + 3*sad_1 + 2*sad_2 + 1*sad_3
             let s1_x4 = _mm_slli_epi32(v_s1, 2);
             let inc_1 = _mm_add_epi32(
-                _mm_add_epi32(sad_1, _mm_add_epi32(sad_1, sad_1)), // 3*sad_1
-                _mm_add_epi32(_mm_add_epi32(sad_2, sad_2), sad_3), // 2*sad_2 + sad_3
+                _mm_add_epi32(sad_1, _mm_add_epi32(sad_1, sad_1)),
+                _mm_add_epi32(_mm_add_epi32(sad_2, sad_2), sad_3),
             );
             v_s1_sums = _mm_add_epi32(v_s1_sums, _mm_add_epi32(s1_x4, inc_1));
 
-            // Update v_s1
             let total_sad = _mm_add_epi32(_mm_add_epi32(sad_1, sad_2), _mm_add_epi32(sad_3, sad_4));
             v_s1 = _mm_add_epi32(v_s1, total_sad);
 
@@ -321,7 +306,6 @@ pub unsafe fn adler32_x86_avx2(adler: u32, p: &[u8]) -> u32 {
         }
     }
 
-    // Optimization: Hoist vector constants out of the main loop to avoid redundant loads.
     let weights = _mm256_set_epi8(
         1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25,
         26, 27, 28, 29, 30, 31, 32,
@@ -346,8 +330,6 @@ pub unsafe fn adler32_x86_avx2(adler: u32, p: &[u8]) -> u32 {
         let mut v_s2_c = _mm256_setzero_si256();
         let mut v_s2_d = _mm256_setzero_si256();
 
-        // Optimization: For chunks >= 256 bytes, use an unrolled loop with 8 independent accumulators.
-        // This increases instruction-level parallelism to hide the latency of multiply-adds.
         if chunk_n >= 256 {
             let mut v_s2_e = _mm256_setzero_si256();
             let mut v_s2_f = _mm256_setzero_si256();
@@ -421,9 +403,6 @@ pub unsafe fn adler32_x86_avx2(adler: u32, p: &[u8]) -> u32 {
                 let s_h = _mm256_madd_epi16(p8, ones_i16);
                 v_s2_h = _mm256_add_epi32(v_s2_h, s_h);
 
-                // Update v_s1 and v_inc accumulators
-                // For the first 128 bytes: v_s1 contributes to the next 128 bytes as well.
-                // v_s1_acc accumulates v_s1 twice (once for first 128, once for second).
                 v_s1_acc = _mm256_add_epi32(v_s1_acc, v_s1);
                 v_inc_acc_a = _mm256_add_epi32(v_inc_acc_a, inc_part_1);
                 v_s1 = _mm256_add_epi32(v_s1, sum_sads_1);
@@ -503,24 +482,15 @@ pub unsafe fn adler32_x86_avx2(adler: u32, p: &[u8]) -> u32 {
             let data_a = _mm256_loadu_si256(ptr as *const __m256i);
             let data_b = _mm256_loadu_si256(ptr.add(32) as *const __m256i);
 
-            // Optimization: Parallelize SAD calculation and s1/s2 updates to reduce dependency chains.
-            // By computing sad_a and sad_b in parallel, we can accumulate s1 sums and s1 in larger steps.
             let sad_a = _mm256_sad_epu8(data_a, v_zero);
             let sad_b = _mm256_sad_epu8(data_b, v_zero);
 
-            // Update v_s1_sums:
-            // The contribution of the current v_s1 to the sums over the next 64 bytes is:
-            // - For the first 32 bytes: v_s1 * 32
-            // - For the second 32 bytes: (v_s1 + sad_a) * 32
-            // Total: v_s1 * 64 + sad_a * 32
             let v_s1_x64 = _mm256_slli_epi32(v_s1, 6);
             let sad_a_x32 = _mm256_slli_epi32(sad_a, 5);
             v_s1_sums = _mm256_add_epi32(v_s1_sums, _mm256_add_epi32(v_s1_x64, sad_a_x32));
 
-            // Update v_s1: v_s1 += sad_a + sad_b
             v_s1 = _mm256_add_epi32(v_s1, _mm256_add_epi32(sad_a, sad_b));
 
-            // Update v_s2: Calculate partial s2 contributions in parallel
             let p1 = _mm256_maddubs_epi16(data_a, weights);
             let s_a = _mm256_madd_epi16(p1, ones_i16);
             let p2 = _mm256_maddubs_epi16(data_b, weights);
@@ -538,16 +508,12 @@ pub unsafe fn adler32_x86_avx2(adler: u32, p: &[u8]) -> u32 {
         while chunk_n >= 32 {
             let d = _mm256_loadu_si256(ptr as *const __m256i);
 
-            // Update v_s1_sums: v_s1 contributes to next 32 bytes.
-            // v_s1_sums += v_s1 * 32
             let v_s1_x32 = _mm256_slli_epi32(v_s1, 5);
             v_s1_sums = _mm256_add_epi32(v_s1_sums, v_s1_x32);
 
-            // Update v_s1: v_s1 += sad
             let sad = _mm256_sad_epu8(d, v_zero);
             v_s1 = _mm256_add_epi32(v_s1, sad);
 
-            // Update v_s2: v_s2 += weighted_sum
             let p = _mm256_maddubs_epi16(d, weights);
             let s = _mm256_madd_epi16(p, ones_i16);
             v_s2 = _mm256_add_epi32(v_s2, s);
@@ -648,9 +614,6 @@ pub unsafe fn adler32_x86_avx2_vnni(adler: u32, p: &[u8]) -> u32 {
 
         let mut chunk_n = n;
 
-        // Optimization: For chunks >= 256 bytes, use an unrolled loop with 8 independent accumulators.
-        // This increases instruction-level parallelism to hide the latency of `vpdpbusd` (5 cycles on Golden Cove).
-        // We merge the global `v_s2` into `v_s2_a` to save a register, keeping total usage within AVX2 limits (16 YMMs).
         if chunk_n >= 256 {
             let mut ptr = data.as_ptr();
             let mut v_s2_a = v_s2;
@@ -663,7 +626,6 @@ pub unsafe fn adler32_x86_avx2_vnni(adler: u32, p: &[u8]) -> u32 {
             let mut v_s2_h = _mm256_setzero_si256();
 
             while chunk_n >= 256 {
-                // Block 1 (0..128)
                 let d1 = _mm256_loadu_si256(ptr as *const __m256i);
                 v_s2_a = _mm256_dpbusd_avx_epi32(v_s2_a, d1, mults);
                 let u1 = _mm256_dpbusd_avx_epi32(_mm256_setzero_si256(), d1, ones);
@@ -692,7 +654,6 @@ pub unsafe fn adler32_x86_avx2_vnni(adler: u32, p: &[u8]) -> u32 {
                 v_s1_sums = _mm256_add_epi32(v_s1_sums, inc_a);
                 v_s1 = _mm256_add_epi32(v_s1, total_u_a);
 
-                // Block 2 (128..256)
                 let d5 = _mm256_loadu_si256(ptr.add(128) as *const __m256i);
                 v_s2_e = _mm256_dpbusd_avx_epi32(v_s2_e, d5, mults);
                 let u5 = _mm256_dpbusd_avx_epi32(_mm256_setzero_si256(), d5, ones);

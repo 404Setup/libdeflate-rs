@@ -182,8 +182,6 @@ impl Decompressor {
                 && is_x86_feature_detected!("sse4.1")
             {
                 let res = unsafe { x86::decompress_bmi2_ptr(self, input, out_ptr, out_len) };
-                // Security: Reset state because x86 implementation clobbers internal tables.
-                // This prevents state corruption if the Decompressor is reused for streaming.
                 self.state = DecompressorState::Start;
                 self.is_final_block = false;
                 self.bitbuf = 0;
@@ -602,7 +600,7 @@ impl Decompressor {
                 } else {
                     let mut copied = 0;
                     while copied < length {
-                        let copy_len = std::cmp::min(offset, length - copied);
+                        let copy_len = min(offset, length - copied);
                         std::ptr::copy_nonoverlapping(
                             out_ptr.add(src + copied),
                             out_ptr.add(dest + copied),
@@ -621,7 +619,6 @@ impl Decompressor {
         let in_ptr_start = input.as_ptr();
         let in_ptr_end = unsafe { in_ptr_start.add(input.len()) };
         let mut in_next = unsafe { in_ptr_start.add(*in_idx) };
-        // out_ptr_start is argument
         let out_ptr_end = unsafe { out_ptr_start.add(out_len) };
         let mut out_next = unsafe { out_ptr_start.add(*out_idx) };
 
@@ -747,10 +744,6 @@ impl Decompressor {
                     } else if offset >= length {
                         std::ptr::copy_nonoverlapping(src, out_next, length);
                     } else {
-                        // Optimization: Use u64 copy loop for overlapping case with offset >= 8.
-                        // This avoids function call overhead of copy_nonoverlapping for small chunks.
-                        // Since offset >= 8, we can read 8 bytes and write 8 bytes safely
-                        // (the read source is at least 8 bytes behind the write destination).
                         let src_ptr = src;
                         let dest_ptr = out_next;
                         let mut i = 0;
@@ -1056,7 +1049,7 @@ impl Decompressor {
                     } else {
                         let mut copied = 0;
                         while copied < length {
-                            let copy_len = std::cmp::min(offset, length - copied);
+                            let copy_len = min(offset, length - copied);
                             std::ptr::copy_nonoverlapping(
                                 out_ptr.add(src + copied),
                                 out_ptr.add(dest + copied),
@@ -1131,7 +1124,6 @@ impl Decompressor {
         input: &[u8],
         output: &mut [u8],
     ) -> (DecompressResult, usize, usize) {
-        // Safe because output is initialized
         let output_uninit = unsafe {
             std::slice::from_raw_parts_mut(
                 output.as_mut_ptr() as *mut std::mem::MaybeUninit<u8>,
@@ -1244,7 +1236,6 @@ impl Decompressor {
         input: &[u8],
         output: &mut [u8],
     ) -> (DecompressResult, usize, usize) {
-        // Safe because output is initialized
         let output_uninit = unsafe {
             std::slice::from_raw_parts_mut(
                 output.as_mut_ptr() as *mut std::mem::MaybeUninit<u8>,
@@ -1268,8 +1259,6 @@ pub(crate) unsafe fn prepare_pattern(offset: usize, src_ptr: *const u8) -> u64 {
                 w | (w << 16) | (w << 32) | (w << 48)
             }
             3 => {
-                // Optimization: Read u16 + u8 to avoid reading the uninitialized 4th byte.
-                // Reading uninitialized memory is UB even if masked out later.
                 let w = (src_ptr as *const u16).read_unaligned().to_le() as u64;
                 let b = *src_ptr.add(2) as u64;
                 let p = w | (b << 16);
