@@ -667,11 +667,49 @@ unsafe fn match_len_avx10(a: *const u8, b: *const u8, max_len: usize) -> usize {
 #[inline]
 unsafe fn match_len_neon(a: *const u8, b: *const u8, max_len: usize) -> usize {
     let mut len = 0;
-    while len + 16 <= max_len {
+
+    // Process 32 bytes per iteration if possible
+    while len + 32 <= max_len {
+        let v1_0 = vld1q_u8(a.add(len));
+        let v2_0 = vld1q_u8(b.add(len));
+        let v1_1 = vld1q_u8(a.add(len + 16));
+        let v2_1 = vld1q_u8(b.add(len + 16));
+
+        let xor0 = veorq_u8(v1_0, v2_0);
+        let xor1 = veorq_u8(v1_1, v2_1);
+        let xor_combined = vorrq_u8(xor0, xor1);
+
+        if vmaxvq_u32(vreinterpretq_u32_u8(xor_combined)) == 0 {
+            len += 32;
+        } else {
+            if vmaxvq_u32(vreinterpretq_u32_u8(xor0)) != 0 {
+                let xor64 = vreinterpretq_u64_u8(xor0);
+                let low = vgetq_lane_u64::<0>(xor64);
+                if low == 0 {
+                    let high = vgetq_lane_u64::<1>(xor64);
+                    return len + 8 + (high.to_le().trailing_zeros() as usize >> 3);
+                } else {
+                    return len + (low.to_le().trailing_zeros() as usize >> 3);
+                }
+            } else {
+                let xor64 = vreinterpretq_u64_u8(xor1);
+                let low = vgetq_lane_u64::<0>(xor64);
+                if low == 0 {
+                    let high = vgetq_lane_u64::<1>(xor64);
+                    return len + 24 + (high.to_le().trailing_zeros() as usize >> 3);
+                } else {
+                    return len + 16 + (low.to_le().trailing_zeros() as usize >> 3);
+                }
+            }
+        }
+    }
+
+    // Process 16 bytes
+    if len + 16 <= max_len {
         let v1 = vld1q_u8(a.add(len));
         let v2 = vld1q_u8(b.add(len));
         let xor = veorq_u8(v1, v2);
-        if vmaxvq_u8(xor) == 0 {
+        if vmaxvq_u32(vreinterpretq_u32_u8(xor)) == 0 {
             len += 16;
         } else {
             let xor64 = vreinterpretq_u64_u8(xor);
@@ -684,6 +722,7 @@ unsafe fn match_len_neon(a: *const u8, b: *const u8, max_len: usize) -> usize {
             }
         }
     }
+
     len + match_len_sw(a.add(len), b.add(len), max_len - len)
 }
 
