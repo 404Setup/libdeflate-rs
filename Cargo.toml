@@ -1,6 +1,6 @@
 [package]
 name = "libdeflate"
-version = "26.1.0"
+version = "26.1.1"
 rust-version = "1.92.0"
 edition = "2024"
 authors = ["404"]
@@ -26,11 +26,9 @@ exclude = [
 
 [dependencies]
 rayon = "1.11.0"
-cudarc = { version = "0.11.2", optional = true, features = ["cuda-12000"] }
 
 [features]
 default = []
-cuda = ["dep:cudarc"]
 
 [profile.release]
 opt-level = 3

@@ -3,7 +3,7 @@
 A complete Rust port of libdeflate, without C code.
 
 It's entirely powered by Gemini 3 Pro (the main model) and Gemini 3 Flash, but I had them create extensive unit and
-benchmark tests to ensure accuracy. All features of libdeflate-rs (except CUDA) are automatically enabled based on the
+benchmark tests to ensure accuracy. All features of libdeflate-rs are automatically enabled based on the
 compile-time environment, requiring no manual configuration.
 
 ## Feature
@@ -13,9 +13,6 @@ compile-time environment, requiring no manual configuration.
 - A highly optimized implementation, faster than C binding
 
 ## Usage
-
-**I'm still fixing a bug that caused the performance degradation, so I can't import it for now.**
-
 ```toml
 [dependencies]
 libdeflate = "[VERSION]"
