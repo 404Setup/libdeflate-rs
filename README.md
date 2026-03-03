@@ -18,7 +18,7 @@ compile-time environment, requiring no manual configuration.
 
 ```toml
 [dependencies]
-libdeflate = "0.1.0"
+libdeflate = "[VERSION]"
 ```
 
 ## Examples
@@ -27,7 +27,7 @@ See [examples](examples)
 
 ## Environment
 
-- Rust 1.93
+- Rust 1.92
 
 ## Run Benchmark
 
