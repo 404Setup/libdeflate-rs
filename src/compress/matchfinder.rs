@@ -1605,7 +1605,8 @@ impl BtMatchFinder {
         }
     }
 
-    pub fn skip_positions(
+    #[inline(always)]
+    unsafe fn skip_positions_generic<M: MatchLen>(
         &mut self,
         data: &[u8],
         mut pos: usize,
@@ -1613,90 +1614,63 @@ impl BtMatchFinder {
         max_depth: usize,
         nice_len: usize,
     ) {
+        for _ in 0..count {
+            self.advance_one_byte_generic::<M, _>(
+                data,
+                pos,
+                DEFLATE_MAX_MATCH_LEN,
+                nice_len,
+                max_depth,
+                NoOpVisitor,
+            );
+            pos += 1;
+        }
+    }
+
+    pub fn skip_positions(
+        &mut self,
+        data: &[u8],
+        pos: usize,
+        count: usize,
+        max_depth: usize,
+        nice_len: usize,
+    ) {
         unsafe {
             match self.match_len {
                 MatchLenStrategy::Scalar => {
-                    for _ in 0..count {
-                        self.advance_one_byte_generic::<ScalarStrategy, _>(
-                            data,
-                            pos,
-                            DEFLATE_MAX_MATCH_LEN,
-                            nice_len,
-                            max_depth,
-                            NoOpVisitor,
-                        );
-                        pos += 1;
-                    }
+                    self.skip_positions_generic::<ScalarStrategy>(
+                        data, pos, count, max_depth, nice_len,
+                    );
                 }
                 #[cfg(target_arch = "x86_64")]
                 MatchLenStrategy::Sse2 => {
-                    for _ in 0..count {
-                        self.advance_one_byte_generic::<Sse2Strategy, _>(
-                            data,
-                            pos,
-                            DEFLATE_MAX_MATCH_LEN,
-                            nice_len,
-                            max_depth,
-                            NoOpVisitor,
-                        );
-                        pos += 1;
-                    }
+                    self.skip_positions_generic::<Sse2Strategy>(
+                        data, pos, count, max_depth, nice_len,
+                    );
                 }
                 #[cfg(target_arch = "x86_64")]
                 MatchLenStrategy::Avx2 => {
-                    for _ in 0..count {
-                        self.advance_one_byte_generic::<Avx2Strategy, _>(
-                            data,
-                            pos,
-                            DEFLATE_MAX_MATCH_LEN,
-                            nice_len,
-                            max_depth,
-                            NoOpVisitor,
-                        );
-                        pos += 1;
-                    }
+                    self.skip_positions_generic::<Avx2Strategy>(
+                        data, pos, count, max_depth, nice_len,
+                    );
                 }
                 #[cfg(target_arch = "x86_64")]
                 MatchLenStrategy::Avx512 => {
-                    for _ in 0..count {
-                        self.advance_one_byte_generic::<Avx512Strategy, _>(
-                            data,
-                            pos,
-                            DEFLATE_MAX_MATCH_LEN,
-                            nice_len,
-                            max_depth,
-                            NoOpVisitor,
-                        );
-                        pos += 1;
-                    }
+                    self.skip_positions_generic::<Avx512Strategy>(
+                        data, pos, count, max_depth, nice_len,
+                    );
                 }
                 #[cfg(target_arch = "x86_64")]
                 MatchLenStrategy::Avx10 => {
-                    for _ in 0..count {
-                        self.advance_one_byte_generic::<Avx10Strategy, _>(
-                            data,
-                            pos,
-                            DEFLATE_MAX_MATCH_LEN,
-                            nice_len,
-                            max_depth,
-                            NoOpVisitor,
-                        );
-                        pos += 1;
-                    }
+                    self.skip_positions_generic::<Avx10Strategy>(
+                        data, pos, count, max_depth, nice_len,
+                    );
                 }
                 #[cfg(target_arch = "aarch64")]
                 MatchLenStrategy::Neon => {
-                    for _ in 0..count {
-                        self.advance_one_byte_generic::<NeonStrategy, _>(
-                            data,
-                            pos,
-                            DEFLATE_MAX_MATCH_LEN,
-                            nice_len,
-                            max_depth,
-                            NoOpVisitor,
-                        );
-                        pos += 1;
-                    }
+                    self.skip_positions_generic::<NeonStrategy>(
+                        data, pos, count, max_depth, nice_len,
+                    );
                 }
             }
         }
