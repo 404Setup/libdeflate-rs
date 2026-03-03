@@ -5,7 +5,7 @@ rust-version = "1.92.0"
 edition = "2024"
 authors = ["404"]
 description = "Rust rewrite of libdeflate"
-license = "BSD-3"
+license = "BSD-3-Clause"
 readme = "README.md"
 keywords = [
     "deflate",
