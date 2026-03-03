@@ -1,0 +1,1570 @@
+running 9 tests
+test compress::matchfinder::tests::test_bt_match_overflow ... ignored
+test compress::matchfinder::tests::test_ht_match_overflow ... ignored
+test compress::matchfinder::tests::test_match_finder_consistency ... ignored
+test compress::matchfinder::tests::test_match_len_avx10_explicit ... ignored
+test compress::matchfinder::tests::test_match_len_avx2_explicit ... ignored
+test compress::matchfinder::tests::test_match_len_avx2_tail_overlap ... ignored
+test compress::matchfinder::tests::test_match_len_selection ... ignored
+test compress::matchfinder::tests::test_match_len_sse2_explicit ... ignored
+test compress::matchfinder::tests::test_skip_match_overflow ... ignored
+
+test result: ok. 0 passed; 0 failed; 9 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running benches\bench_main.rs (target\release\deps\bench_main-f7ce382c8f21c5ca.exe)
+Gnuplot not found, using plotters backend
+Compress Level 10 Large/libdeflate-rs level 10
+                        time:   [5.6898 ms 5.7375 ms 5.7883 ms]
+                        thrpt:  [172.76 MiB/s 174.29 MiB/s 175.75 MiB/s]
+Found 5 outliers among 100 measurements (5.00%)
+  4 (4.00%) high mild
+  1 (1.00%) high severe
+
+Compress Level 6 Large/libdeflate-rs level 6
+                        time:   [494.74 µs 508.64 µs 524.63 µs]
+                        thrpt:  [1.8614 GiB/s 1.9200 GiB/s 1.9739 GiB/s]
+
+CRC32 Large/libdeflate-rs/16777216
+                        time:   [323.15 µs 329.46 µs 336.52 µs]
+                        thrpt:  [46.432 GiB/s 47.427 GiB/s 48.353 GiB/s]
+                 change:
+                        time:   [-21.994% -19.069% -16.183%] (p = 0.00 < 0.05)
+                        thrpt:  [+19.308% +23.561% +28.196%]
+                        Performance has improved.
+Found 5 outliers among 100 measurements (5.00%)
+  3 (3.00%) high mild
+  2 (2.00%) high severe
+CRC32 Large/libdeflater/16777216
+                        time:   [566.95 µs 575.64 µs 584.54 µs]
+                        thrpt:  [26.731 GiB/s 27.144 GiB/s 27.560 GiB/s]
+                 change:
+                        time:   [-11.231% -9.4997% -7.7847%] (p = 0.00 < 0.05)
+                        thrpt:  [+8.4419% +10.497% +12.652%]
+                        Performance has improved.
+Found 2 outliers among 100 measurements (2.00%)
+  2 (2.00%) high mild
+
+Bitstream Micro/write_bits_upto_32 (28 bits)
+                        time:   [161.12 µs 161.86 µs 162.61 µs]
+                        thrpt:  [6.0054 GiB/s 6.0335 GiB/s 6.0611 GiB/s]
+                 change:
+                        time:   [-3.3194% -2.1014% -0.8776%] (p = 0.00 < 0.05)
+                        thrpt:  [+0.8853% +2.1465% +3.4333%]
+                        Change within noise threshold.
+Found 10 outliers among 100 measurements (10.00%)
+  10 (10.00%) high mild
+Bitstream Micro/write_bits (13 bits)
+                        time:   [336.29 µs 340.09 µs 344.19 µs]
+                        thrpt:  [2.8373 GiB/s 2.8714 GiB/s 2.9039 GiB/s]
+                 change:
+                        time:   [-1.3909% -0.0313% +1.2268%] (p = 0.96 > 0.05)
+                        thrpt:  [-1.2119% +0.0313% +1.4105%]
+                        No change in performance detected.
+Found 5 outliers among 100 measurements (5.00%)
+  5 (5.00%) high mild
+
+Compress Micro/libdeflate-rs level 6
+                        time:   [242.95 µs 245.42 µs 248.18 µs]
+                        thrpt:  [1007.3 MiB/s 1018.7 MiB/s 1.0049 GiB/s]
+                 change:
+                        time:   [-5.8934% -4.7889% -3.6650%] (p = 0.00 < 0.05)
+                        thrpt:  [+3.8044% +5.0298% +6.2625%]
+                        Performance has improved.
+
+Compress Alloc/libdeflate-rs compress_deflate/16777216
+                        time:   [2.4373 ms 2.4541 ms 2.4719 ms]
+                        thrpt:  [6.3209 GiB/s 6.3670 GiB/s 6.4107 GiB/s]
+Found 2 outliers among 100 measurements (2.00%)
+  1 (1.00%) high mild
+  1 (1.00%) high severe
+
+Decompress offset10 Micro/libdeflate-rs offset10 micro
+                        time:   [1.2498 µs 1.2553 µs 1.2610 µs]
+                        thrpt:  [151.26 MiB/s 151.95 MiB/s 152.61 MiB/s]
+                 change:
+                        time:   [-3.8671% -2.9198% -1.9499%] (p = 0.00 < 0.05)
+                        thrpt:  [+1.9886% +3.0076% +4.0227%]
+                        Performance has improved.
+Found 3 outliers among 100 measurements (3.00%)
+  1 (1.00%) high mild
+  2 (2.00%) high severe
+
+Decompress offset40 Micro/libdeflate-rs offset40 micro
+                        time:   [45.604 µs 46.614 µs 47.636 µs]
+                        thrpt:  [20.501 GiB/s 20.950 GiB/s 21.414 GiB/s]
+                 change:
+                        time:   [-32.681% -30.855% -28.902%] (p = 0.00 < 0.05)
+                        thrpt:  [+40.652% +44.623% +48.547%]
+                        Performance has improved.
+
+Decompress offset17 Micro/libdeflate-rs offset17 micro
+                        time:   [1.3039 µs 1.3184 µs 1.3341 µs]
+                        thrpt:  [142.97 MiB/s 144.67 MiB/s 146.28 MiB/s]
+                 change:
+                        time:   [-4.3519% -3.3265% -2.3001%] (p = 0.00 < 0.05)
+                        thrpt:  [+2.3542% +3.4409% +4.5499%]
+                        Performance has improved.
+
+Decompress offset17 Tail/libdeflate-rs offset17 tail
+                        time:   [1.2571 µs 1.2689 µs 1.2809 µs]
+                        thrpt:  [47.650 MiB/s 48.101 MiB/s 48.551 MiB/s]
+Found 1 outliers among 100 measurements (1.00%)
+  1 (1.00%) high mild
+
+Decompress offset18 Micro/libdeflate-rs offset18 micro
+                        time:   [51.362 µs 53.958 µs 57.528 µs]
+                        thrpt:  [16.975 GiB/s 18.099 GiB/s 19.013 GiB/s]
+                 change:
+                        time:   [+41.120% +46.095% +51.892%] (p = 0.00 < 0.05)
+                        thrpt:  [-34.164% -31.551% -29.138%]
+                        Performance has regressed.
+Found 7 outliers among 100 measurements (7.00%)
+  5 (5.00%) high mild
+  2 (2.00%) high severe
+
+Decompress offset26 Micro/libdeflate-rs offset26 micro
+                        time:   [48.866 µs 49.823 µs 50.809 µs]
+                        thrpt:  [19.220 GiB/s 19.601 GiB/s 19.984 GiB/s]
+                 change:
+                        time:   [-1.0656% +1.1063% +3.0507%] (p = 0.29 > 0.05)
+                        thrpt:  [-2.9604% -1.0942% +1.0771%]
+                        No change in performance detected.
+
+CRC32 Slice8/libdeflate-rs slice8
+                        time:   [5.4689 ms 5.5020 ms 5.5365 ms]
+                        thrpt:  [2.8222 GiB/s 2.8399 GiB/s 2.8571 GiB/s]
+                 change:
+                        time:   [-29.742% -29.180% -28.589%] (p = 0.00 < 0.05)
+                        thrpt:  [+40.035% +41.204% +42.333%]
+                        Performance has improved.
+Found 1 outliers among 100 measurements (1.00%)
+  1 (1.00%) high mild
+
+Checksums/Adler32/libdeflate-rs XXS/1024
+                        time:   [18.000 ns 18.152 ns 18.315 ns]
+                        thrpt:  [52.070 GiB/s 52.537 GiB/s 52.982 GiB/s]
+                 change:
+                        time:   [+9.2592% +11.553% +14.045%] (p = 0.00 < 0.05)
+                        thrpt:  [-12.315% -10.357% -8.4745%]
+                        Performance has regressed.
+Found 4 outliers among 100 measurements (4.00%)
+  4 (4.00%) high severe
+Checksums/Adler32/libdeflater XXS/1024
+                        time:   [16.284 ns 16.707 ns 17.240 ns]
+                        thrpt:  [55.317 GiB/s 57.082 GiB/s 58.566 GiB/s]
+                 change:
+                        time:   [-2.4521% -0.6987% +1.2577%] (p = 0.48 > 0.05)
+                        thrpt:  [-1.2421% +0.7037% +2.5137%]
+                        No change in performance detected.
+Found 4 outliers among 100 measurements (4.00%)
+  2 (2.00%) high mild
+  2 (2.00%) high severe
+Checksums/Adler32/libdeflate-rs S/65536
+                        time:   [993.32 ns 1.0613 µs 1.1338 µs]
+                        thrpt:  [53.834 GiB/s 57.512 GiB/s 61.446 GiB/s]
+                 change:
+                        time:   [+7.9630% +12.375% +17.932%] (p = 0.00 < 0.05)
+                        thrpt:  [-15.205% -11.012% -7.3757%]
+                        Performance has regressed.
+Found 11 outliers among 100 measurements (11.00%)
+  1 (1.00%) high mild
+  10 (10.00%) high severe
+Checksums/Adler32/libdeflater S/65536
+                        time:   [960.49 ns 988.51 ns 1.0223 µs]
+                        thrpt:  [59.705 GiB/s 61.744 GiB/s 63.546 GiB/s]
+                 change:
+                        time:   [+15.004% +18.238% +21.686%] (p = 0.00 < 0.05)
+                        thrpt:  [-17.821% -15.425% -13.047%]
+                        Performance has regressed.
+Found 5 outliers among 100 measurements (5.00%)
+  3 (3.00%) high mild
+  2 (2.00%) high severe
+Checksums/Adler32/libdeflate-rs L/16777216
+                        time:   [542.77 µs 577.75 µs 611.65 µs]
+                        thrpt:  [25.546 GiB/s 27.044 GiB/s 28.788 GiB/s]
+                 change:
+                        time:   [+23.501% +31.041% +38.861%] (p = 0.00 < 0.05)
+                        thrpt:  [-27.986% -23.688% -19.029%]
+                        Performance has regressed.
+Found 1 outliers among 100 measurements (1.00%)
+  1 (1.00%) high mild
+Checksums/Adler32/libdeflater L/16777216
+                        time:   [583.43 µs 612.63 µs 643.90 µs]
+                        thrpt:  [24.266 GiB/s 25.505 GiB/s 26.781 GiB/s]
+                 change:
+                        time:   [+53.832% +60.880% +68.883%] (p = 0.00 < 0.05)
+                        thrpt:  [-40.787% -37.842% -34.994%]
+                        Performance has regressed.
+Found 2 outliers among 100 measurements (2.00%)
+  2 (2.00%) high mild
+Checksums/CRC32/libdeflate-rs
+                        time:   [379.71 µs 398.52 µs 419.23 µs]
+                        thrpt:  [37.271 GiB/s 39.207 GiB/s 41.149 GiB/s]
+                 change:
+                        time:   [+1.6043% +6.5592% +12.099%] (p = 0.01 < 0.05)
+                        thrpt:  [-10.793% -6.1554% -1.5790%]
+                        Performance has regressed.
+Found 4 outliers among 100 measurements (4.00%)
+  4 (4.00%) high mild
+Checksums/CRC32/libdeflater
+                        time:   [597.22 µs 607.00 µs 616.87 µs]
+                        thrpt:  [25.329 GiB/s 25.741 GiB/s 26.163 GiB/s]
+                 change:
+                        time:   [-13.089% -9.7914% -6.5125%] (p = 0.00 < 0.05)
+                        thrpt:  [+6.9662% +10.854% +15.060%]
+                        Performance has improved.
+Found 5 outliers among 100 measurements (5.00%)
+  4 (4.00%) high mild
+  1 (1.00%) high severe
+
+Compress/libdeflate-rs XXS Level 1/1024
+                        time:   [351.85 ns 353.56 ns 355.29 ns]
+                        thrpt:  [2.6842 GiB/s 2.6974 GiB/s 2.7105 GiB/s]
+                 change:
+                        time:   [-81.457% -81.284% -81.095%] (p = 0.00 < 0.05)
+                        thrpt:  [+428.96% +434.29% +439.29%]
+                        Performance has improved.
+Found 6 outliers among 100 measurements (6.00%)
+  3 (3.00%) high mild
+  3 (3.00%) high severe
+Compress/libdeflater XXS Level 1/1024
+                        time:   [4.5768 µs 4.6005 µs 4.6243 µs]
+                        thrpt:  [211.18 MiB/s 212.27 MiB/s 213.37 MiB/s]
+                 change:
+                        time:   [-6.0162% -4.7804% -3.6438%] (p = 0.00 < 0.05)
+                        thrpt:  [+3.7815% +5.0204% +6.4013%]
+                        Performance has improved.
+Found 4 outliers among 100 measurements (4.00%)
+  4 (4.00%) high mild
+Compress/libdeflate-rs XXS Level 6/1024
+                        time:   [3.6906 µs 3.7109 µs 3.7328 µs]
+                        thrpt:  [261.62 MiB/s 263.16 MiB/s 264.61 MiB/s]
+                 change:
+                        time:   [-7.2138% -5.9016% -4.5028%] (p = 0.00 < 0.05)
+                        thrpt:  [+4.7151% +6.2717% +7.7746%]
+                        Performance has improved.
+Found 11 outliers among 100 measurements (11.00%)
+  6 (6.00%) high mild
+  5 (5.00%) high severe
+Compress/libdeflater XXS Level 6/1024
+                        time:   [6.3731 µs 6.4141 µs 6.4582 µs]
+                        thrpt:  [151.21 MiB/s 152.25 MiB/s 153.23 MiB/s]
+                 change:
+                        time:   [-1.4587% -0.7477% -0.0267%] (p = 0.06 > 0.05)
+                        thrpt:  [+0.0267% +0.7533% +1.4802%]
+                        No change in performance detected.
+Found 4 outliers among 100 measurements (4.00%)
+  4 (4.00%) high mild
+Compress/libdeflate-rs XXS Level 9/1024
+                        time:   [3.7456 µs 3.7794 µs 3.8152 µs]
+                        thrpt:  [255.96 MiB/s 258.39 MiB/s 260.72 MiB/s]
+                 change:
+                        time:   [-9.1598% -8.2854% -7.3426%] (p = 0.00 < 0.05)
+                        thrpt:  [+7.9245% +9.0339% +10.083%]
+                        Performance has improved.
+Found 3 outliers among 100 measurements (3.00%)
+  3 (3.00%) high mild
+Compress/libdeflater XXS Level 9/1024
+                        time:   [6.3286 µs 6.3781 µs 6.4382 µs]
+                        thrpt:  [151.68 MiB/s 153.11 MiB/s 154.31 MiB/s]
+                 change:
+                        time:   [-5.5330% -4.6989% -3.8287%] (p = 0.00 < 0.05)
+                        thrpt:  [+3.9811% +4.9306% +5.8570%]
+                        Performance has improved.
+Found 2 outliers among 100 measurements (2.00%)
+  1 (1.00%) high mild
+  1 (1.00%) high severe
+Compress/libdeflate-rs XXS Level 10/1024
+                        time:   [30.056 µs 30.204 µs 30.349 µs]
+                        thrpt:  [32.178 MiB/s 32.333 MiB/s 32.491 MiB/s]
+                 change:
+                        time:   [-44.695% -44.130% -43.610%] (p = 0.00 < 0.05)
+                        thrpt:  [+77.336% +78.988% +80.815%]
+                        Performance has improved.
+Found 1 outliers among 100 measurements (1.00%)
+  1 (1.00%) high mild
+Compress/libdeflater XXS Level 10/1024
+                        time:   [22.892 µs 23.145 µs 23.402 µs]
+                        thrpt:  [41.730 MiB/s 42.193 MiB/s 42.659 MiB/s]
+                 change:
+                        time:   [+2.2829% +3.5857% +4.9559%] (p = 0.00 < 0.05)
+                        thrpt:  [-4.7219% -3.4616% -2.2319%]
+                        Performance has regressed.
+Found 1 outliers among 100 measurements (1.00%)
+  1 (1.00%) high mild
+Compress/libdeflate-rs XS Level 1/4096
+                        time:   [493.87 ns 499.45 ns 505.17 ns]
+                        thrpt:  [7.5513 GiB/s 7.6378 GiB/s 7.7241 GiB/s]
+                 change:
+                        time:   [-76.942% -76.641% -76.324%] (p = 0.00 < 0.05)
+                        thrpt:  [+322.37% +328.10% +333.68%]
+                        Performance has improved.
+Compress/libdeflater XS Level 1/4096
+                        time:   [6.1645 µs 6.1937 µs 6.2241 µs]
+                        thrpt:  [627.60 MiB/s 630.68 MiB/s 633.66 MiB/s]
+                 change:
+                        time:   [-3.8295% -2.9715% -2.0966%] (p = 0.00 < 0.05)
+                        thrpt:  [+2.1415% +3.0625% +3.9820%]
+                        Performance has improved.
+Found 4 outliers among 100 measurements (4.00%)
+  1 (1.00%) high mild
+  3 (3.00%) high severe
+Compress/libdeflate-rs XS Level 6/4096
+                        time:   [6.5180 µs 6.5609 µs 6.6125 µs]
+                        thrpt:  [590.73 MiB/s 595.38 MiB/s 599.30 MiB/s]
+                 change:
+                        time:   [-2.8557% -1.7737% -0.6604%] (p = 0.00 < 0.05)
+                        thrpt:  [+0.6648% +1.8058% +2.9397%]
+                        Change within noise threshold.
+Found 8 outliers among 100 measurements (8.00%)
+  5 (5.00%) high mild
+  3 (3.00%) high severe
+Compress/libdeflater XS Level 6/4096
+                        time:   [10.416 µs 10.477 µs 10.541 µs]
+                        thrpt:  [370.58 MiB/s 372.84 MiB/s 375.04 MiB/s]
+                 change:
+                        time:   [-2.1599% -1.3652% -0.6143%] (p = 0.00 < 0.05)
+                        thrpt:  [+0.6181% +1.3841% +2.2076%]
+                        Change within noise threshold.
+Found 3 outliers among 100 measurements (3.00%)
+  2 (2.00%) high mild
+  1 (1.00%) high severe
+Compress/libdeflate-rs XS Level 9/4096
+                        time:   [6.5800 µs 6.6151 µs 6.6528 µs]
+                        thrpt:  [587.16 MiB/s 590.50 MiB/s 593.65 MiB/s]
+                 change:
+                        time:   [-0.6676% +0.4598% +1.7370%] (p = 0.48 > 0.05)
+                        thrpt:  [-1.7074% -0.4577% +0.6721%]
+                        No change in performance detected.
+Found 8 outliers among 100 measurements (8.00%)
+  6 (6.00%) high mild
+  2 (2.00%) high severe
+Compress/libdeflater XS Level 9/4096
+                        time:   [10.746 µs 10.793 µs 10.843 µs]
+                        thrpt:  [360.25 MiB/s 361.91 MiB/s 363.50 MiB/s]
+                 change:
+                        time:   [+3.3764% +4.4891% +5.6288%] (p = 0.00 < 0.05)
+                        thrpt:  [-5.3289% -4.2962% -3.2661%]
+                        Performance has regressed.
+Found 10 outliers among 100 measurements (10.00%)
+  7 (7.00%) high mild
+  3 (3.00%) high severe
+Compress/libdeflate-rs XS Level 10/4096
+                        time:   [79.153 µs 79.625 µs 80.135 µs]
+                        thrpt:  [48.746 MiB/s 49.058 MiB/s 49.350 MiB/s]
+                 change:
+                        time:   [-43.895% -43.327% -42.716%] (p = 0.00 < 0.05)
+                        thrpt:  [+74.570% +76.451% +78.237%]
+                        Performance has improved.
+Found 2 outliers among 100 measurements (2.00%)
+  1 (1.00%) high mild
+  1 (1.00%) high severe
+Compress/libdeflater XS Level 10/4096
+                        time:   [48.950 µs 49.183 µs 49.448 µs]
+                        thrpt:  [78.997 MiB/s 79.423 MiB/s 79.800 MiB/s]
+                 change:
+                        time:   [-0.1302% +0.8741% +1.8828%] (p = 0.10 > 0.05)
+                        thrpt:  [-1.8480% -0.8665% +0.1304%]
+                        No change in performance detected.
+Found 6 outliers among 100 measurements (6.00%)
+  3 (3.00%) high mild
+  3 (3.00%) high severe
+Compress/libdeflate-rs S Level 1/65536
+                        time:   [3.0646 µs 3.0885 µs 3.1120 µs]
+                        thrpt:  [19.613 GiB/s 19.762 GiB/s 19.916 GiB/s]
+                 change:
+                        time:   [-33.551% -32.912% -32.235%] (p = 0.00 < 0.05)
+                        thrpt:  [+47.569% +49.058% +50.492%]
+                        Performance has improved.
+Found 1 outliers among 100 measurements (1.00%)
+  1 (1.00%) high mild
+Compress/libdeflater S Level 1/65536
+                        time:   [42.355 µs 42.968 µs 43.580 µs]
+                        thrpt:  [1.4005 GiB/s 1.4205 GiB/s 1.4410 GiB/s]
+                 change:
+                        time:   [+1.8998% +2.9600% +4.0338%] (p = 0.00 < 0.05)
+                        thrpt:  [-3.8774% -2.8749% -1.8644%]
+                        Performance has regressed.
+Compress/libdeflate-rs S Level 6/65536
+                        time:   [61.964 µs 62.418 µs 62.959 µs]
+                        thrpt:  [992.70 MiB/s 1001.3 MiB/s 1008.7 MiB/s]
+                 change:
+                        time:   [-8.1619% -7.1821% -6.1980%] (p = 0.00 < 0.05)
+                        thrpt:  [+6.6075% +7.7379% +8.8873%]
+                        Performance has improved.
+Found 1 outliers among 100 measurements (1.00%)
+  1 (1.00%) high mild
+Compress/libdeflater S Level 6/65536
+                        time:   [79.863 µs 80.240 µs 80.625 µs]
+                        thrpt:  [775.19 MiB/s 778.91 MiB/s 782.59 MiB/s]
+                 change:
+                        time:   [-1.4564% -0.6757% +0.0696%] (p = 0.09 > 0.05)
+                        thrpt:  [-0.0695% +0.6803% +1.4779%]
+                        No change in performance detected.
+Found 3 outliers among 100 measurements (3.00%)
+  3 (3.00%) high mild
+Compress/libdeflate-rs S Level 9/65536
+                        time:   [61.628 µs 62.078 µs 62.568 µs]
+                        thrpt:  [998.92 MiB/s 1006.8 MiB/s 1014.2 MiB/s]
+                 change:
+                        time:   [-6.6801% -5.8277% -5.0112%] (p = 0.00 < 0.05)
+                        thrpt:  [+5.2755% +6.1883% +7.1583%]
+                        Performance has improved.
+Found 6 outliers among 100 measurements (6.00%)
+  2 (2.00%) low mild
+  3 (3.00%) high mild
+  1 (1.00%) high severe
+Compress/libdeflater S Level 9/65536
+                        time:   [79.792 µs 80.204 µs 80.647 µs]
+                        thrpt:  [774.98 MiB/s 779.27 MiB/s 783.29 MiB/s]
+                 change:
+                        time:   [-1.3790% -0.3996% +0.4932%] (p = 0.42 > 0.05)
+                        thrpt:  [-0.4908% +0.4012% +1.3982%]
+                        No change in performance detected.
+Found 4 outliers among 100 measurements (4.00%)
+  4 (4.00%) high mild
+Benchmarking Compress/libdeflate-rs S Level 10/65536: Warming up for 3.0000 s
+Warning: Unable to complete 100 samples in 5.0s. You may wish to increase target time to 5.2s, enable flat sampling, or reduce sample count to 60.
+Compress/libdeflate-rs S Level 10/65536
+                        time:   [1.0583 ms 1.0658 ms 1.0731 ms]
+                        thrpt:  [58.243 MiB/s 58.640 MiB/s 59.058 MiB/s]
+                 change:
+                        time:   [-43.345% -42.825% -42.259%] (p = 0.00 < 0.05)
+                        thrpt:  [+73.188% +74.903% +76.508%]
+                        Performance has improved.
+Found 2 outliers among 100 measurements (2.00%)
+  2 (2.00%) high mild
+Compress/libdeflater S Level 10/65536
+                        time:   [583.16 µs 588.09 µs 593.32 µs]
+                        thrpt:  [105.34 MiB/s 106.28 MiB/s 107.17 MiB/s]
+                 change:
+                        time:   [+0.9504% +2.3382% +3.7745%] (p = 0.00 < 0.05)
+                        thrpt:  [-3.6372% -2.2848% -0.9415%]
+                        Change within noise threshold.
+Found 7 outliers among 100 measurements (7.00%)
+  4 (4.00%) high mild
+  3 (3.00%) high severe
+Compress/libdeflate-rs M Level 1/1048576
+                        time:   [69.336 µs 69.838 µs 70.449 µs]
+                        thrpt:  [13.862 GiB/s 13.983 GiB/s 14.084 GiB/s]
+                 change:
+                        time:   [-7.6874% -6.4011% -5.1268%] (p = 0.00 < 0.05)
+                        thrpt:  [+5.4038% +6.8389% +8.3275%]
+                        Performance has improved.
+Found 1 outliers among 100 measurements (1.00%)
+  1 (1.00%) high severe
+Compress/libdeflater M Level 1/1048576
+                        time:   [642.95 µs 646.84 µs 650.98 µs]
+                        thrpt:  [1.5001 GiB/s 1.5098 GiB/s 1.5189 GiB/s]
+                 change:
+                        time:   [-5.0672% -3.8126% -2.5762%] (p = 0.00 < 0.05)
+                        thrpt:  [+2.6443% +3.9637% +5.3377%]
+                        Performance has improved.
+Found 3 outliers among 100 measurements (3.00%)
+  3 (3.00%) high mild
+Compress/libdeflate-rs M Level 6/1048576
+                        time:   [427.63 µs 431.09 µs 434.75 µs]
+                        thrpt:  [2.2463 GiB/s 2.2653 GiB/s 2.2836 GiB/s]
+                 change:
+                        time:   [-12.350% -10.414% -8.5156%] (p = 0.00 < 0.05)
+                        thrpt:  [+9.3083% +11.625% +14.090%]
+                        Performance has improved.
+Found 3 outliers among 100 measurements (3.00%)
+  1 (1.00%) low severe
+  1 (1.00%) high mild
+  1 (1.00%) high severe
+Benchmarking Compress/libdeflater M Level 6/1048576: Warming up for 3.0000 s
+Warning: Unable to complete 100 samples in 5.0s. You may wish to increase target time to 6.3s, enable flat sampling, or reduce sample count to 60.
+Compress/libdeflater M Level 6/1048576
+                        time:   [1.2322 ms 1.2379 ms 1.2440 ms]
+                        thrpt:  [803.86 MiB/s 807.80 MiB/s 811.55 MiB/s]
+                 change:
+                        time:   [-8.0415% -6.9062% -5.7368%] (p = 0.00 < 0.05)
+                        thrpt:  [+6.0860% +7.4186% +8.7446%]
+                        Performance has improved.
+Found 6 outliers among 100 measurements (6.00%)
+  5 (5.00%) high mild
+  1 (1.00%) high severe
+Compress/libdeflate-rs M Level 9/1048576
+                        time:   [514.34 µs 524.26 µs 532.47 µs]
+                        thrpt:  [1.8340 GiB/s 1.8628 GiB/s 1.8987 GiB/s]
+                 change:
+                        time:   [+2.7362% +5.5772% +8.2229%] (p = 0.00 < 0.05)
+                        thrpt:  [-7.5981% -5.2826% -2.6633%]
+                        Performance has regressed.
+Benchmarking Compress/libdeflater M Level 9/1048576: Warming up for 3.0000 s
+Warning: Unable to complete 100 samples in 5.0s. You may wish to increase target time to 6.4s, enable flat sampling, or reduce sample count to 60.
+Compress/libdeflater M Level 9/1048576
+                        time:   [1.2356 ms 1.2397 ms 1.2438 ms]
+                        thrpt:  [803.96 MiB/s 806.66 MiB/s 809.33 MiB/s]
+                 change:
+                        time:   [-1.7209% -0.4423% +0.7346%] (p = 0.51 > 0.05)
+                        thrpt:  [-0.7293% +0.4443% +1.7510%]
+                        No change in performance detected.
+Found 12 outliers among 100 measurements (12.00%)
+  5 (5.00%) high mild
+  7 (7.00%) high severe
+Compress/libdeflate-rs M Level 10/1048576
+                        time:   [5.4656 ms 5.4994 ms 5.5347 ms]
+                        thrpt:  [180.68 MiB/s 181.84 MiB/s 182.96 MiB/s]
+                 change:
+                        time:   [-41.116% -40.427% -39.737%] (p = 0.00 < 0.05)
+                        thrpt:  [+65.938% +67.861% +69.824%]
+                        Performance has improved.
+Found 3 outliers among 100 measurements (3.00%)
+  3 (3.00%) high mild
+Compress/libdeflater M Level 10/1048576
+                        time:   [9.3700 ms 9.4257 ms 9.4839 ms]
+                        thrpt:  [105.44 MiB/s 106.09 MiB/s 106.72 MiB/s]
+                 change:
+                        time:   [-1.0535% -0.3319% +0.4066%] (p = 0.37 > 0.05)
+                        thrpt:  [-0.4050% +0.3330% +1.0647%]
+                        No change in performance detected.
+Found 3 outliers among 100 measurements (3.00%)
+  3 (3.00%) high mild
+Benchmarking Compress/libdeflate-rs L Level 1/16777216: Warming up for 3.0000 s
+Warning: Unable to complete 100 samples in 5.0s. You may wish to increase target time to 5.3s, enable flat sampling, or reduce sample count to 60.
+Compress/libdeflate-rs L Level 1/16777216
+                        time:   [1.0742 ms 1.0804 ms 1.0868 ms]
+                        thrpt:  [14.377 GiB/s 14.463 GiB/s 14.546 GiB/s]
+                 change:
+                        time:   [-17.520% -16.441% -15.281%] (p = 0.00 < 0.05)
+                        thrpt:  [+18.037% +19.676% +21.241%]
+                        Performance has improved.
+Found 7 outliers among 100 measurements (7.00%)
+  1 (1.00%) low severe
+  3 (3.00%) low mild
+  1 (1.00%) high mild
+  2 (2.00%) high severe
+Compress/libdeflater L Level 1/16777216
+                        time:   [10.798 ms 10.911 ms 11.026 ms]
+                        thrpt:  [1.4172 GiB/s 1.4321 GiB/s 1.4471 GiB/s]
+                 change:
+                        time:   [-11.899% -8.7460% -5.6030%] (p = 0.00 < 0.05)
+                        thrpt:  [+5.9355% +9.5843% +13.507%]
+                        Performance has improved.
+Compress/libdeflate-rs L Level 6/16777216
+                        time:   [2.9117 ms 2.9433 ms 2.9749 ms]
+                        thrpt:  [5.2522 GiB/s 5.3087 GiB/s 5.3663 GiB/s]
+                 change:
+                        time:   [+0.4506% +1.8472% +3.2643%] (p = 0.01 < 0.05)
+                        thrpt:  [-3.1611% -1.8137% -0.4486%]
+                        Change within noise threshold.
+Compress/libdeflater L Level 6/16777216
+                        time:   [20.156 ms 20.277 ms 20.403 ms]
+                        thrpt:  [784.21 MiB/s 789.08 MiB/s 793.80 MiB/s]
+                 change:
+                        time:   [-32.939% -29.714% -26.226%] (p = 0.00 < 0.05)
+                        thrpt:  [+35.548% +42.276% +49.118%]
+                        Performance has improved.
+Found 1 outliers among 100 measurements (1.00%)
+  1 (1.00%) high mild
+Compress/libdeflate-rs L Level 9/16777216
+                        time:   [2.6323 ms 2.6445 ms 2.6570 ms]
+                        thrpt:  [5.8807 GiB/s 5.9085 GiB/s 5.9359 GiB/s]
+                 change:
+                        time:   [-28.740% -26.770% -24.856%] (p = 0.00 < 0.05)
+                        thrpt:  [+33.077% +36.556% +40.332%]
+                        Performance has improved.
+Found 1 outliers among 100 measurements (1.00%)
+  1 (1.00%) high mild
+Compress/libdeflater L Level 9/16777216
+                        time:   [20.046 ms 20.137 ms 20.232 ms]
+                        thrpt:  [790.84 MiB/s 794.55 MiB/s 798.16 MiB/s]
+                 change:
+                        time:   [-26.587% -23.703% -20.766%] (p = 0.00 < 0.05)
+                        thrpt:  [+26.209% +31.067% +36.215%]
+                        Performance has improved.
+Found 4 outliers among 100 measurements (4.00%)
+  4 (4.00%) high mild
+Compress/libdeflate-rs L Level 10/16777216
+                        time:   [39.102 ms 39.358 ms 39.624 ms]
+                        thrpt:  [403.79 MiB/s 406.52 MiB/s 409.19 MiB/s]
+                 change:
+                        time:   [-51.398% -50.928% -50.477%] (p = 0.00 < 0.05)
+                        thrpt:  [+101.93% +103.78% +105.75%]
+                        Performance has improved.
+Benchmarking Compress/libdeflater L Level 10/16777216: Warming up for 3.0000 s
+Warning: Unable to complete 100 samples in 5.0s. You may wish to increase target time to 14.6s, or reduce sample count to 30.
+Compress/libdeflater L Level 10/16777216
+                        time:   [145.89 ms 146.82 ms 147.85 ms]
+                        thrpt:  [108.22 MiB/s 108.98 MiB/s 109.67 MiB/s]
+                 change:
+                        time:   [-21.898% -19.231% -16.516%] (p = 0.00 < 0.05)
+                        thrpt:  [+19.784% +23.810% +28.038%]
+                        Performance has improved.
+Found 11 outliers among 100 measurements (11.00%)
+  5 (5.00%) high mild
+  6 (6.00%) high severe
+Compress/libdeflate-rs XL Level 1/67108864
+                        time:   [3.8599 ms 3.8791 ms 3.8991 ms]
+                        thrpt:  [16.029 GiB/s 16.112 GiB/s 16.192 GiB/s]
+                 change:
+                        time:   [-17.491% -16.999% -16.430%] (p = 0.00 < 0.05)
+                        thrpt:  [+19.659% +20.481% +21.199%]
+                        Performance has improved.
+Found 1 outliers among 100 measurements (1.00%)
+  1 (1.00%) high mild
+Compress/libdeflater XL Level 1/67108864
+                        time:   [41.778 ms 42.045 ms 42.318 ms]
+                        thrpt:  [1.4769 GiB/s 1.4865 GiB/s 1.4960 GiB/s]
+                 change:
+                        time:   [-10.995% -9.8101% -8.7034%] (p = 0.00 < 0.05)
+                        thrpt:  [+9.5331% +10.877% +12.353%]
+                        Performance has improved.
+Compress/libdeflate-rs XL Level 6/67108864
+                        time:   [10.758 ms 11.283 ms 11.897 ms]
+                        thrpt:  [5.2533 GiB/s 5.5392 GiB/s 5.8094 GiB/s]
+                 change:
+                        time:   [+5.4750% +11.857% +18.974%] (p = 0.00 < 0.05)
+                        thrpt:  [-15.948% -10.600% -5.1908%]
+                        Performance has regressed.
+Found 3 outliers among 100 measurements (3.00%)
+  1 (1.00%) high mild
+  2 (2.00%) high severe
+Benchmarking Compress/libdeflater XL Level 6/67108864: Warming up for 3.0000 s
+Warning: Unable to complete 100 samples in 5.0s. You may wish to increase target time to 9.8s, or reduce sample count to 50.
+Compress/libdeflater XL Level 6/67108864
+                        time:   [90.159 ms 92.460 ms 94.976 ms]
+                        thrpt:  [673.86 MiB/s 692.19 MiB/s 709.86 MiB/s]
+                 change:
+                        time:   [+10.007% +12.964% +16.186%] (p = 0.00 < 0.05)
+                        thrpt:  [-13.931% -11.476% -9.0968%]
+                        Performance has regressed.
+Found 10 outliers among 100 measurements (10.00%)
+  6 (6.00%) high mild
+  4 (4.00%) high severe
+Compress/libdeflate-rs XL Level 9/67108864
+                        time:   [8.8030 ms 8.8623 ms 8.9226 ms]
+                        thrpt:  [7.0047 GiB/s 7.0523 GiB/s 7.0999 GiB/s]
+                 change:
+                        time:   [-1.7885% -0.9745% -0.1655%] (p = 0.02 < 0.05)
+                        thrpt:  [+0.1658% +0.9841% +1.8211%]
+                        Change within noise threshold.
+Found 1 outliers among 100 measurements (1.00%)
+  1 (1.00%) high mild
+Benchmarking Compress/libdeflater XL Level 9/67108864: Warming up for 3.0000 s
+Warning: Unable to complete 100 samples in 5.0s. You may wish to increase target time to 10.3s, or reduce sample count to 40.
+Compress/libdeflater XL Level 9/67108864
+                        time:   [104.97 ms 108.89 ms 112.87 ms]
+                        thrpt:  [567.02 MiB/s 587.78 MiB/s 609.70 MiB/s]
+                 change:
+                        time:   [+24.770% +29.495% +34.119%] (p = 0.00 < 0.05)
+                        thrpt:  [-25.440% -22.777% -19.852%]
+                        Performance has regressed.
+Benchmarking Compress/libdeflate-rs XL Level 10/67108864: Warming up for 3.0000 s
+Warning: Unable to complete 100 samples in 5.0s. You may wish to increase target time to 16.3s, or reduce sample count to 30.
+Compress/libdeflate-rs XL Level 10/67108864
+                        time:   [157.26 ms 159.90 ms 162.75 ms]
+                        thrpt:  [393.24 MiB/s 400.25 MiB/s 406.96 MiB/s]
+                 change:
+                        time:   [-37.223% -36.062% -34.937%] (p = 0.00 < 0.05)
+                        thrpt:  [+53.697% +56.401% +59.295%]
+                        Performance has improved.
+Found 9 outliers among 100 measurements (9.00%)
+  9 (9.00%) high mild
+Benchmarking Compress/libdeflater XL Level 10/67108864: Warming up for 3.0000 s
+Warning: Unable to complete 100 samples in 5.0s. You may wish to increase target time to 76.4s, or reduce sample count to 10.
+Compress/libdeflater XL Level 10/67108864
+                        time:   [689.40 ms 706.01 ms 723.96 ms]
+                        thrpt:  [88.402 MiB/s 90.650 MiB/s 92.835 MiB/s]
+                 change:
+                        time:   [+17.151% +20.138% +23.526%] (p = 0.00 < 0.05)
+                        thrpt:  [-19.045% -16.762% -14.640%]
+                        Performance has regressed.
+Found 3 outliers among 100 measurements (3.00%)
+  3 (3.00%) high mild
+
+Decompress/libdeflate-rs XXS Level 1/1024
+                        time:   [275.20 ns 277.26 ns 279.38 ns]
+                        thrpt:  [3.4136 GiB/s 3.4396 GiB/s 3.4654 GiB/s]
+                 change:
+                        time:   [+0.7058% +3.1741% +5.4131%] (p = 0.01 < 0.05)
+                        thrpt:  [-5.1351% -3.0764% -0.7009%]
+                        Change within noise threshold.
+Decompress/libdeflater XXS Level 1/1024
+                        time:   [452.22 ns 456.40 ns 460.61 ns]
+                        thrpt:  [2.0705 GiB/s 2.0895 GiB/s 2.1089 GiB/s]
+                 change:
+                        time:   [-5.1561% -4.1164% -3.0840%] (p = 0.00 < 0.05)
+                        thrpt:  [+3.1821% +4.2931% +5.4364%]
+                        Performance has improved.
+Found 3 outliers among 100 measurements (3.00%)
+  3 (3.00%) high mild
+Decompress/libdeflate-rs XXS Level 6/1024
+                        time:   [1.5563 µs 1.5701 µs 1.5855 µs]
+                        thrpt:  [615.92 MiB/s 621.99 MiB/s 627.48 MiB/s]
+                 change:
+                        time:   [-11.700% -10.646% -9.5188%] (p = 0.00 < 0.05)
+                        thrpt:  [+10.520% +11.914% +13.250%]
+                        Performance has improved.
+Found 4 outliers among 100 measurements (4.00%)
+  3 (3.00%) high mild
+  1 (1.00%) high severe
+Decompress/libdeflater XXS Level 6/1024
+                        time:   [1.8026 µs 1.8128 µs 1.8231 µs]
+                        thrpt:  [535.65 MiB/s 538.72 MiB/s 541.76 MiB/s]
+                 change:
+                        time:   [-7.1036% -5.8446% -4.6133%] (p = 0.00 < 0.05)
+                        thrpt:  [+4.8364% +6.2073% +7.6468%]
+                        Performance has improved.
+Found 2 outliers among 100 measurements (2.00%)
+  1 (1.00%) high mild
+  1 (1.00%) high severe
+Decompress/libdeflate-rs XXS Level 9/1024
+                        time:   [1.5342 µs 1.5416 µs 1.5492 µs]
+                        thrpt:  [630.37 MiB/s 633.48 MiB/s 636.52 MiB/s]
+                 change:
+                        time:   [-14.093% -13.341% -12.586%] (p = 0.00 < 0.05)
+                        thrpt:  [+14.398% +15.394% +16.405%]
+                        Performance has improved.
+Found 1 outliers among 100 measurements (1.00%)
+  1 (1.00%) high mild
+Decompress/libdeflater XXS Level 9/1024
+                        time:   [1.8006 µs 1.8110 µs 1.8225 µs]
+                        thrpt:  [535.84 MiB/s 539.25 MiB/s 542.37 MiB/s]
+                 change:
+                        time:   [-6.6469% -4.5781% -2.5930%] (p = 0.00 < 0.05)
+                        thrpt:  [+2.6621% +4.7977% +7.1201%]
+                        Performance has improved.
+Found 8 outliers among 100 measurements (8.00%)
+  7 (7.00%) high mild
+  1 (1.00%) high severe
+Decompress/libdeflate-rs XS Level 1/4096
+                        time:   [368.65 ns 370.84 ns 373.20 ns]
+                        thrpt:  [10.222 GiB/s 10.287 GiB/s 10.348 GiB/s]
+                 change:
+                        time:   [+0.4210% +2.8380% +4.9293%] (p = 0.01 < 0.05)
+                        thrpt:  [-4.6977% -2.7597% -0.4193%]
+                        Change within noise threshold.
+Found 1 outliers among 100 measurements (1.00%)
+  1 (1.00%) high mild
+Decompress/libdeflater XS Level 1/4096
+                        time:   [850.78 ns 854.68 ns 858.97 ns]
+                        thrpt:  [4.4410 GiB/s 4.4633 GiB/s 4.4838 GiB/s]
+                 change:
+                        time:   [-5.4544% -4.3888% -3.4026%] (p = 0.00 < 0.05)
+                        thrpt:  [+3.5225% +4.5902% +5.7690%]
+                        Performance has improved.
+Found 7 outliers among 100 measurements (7.00%)
+  6 (6.00%) high mild
+  1 (1.00%) high severe
+Decompress/libdeflate-rs XS Level 6/4096
+                        time:   [1.7580 µs 1.7707 µs 1.7850 µs]
+                        thrpt:  [2.1371 GiB/s 2.1543 GiB/s 2.1699 GiB/s]
+                 change:
+                        time:   [-13.708% -12.640% -11.615%] (p = 0.00 < 0.05)
+                        thrpt:  [+13.142% +14.468% +15.886%]
+                        Performance has improved.
+Found 4 outliers among 100 measurements (4.00%)
+  3 (3.00%) high mild
+  1 (1.00%) high severe
+Decompress/libdeflater XS Level 6/4096
+                        time:   [3.0402 µs 3.1611 µs 3.2802 µs]
+                        thrpt:  [1.1629 GiB/s 1.2068 GiB/s 1.2547 GiB/s]
+                 change:
+                        time:   [+14.238% +17.118% +20.461%] (p = 0.00 < 0.05)
+                        thrpt:  [-16.986% -14.616% -12.463%]
+                        Performance has regressed.
+Decompress/libdeflate-rs XS Level 9/4096
+                        time:   [2.0921 µs 2.1373 µs 2.1867 µs]
+                        thrpt:  [1.7445 GiB/s 1.7848 GiB/s 1.8234 GiB/s]
+                 change:
+                        time:   [+6.6920% +10.058% +13.731%] (p = 0.00 < 0.05)
+                        thrpt:  [-12.073% -9.1387% -6.2723%]
+                        Performance has regressed.
+Decompress/libdeflater XS Level 9/4096
+                        time:   [2.8636 µs 2.9213 µs 2.9848 µs]
+                        thrpt:  [1.2781 GiB/s 1.3058 GiB/s 1.3321 GiB/s]
+                 change:
+                        time:   [+11.256% +13.485% +15.779%] (p = 0.00 < 0.05)
+                        thrpt:  [-13.629% -11.883% -10.117%]
+                        Performance has regressed.
+Found 8 outliers among 100 measurements (8.00%)
+  8 (8.00%) high mild
+Decompress/libdeflate-rs S Level 1/65536
+                        time:   [2.5573 µs 2.5999 µs 2.6525 µs]
+                        thrpt:  [23.010 GiB/s 23.476 GiB/s 23.867 GiB/s]
+                 change:
+                        time:   [+7.4662% +9.4949% +11.680%] (p = 0.00 < 0.05)
+                        thrpt:  [-10.459% -8.6715% -6.9475%]
+                        Performance has regressed.
+Found 9 outliers among 100 measurements (9.00%)
+  4 (4.00%) high mild
+  5 (5.00%) high severe
+Decompress/libdeflater S Level 1/65536
+                        time:   [3.0407 µs 3.1208 µs 3.2216 µs]
+                        thrpt:  [18.946 GiB/s 19.558 GiB/s 20.073 GiB/s]
+                 change:
+                        time:   [+8.9019% +11.867% +15.448%] (p = 0.00 < 0.05)
+                        thrpt:  [-13.381% -10.608% -8.1742%]
+                        Performance has regressed.
+Found 12 outliers among 100 measurements (12.00%)
+  4 (4.00%) high mild
+  8 (8.00%) high severe
+Decompress/libdeflate-rs S Level 6/65536
+                        time:   [5.3383 µs 5.4305 µs 5.5310 µs]
+                        thrpt:  [11.035 GiB/s 11.239 GiB/s 11.433 GiB/s]
+                 change:
+                        time:   [-1.8898% -0.2034% +1.6125%] (p = 0.81 > 0.05)
+                        thrpt:  [-1.5869% +0.2039% +1.9262%]
+                        No change in performance detected.
+Found 2 outliers among 100 measurements (2.00%)
+  2 (2.00%) high mild
+Decompress/libdeflater S Level 6/65536
+                        time:   [8.0482 µs 8.2906 µs 8.5291 µs]
+                        thrpt:  [7.1561 GiB/s 7.3619 GiB/s 7.5837 GiB/s]
+                 change:
+                        time:   [-2.3820% +2.3647% +6.8105%] (p = 0.33 > 0.05)
+                        thrpt:  [-6.3762% -2.3101% +2.4402%]
+                        No change in performance detected.
+Found 1 outliers among 100 measurements (1.00%)
+  1 (1.00%) high mild
+Decompress/libdeflate-rs S Level 9/65536
+                        time:   [6.3476 µs 6.5171 µs 6.7041 µs]
+                        thrpt:  [9.1042 GiB/s 9.3654 GiB/s 9.6154 GiB/s]
+                 change:
+                        time:   [+2.8329% +7.5337% +12.494%] (p = 0.00 < 0.05)
+                        thrpt:  [-11.106% -7.0059% -2.7549%]
+                        Performance has regressed.
+Decompress/libdeflater S Level 9/65536
+                        time:   [7.9633 µs 8.1634 µs 8.3771 µs]
+                        thrpt:  [7.2860 GiB/s 7.4767 GiB/s 7.6646 GiB/s]
+                 change:
+                        time:   [+19.092% +22.212% +25.676%] (p = 0.00 < 0.05)
+                        thrpt:  [-20.431% -18.175% -16.031%]
+                        Performance has regressed.
+Found 1 outliers among 100 measurements (1.00%)
+  1 (1.00%) high mild
+Decompress/libdeflate-rs M Level 1/1048576
+                        time:   [33.611 µs 34.039 µs 34.477 µs]
+                        thrpt:  [28.325 GiB/s 28.690 GiB/s 29.055 GiB/s]
+                 change:
+                        time:   [-2.3281% -0.7122% +0.9708%] (p = 0.41 > 0.05)
+                        thrpt:  [-0.9614% +0.7173% +2.3835%]
+                        No change in performance detected.
+Found 1 outliers among 100 measurements (1.00%)
+  1 (1.00%) high mild
+Decompress/libdeflater M Level 1/1048576
+                        time:   [34.441 µs 35.388 µs 36.642 µs]
+                        thrpt:  [26.652 GiB/s 27.596 GiB/s 28.355 GiB/s]
+                 change:
+                        time:   [+2.3906% +5.2063% +8.3225%] (p = 0.00 < 0.05)
+                        thrpt:  [-7.6830% -4.9487% -2.3348%]
+                        Performance has regressed.
+Found 5 outliers among 100 measurements (5.00%)
+  3 (3.00%) high mild
+  2 (2.00%) high severe
+Decompress/libdeflate-rs M Level 6/1048576
+                        time:   [62.614 µs 63.148 µs 63.732 µs]
+                        thrpt:  [15.323 GiB/s 15.465 GiB/s 15.597 GiB/s]
+                 change:
+                        time:   [-22.148% -18.266% -14.289%] (p = 0.00 < 0.05)
+                        thrpt:  [+16.671% +22.348% +28.449%]
+                        Performance has improved.
+Found 4 outliers among 100 measurements (4.00%)
+  3 (3.00%) high mild
+  1 (1.00%) high severe
+Decompress/libdeflater M Level 6/1048576
+                        time:   [76.088 µs 77.836 µs 79.596 µs]
+                        thrpt:  [12.269 GiB/s 12.546 GiB/s 12.835 GiB/s]
+                 change:
+                        time:   [+15.071% +17.357% +19.761%] (p = 0.00 < 0.05)
+                        thrpt:  [-16.501% -14.790% -13.097%]
+                        Performance has regressed.
+Decompress/libdeflate-rs M Level 9/1048576
+                        time:   [83.283 µs 87.301 µs 91.619 µs]
+                        thrpt:  [10.659 GiB/s 11.186 GiB/s 11.726 GiB/s]
+                 change:
+                        time:   [+16.389% +21.158% +26.026%] (p = 0.00 < 0.05)
+                        thrpt:  [-20.651% -17.463% -14.081%]
+                        Performance has regressed.
+Decompress/libdeflater M Level 9/1048576
+                        time:   [72.165 µs 73.667 µs 75.151 µs]
+                        thrpt:  [12.995 GiB/s 13.256 GiB/s 13.532 GiB/s]
+                 change:
+                        time:   [+0.6839% +3.0691% +5.6425%] (p = 0.02 < 0.05)
+                        thrpt:  [-5.3411% -2.9777% -0.6793%]
+                        Change within noise threshold.
+Benchmarking Decompress/libdeflate-rs L Level 1/16777216: Warming up for 3.0000 s
+Warning: Unable to complete 100 samples in 5.0s. You may wish to increase target time to 5.1s, enable flat sampling, or reduce sample count to 60.
+Decompress/libdeflate-rs L Level 1/16777216
+                        time:   [852.38 µs 896.95 µs 945.87 µs]
+                        thrpt:  [16.519 GiB/s 17.420 GiB/s 18.331 GiB/s]
+                 change:
+                        time:   [+12.239% +18.077% +24.196%] (p = 0.00 < 0.05)
+                        thrpt:  [-19.482% -15.309% -10.905%]
+                        Performance has regressed.
+Found 5 outliers among 100 measurements (5.00%)
+  5 (5.00%) high mild
+Benchmarking Decompress/libdeflater L Level 1/16777216: Warming up for 3.0000 s
+Warning: Unable to complete 100 samples in 5.0s. You may wish to increase target time to 5.6s, enable flat sampling, or reduce sample count to 60.
+Decompress/libdeflater L Level 1/16777216
+                        time:   [913.42 µs 983.87 µs 1.0656 ms]
+                        thrpt:  [14.663 GiB/s 15.881 GiB/s 17.106 GiB/s]
+                 change:
+                        time:   [+41.168% +49.713% +58.776%] (p = 0.00 < 0.05)
+                        thrpt:  [-37.018% -33.205% -29.162%]
+                        Performance has regressed.
+Found 1 outliers among 100 measurements (1.00%)
+  1 (1.00%) high mild
+Benchmarking Decompress/libdeflate-rs L Level 6/16777216: Warming up for 3.0000 s
+Warning: Unable to complete 100 samples in 5.0s. You may wish to increase target time to 9.3s, enable flat sampling, or reduce sample count to 50.
+Decompress/libdeflate-rs L Level 6/16777216
+                        time:   [1.7492 ms 1.8261 ms 1.9052 ms]
+                        thrpt:  [8.2012 GiB/s 8.5563 GiB/s 8.9327 GiB/s]
+                 change:
+                        time:   [+20.373% +25.808% +31.094%] (p = 0.00 < 0.05)
+                        thrpt:  [-23.719% -20.514% -16.925%]
+                        Performance has regressed.
+Benchmarking Decompress/libdeflater L Level 6/16777216: Warming up for 3.0000 s
+Warning: Unable to complete 100 samples in 5.0s. You may wish to increase target time to 8.7s, enable flat sampling, or reduce sample count to 50.
+Decompress/libdeflater L Level 6/16777216
+                        time:   [1.4230 ms 1.4568 ms 1.4923 ms]
+                        thrpt:  [10.470 GiB/s 10.726 GiB/s 10.981 GiB/s]
+                 change:
+                        time:   [+23.747% +27.195% +30.677%] (p = 0.00 < 0.05)
+                        thrpt:  [-23.476% -21.380% -19.190%]
+                        Performance has regressed.
+Found 8 outliers among 100 measurements (8.00%)
+  8 (8.00%) high mild
+Benchmarking Decompress/libdeflate-rs L Level 9/16777216: Warming up for 3.0000 s
+Warning: Unable to complete 100 samples in 5.0s. You may wish to increase target time to 9.6s, enable flat sampling, or reduce sample count to 50.
+Decompress/libdeflate-rs L Level 9/16777216
+                        time:   [1.7272 ms 1.8060 ms 1.8890 ms]
+                        thrpt:  [8.2718 GiB/s 8.6517 GiB/s 9.0466 GiB/s]
+                 change:
+                        time:   [+22.294% +27.346% +32.139%] (p = 0.00 < 0.05)
+                        thrpt:  [-24.322% -21.474% -18.230%]
+                        Performance has regressed.
+Benchmarking Decompress/libdeflater L Level 9/16777216: Warming up for 3.0000 s
+Warning: Unable to complete 100 samples in 5.0s. You may wish to increase target time to 7.7s, enable flat sampling, or reduce sample count to 50.
+Decompress/libdeflater L Level 9/16777216
+                        time:   [1.7373 ms 1.8812 ms 2.1429 ms]
+                        thrpt:  [7.2915 GiB/s 8.3060 GiB/s 8.9938 GiB/s]
+                 change:
+                        time:   [+55.567% +62.203% +72.329%] (p = 0.00 < 0.05)
+                        thrpt:  [-41.971% -38.349% -35.719%]
+                        Performance has regressed.
+Found 3 outliers among 100 measurements (3.00%)
+  1 (1.00%) low mild
+  1 (1.00%) high mild
+  1 (1.00%) high severe
+Decompress/libdeflate-rs XL Level 1/67108864
+                        time:   [5.4577 ms 5.6243 ms 5.7989 ms]
+                        thrpt:  [10.778 GiB/s 11.113 GiB/s 11.452 GiB/s]
+                 change:
+                        time:   [+24.804% +28.853% +33.081%] (p = 0.00 < 0.05)
+                        thrpt:  [-24.858% -22.392% -19.874%]
+                        Performance has regressed.
+Found 2 outliers among 100 measurements (2.00%)
+  2 (2.00%) high mild
+Decompress/libdeflater XL Level 1/67108864
+                        time:   [4.2862 ms 4.3365 ms 4.3905 ms]
+                        thrpt:  [14.235 GiB/s 14.413 GiB/s 14.582 GiB/s]
+                 change:
+                        time:   [+2.8330% +4.1213% +5.3901%] (p = 0.00 < 0.05)
+                        thrpt:  [-5.1144% -3.9582% -2.7549%]
+                        Performance has regressed.
+Found 9 outliers among 100 measurements (9.00%)
+  9 (9.00%) high mild
+Decompress/libdeflate-rs XL Level 6/67108864
+                        time:   [5.5950 ms 5.6469 ms 5.6989 ms]
+                        thrpt:  [10.967 GiB/s 11.068 GiB/s 11.171 GiB/s]
+                 change:
+                        time:   [-8.4541% -7.3579% -6.2231%] (p = 0.00 < 0.05)
+                        thrpt:  [+6.6361% +7.9423% +9.2348%]
+                        Performance has improved.
+Decompress/libdeflater XL Level 6/67108864
+                        time:   [5.5361 ms 5.6063 ms 5.6777 ms]
+                        thrpt:  [11.008 GiB/s 11.148 GiB/s 11.290 GiB/s]
+                 change:
+                        time:   [+0.2910% +2.2890% +4.2232%] (p = 0.02 < 0.05)
+                        thrpt:  [-4.0521% -2.2378% -0.2902%]
+                        Change within noise threshold.
+Decompress/libdeflate-rs XL Level 9/67108864
+                        time:   [5.7873 ms 5.8559 ms 5.9257 ms]
+                        thrpt:  [10.547 GiB/s 10.673 GiB/s 10.799 GiB/s]
+                 change:
+                        time:   [-1.6689% -0.0171% +1.5609%] (p = 0.98 > 0.05)
+                        thrpt:  [-1.5369% +0.0171% +1.6972%]
+                        No change in performance detected.
+Decompress/libdeflater XL Level 9/67108864
+                        time:   [5.4613 ms 5.5294 ms 5.5990 ms]
+                        thrpt:  [11.163 GiB/s 11.303 GiB/s 11.444 GiB/s]
+                 change:
+                        time:   [+2.7434% +4.8098% +6.9213%] (p = 0.00 < 0.05)
+                        thrpt:  [-6.4732% -4.5891% -2.6702%]
+                        Performance has regressed.
+
+Stream Processing/DeflateEncoder
+                        time:   [742.99 µs 750.03 µs 756.82 µs]
+                        thrpt:  [1.2904 GiB/s 1.3020 GiB/s 1.3144 GiB/s]
+                 change:
+                        time:   [-9.4426% -8.1472% -6.8242%] (p = 0.00 < 0.05)
+                        thrpt:  [+7.3240% +8.8698% +10.427%]
+                        Performance has improved.
+Found 5 outliers among 100 measurements (5.00%)
+  2 (2.00%) low mild
+  2 (2.00%) high mild
+  1 (1.00%) high severe
+Stream Processing/DeflateDecoder
+                        time:   [13.566 µs 13.636 µs 13.707 µs]
+                        thrpt:  [71.246 GiB/s 71.614 GiB/s 71.984 GiB/s]
+                 change:
+                        time:   [+7.3896% +8.2797% +9.1202%] (p = 0.00 < 0.05)
+                        thrpt:  [-8.3579% -7.6466% -6.8811%]
+                        Performance has regressed.
+Found 1 outliers among 100 measurements (1.00%)
+  1 (1.00%) high mild
+
+Batch Processing/BatchCompressor
+                        time:   [624.98 µs 630.63 µs 636.19 µs]
+                        thrpt:  [1.5350 GiB/s 1.5485 GiB/s 1.5625 GiB/s]
+                 change:
+                        time:   [+7.0852% +8.3000% +9.5575%] (p = 0.00 < 0.05)
+                        thrpt:  [-8.7237% -7.6639% -6.6164%]
+                        Performance has regressed.
+Found 3 outliers among 100 measurements (3.00%)
+  2 (2.00%) high mild
+  1 (1.00%) high severe
+Batch Processing/BatchDecompressor
+                        time:   [274.05 µs 275.48 µs 277.02 µs]
+                        thrpt:  [3.5252 GiB/s 3.5450 GiB/s 3.5635 GiB/s]
+                 change:
+                        time:   [+13.157% +14.039% +14.939%] (p = 0.00 < 0.05)
+                        thrpt:  [-12.998% -12.310% -11.627%]
+                        Performance has regressed.
+
+Benchmarking Parallel Alloc/Compress Parallel Compressible: Warming up for 3.0000 s
+Warning: Unable to complete 100 samples in 5.0s. You may wish to increase target time to 5.8s, enable flat sampling, or reduce sample count to 60.
+Parallel Alloc/Compress Parallel Compressible
+                        time:   [1.1604 ms 1.1665 ms 1.1731 ms]
+                        thrpt:  [13.319 GiB/s 13.395 GiB/s 13.465 GiB/s]
+                 change:
+                        time:   [+13.862% +15.300% +16.632%] (p = 0.00 < 0.05)
+                        thrpt:  [-14.260% -13.269% -12.175%]
+                        Performance has regressed.
+Found 6 outliers among 100 measurements (6.00%)
+  1 (1.00%) low mild
+  4 (4.00%) high mild
+  1 (1.00%) high severe
+
+Adler32 Nano/libdeflate-rs/16
+                        time:   [3.7491 ns 3.7720 ns 3.7968 ns]
+                        thrpt:  [3.9247 GiB/s 3.9505 GiB/s 3.9746 GiB/s]
+Found 9 outliers among 100 measurements (9.00%)
+  4 (4.00%) low mild
+  5 (5.00%) high mild
+Adler32 Nano/libdeflater/16
+                        time:   [15.269 ns 15.412 ns 15.553 ns]
+                        thrpt:  [981.10 MiB/s 990.07 MiB/s 999.31 MiB/s]
+Found 6 outliers among 100 measurements (6.00%)
+  5 (5.00%) high mild
+  1 (1.00%) high severe
+Adler32 Nano/libdeflate-rs/31
+                        time:   [6.3985 ns 6.4270 ns 6.4575 ns]
+                        thrpt:  [4.4709 GiB/s 4.4922 GiB/s 4.5122 GiB/s]
+Found 7 outliers among 100 measurements (7.00%)
+  3 (3.00%) high mild
+  4 (4.00%) high severe
+Adler32 Nano/libdeflater/31
+                        time:   [15.215 ns 15.315 ns 15.419 ns]
+                        thrpt:  [1.8724 GiB/s 1.8852 GiB/s 1.8975 GiB/s]
+Found 6 outliers among 100 measurements (6.00%)
+  4 (4.00%) high mild
+  2 (2.00%) high severe
+Adler32 Nano/libdeflate-rs/32
+                        time:   [5.2564 ns 5.2772 ns 5.2984 ns]
+                        thrpt:  [5.6248 GiB/s 5.6474 GiB/s 5.6698 GiB/s]
+Found 4 outliers among 100 measurements (4.00%)
+  2 (2.00%) high mild
+  2 (2.00%) high severe
+Adler32 Nano/libdeflater/32
+                        time:   [15.688 ns 15.852 ns 16.036 ns]
+                        thrpt:  [1.8585 GiB/s 1.8801 GiB/s 1.8997 GiB/s]
+Adler32 Nano/libdeflate-rs/48
+                        time:   [5.8873 ns 5.9113 ns 5.9362 ns]
+                        thrpt:  [7.5306 GiB/s 7.5624 GiB/s 7.5932 GiB/s]
+Found 2 outliers among 100 measurements (2.00%)
+  2 (2.00%) high mild
+Adler32 Nano/libdeflater/48
+                        time:   [15.279 ns 15.352 ns 15.431 ns]
+                        thrpt:  [2.8969 GiB/s 2.9118 GiB/s 2.9258 GiB/s]
+Found 2 outliers among 100 measurements (2.00%)
+  2 (2.00%) high mild
+Adler32 Nano/libdeflate-rs/63
+                        time:   [9.5887 ns 9.6247 ns 9.6640 ns]
+                        thrpt:  [6.0713 GiB/s 6.0961 GiB/s 6.1190 GiB/s]
+Found 2 outliers among 100 measurements (2.00%)
+  2 (2.00%) high mild
+Adler32 Nano/libdeflater/63
+                        time:   [15.336 ns 15.400 ns 15.468 ns]
+                        thrpt:  [3.7932 GiB/s 3.8101 GiB/s 3.8259 GiB/s]
+Found 5 outliers among 100 measurements (5.00%)
+  3 (3.00%) high mild
+  2 (2.00%) high severe
+
+Adler32 Micro/libdeflate-rs/128
+                        time:   [6.4242 ns 6.4635 ns 6.5061 ns]
+                        thrpt:  [18.323 GiB/s 18.443 GiB/s 18.556 GiB/s]
+                 change:
+                        time:   [+8.6465% +9.4206% +10.324%] (p = 0.00 < 0.05)
+                        thrpt:  [-9.3579% -8.6095% -7.9584%]
+                        Performance has regressed.
+Found 8 outliers among 100 measurements (8.00%)
+  8 (8.00%) high mild
+Adler32 Micro/libdeflater/128
+                        time:   [6.3637 ns 6.4021 ns 6.4432 ns]
+                        thrpt:  [18.502 GiB/s 18.620 GiB/s 18.733 GiB/s]
+                 change:
+                        time:   [-4.1865% -3.3220% -2.4907%] (p = 0.00 < 0.05)
+                        thrpt:  [+2.5544% +3.4361% +4.3694%]
+                        Performance has improved.
+Found 3 outliers among 100 measurements (3.00%)
+  1 (1.00%) high mild
+  2 (2.00%) high severe
+Adler32 Micro/libdeflate-rs/256
+                        time:   [8.4718 ns 8.5328 ns 8.6022 ns]
+                        thrpt:  [27.716 GiB/s 27.941 GiB/s 28.143 GiB/s]
+                 change:
+                        time:   [+19.342% +20.478% +21.662%] (p = 0.00 < 0.05)
+                        thrpt:  [-17.805% -16.997% -16.207%]
+                        Performance has regressed.
+Found 7 outliers among 100 measurements (7.00%)
+  5 (5.00%) high mild
+  2 (2.00%) high severe
+Adler32 Micro/libdeflater/256
+                        time:   [7.2765 ns 7.3218 ns 7.3680 ns]
+                        thrpt:  [32.359 GiB/s 32.563 GiB/s 32.766 GiB/s]
+                 change:
+                        time:   [+0.6920% +1.8540% +3.2060%] (p = 0.00 < 0.05)
+                        thrpt:  [-3.1064% -1.8203% -0.6872%]
+                        Change within noise threshold.
+Found 8 outliers among 100 measurements (8.00%)
+  4 (4.00%) high mild
+  4 (4.00%) high severe
+Adler32 Micro/libdeflate-rs/384
+                        time:   [10.024 ns 10.087 ns 10.160 ns]
+                        thrpt:  [35.200 GiB/s 35.455 GiB/s 35.678 GiB/s]
+                 change:
+                        time:   [+21.997% +23.113% +24.334%] (p = 0.00 < 0.05)
+                        thrpt:  [-19.571% -18.774% -18.031%]
+                        Performance has regressed.
+Found 2 outliers among 100 measurements (2.00%)
+  1 (1.00%) high mild
+  1 (1.00%) high severe
+Adler32 Micro/libdeflater/384
+                        time:   [8.2461 ns 8.2897 ns 8.3354 ns]
+                        thrpt:  [42.905 GiB/s 43.141 GiB/s 43.370 GiB/s]
+                 change:
+                        time:   [-9.2281% -7.6252% -6.1619%] (p = 0.00 < 0.05)
+                        thrpt:  [+6.5665% +8.2547% +10.166%]
+                        Performance has improved.
+Found 5 outliers among 100 measurements (5.00%)
+  4 (4.00%) high mild
+  1 (1.00%) high severe
+Adler32 Micro/libdeflate-rs/512
+                        time:   [10.944 ns 11.010 ns 11.082 ns]
+                        thrpt:  [43.027 GiB/s 43.311 GiB/s 43.571 GiB/s]
+                 change:
+                        time:   [+9.1216% +10.443% +11.713%] (p = 0.00 < 0.05)
+                        thrpt:  [-10.485% -9.4555% -8.3591%]
+                        Performance has regressed.
+Found 3 outliers among 100 measurements (3.00%)
+  2 (2.00%) high mild
+  1 (1.00%) high severe
+Adler32 Micro/libdeflater/512
+                        time:   [9.4754 ns 9.5202 ns 9.5676 ns]
+                        thrpt:  [49.839 GiB/s 50.087 GiB/s 50.324 GiB/s]
+                 change:
+                        time:   [-2.3723% -1.4607% -0.6199%] (p = 0.00 < 0.05)
+                        thrpt:  [+0.6237% +1.4824% +2.4299%]
+                        Change within noise threshold.
+Found 5 outliers among 100 measurements (5.00%)
+  3 (3.00%) high mild
+  2 (2.00%) high severe
+Adler32 Micro/libdeflate-rs/1024
+                        time:   [16.365 ns 16.505 ns 16.653 ns]
+                        thrpt:  [57.267 GiB/s 57.781 GiB/s 58.274 GiB/s]
+                 change:
+                        time:   [+1.5247% +2.6141% +3.6901%] (p = 0.00 < 0.05)
+                        thrpt:  [-3.5587% -2.5475% -1.5018%]
+                        Performance has regressed.
+Found 2 outliers among 100 measurements (2.00%)
+  1 (1.00%) high mild
+  1 (1.00%) high severe
+Adler32 Micro/libdeflater/1024
+                        time:   [14.568 ns 14.683 ns 14.805 ns]
+                        thrpt:  [64.416 GiB/s 64.949 GiB/s 65.465 GiB/s]
+                 change:
+                        time:   [-2.0528% -0.5648% +0.9505%] (p = 0.48 > 0.05)
+                        thrpt:  [-0.9416% +0.5680% +2.0958%]
+                        No change in performance detected.
+Found 1 outliers among 100 measurements (1.00%)
+  1 (1.00%) high mild
+Adler32 Micro/libdeflate-rs/2048
+                        time:   [28.033 ns 28.204 ns 28.391 ns]
+                        thrpt:  [67.181 GiB/s 67.628 GiB/s 68.038 GiB/s]
+                 change:
+                        time:   [-9.7399% -8.9313% -8.1430%] (p = 0.00 < 0.05)
+                        thrpt:  [+8.8649% +9.8072% +10.791%]
+                        Performance has improved.
+Found 4 outliers among 100 measurements (4.00%)
+  4 (4.00%) high mild
+Adler32 Micro/libdeflater/2048
+                        time:   [27.825 ns 28.040 ns 28.252 ns]
+                        thrpt:  [67.513 GiB/s 68.022 GiB/s 68.549 GiB/s]
+                 change:
+                        time:   [+2.3648% +3.5669% +4.7605%] (p = 0.00 < 0.05)
+                        thrpt:  [-4.5442% -3.4441% -2.3102%]
+                        Performance has regressed.
+Adler32 Micro/libdeflate-rs/4096
+                        time:   [51.204 ns 51.428 ns 51.659 ns]
+                        thrpt:  [73.845 GiB/s 74.175 GiB/s 74.499 GiB/s]
+                 change:
+                        time:   [-20.493% -19.449% -18.424%] (p = 0.00 < 0.05)
+                        thrpt:  [+22.585% +24.144% +25.775%]
+                        Performance has improved.
+Found 4 outliers among 100 measurements (4.00%)
+  3 (3.00%) high mild
+  1 (1.00%) high severe
+Adler32 Micro/libdeflater/4096
+                        time:   [49.725 ns 49.963 ns 50.214 ns]
+                        thrpt:  [75.968 GiB/s 76.350 GiB/s 76.715 GiB/s]
+                 change:
+                        time:   [+0.2547% +1.4471% +2.7205%] (p = 0.02 < 0.05)
+                        thrpt:  [-2.6485% -1.4265% -0.2541%]
+                        Change within noise threshold.
+Found 5 outliers among 100 measurements (5.00%)
+  4 (4.00%) high mild
+  1 (1.00%) high severe
+Adler32 Micro/libdeflate-rs/8192
+                        time:   [107.08 ns 108.08 ns 109.16 ns]
+                        thrpt:  [69.890 GiB/s 70.593 GiB/s 71.252 GiB/s]
+                 change:
+                        time:   [-10.132% -8.9158% -7.7935%] (p = 0.00 < 0.05)
+                        thrpt:  [+8.4523% +9.7886% +11.275%]
+                        Performance has improved.
+Found 6 outliers among 100 measurements (6.00%)
+  6 (6.00%) high mild
+Adler32 Micro/libdeflater/8192
+                        time:   [118.78 ns 122.99 ns 127.85 ns]
+                        thrpt:  [59.676 GiB/s 62.034 GiB/s 64.232 GiB/s]
+                 change:
+                        time:   [+28.346% +38.594% +50.017%] (p = 0.00 < 0.05)
+                        thrpt:  [-33.341% -27.847% -22.086%]
+                        Performance has regressed.
+Found 9 outliers among 100 measurements (9.00%)
+  3 (3.00%) high mild
+  6 (6.00%) high severe
+
+Adler32 Tail/libdeflate-rs/1
+                        time:   [3.3947 ns 3.4203 ns 3.4467 ns]
+                        thrpt:  [276.69 MiB/s 278.82 MiB/s 280.93 MiB/s]
+Found 3 outliers among 100 measurements (3.00%)
+  2 (2.00%) high mild
+  1 (1.00%) high severe
+Adler32 Tail/libdeflater/1
+                        time:   [15.107 ns 15.169 ns 15.235 ns]
+                        thrpt:  [62.598 MiB/s 62.870 MiB/s 63.129 MiB/s]
+Found 9 outliers among 100 measurements (9.00%)
+  8 (8.00%) high mild
+  1 (1.00%) high severe
+Adler32 Tail/libdeflate-rs/2
+                        time:   [3.4566 ns 3.4729 ns 3.4896 ns]
+                        thrpt:  [546.57 MiB/s 549.21 MiB/s 551.79 MiB/s]
+Found 2 outliers among 100 measurements (2.00%)
+  2 (2.00%) high mild
+Adler32 Tail/libdeflater/2
+                        time:   [15.172 ns 15.254 ns 15.346 ns]
+                        thrpt:  [124.29 MiB/s 125.04 MiB/s 125.71 MiB/s]
+Found 6 outliers among 100 measurements (6.00%)
+  5 (5.00%) high mild
+  1 (1.00%) high severe
+Adler32 Tail/libdeflate-rs/3
+                        time:   [3.6413 ns 3.6610 ns 3.6825 ns]
+                        thrpt:  [776.93 MiB/s 781.49 MiB/s 785.71 MiB/s]
+Found 6 outliers among 100 measurements (6.00%)
+  4 (4.00%) high mild
+  2 (2.00%) high severe
+Adler32 Tail/libdeflater/3
+                        time:   [15.624 ns 15.785 ns 15.946 ns]
+                        thrpt:  [179.42 MiB/s 181.25 MiB/s 183.12 MiB/s]
+Adler32 Tail/libdeflate-rs/7
+                        time:   [4.5545 ns 4.6083 ns 4.6630 ns]
+                        thrpt:  [1.3981 GiB/s 1.4147 GiB/s 1.4314 GiB/s]
+Adler32 Tail/libdeflater/7
+                        time:   [16.375 ns 16.571 ns 16.758 ns]
+                        thrpt:  [398.36 MiB/s 402.87 MiB/s 407.67 MiB/s]
+Adler32 Tail/libdeflate-rs/15
+                        time:   [6.0803 ns 6.1329 ns 6.1925 ns]
+                        thrpt:  [2.2559 GiB/s 2.2778 GiB/s 2.2976 GiB/s]
+Found 5 outliers among 100 measurements (5.00%)
+  5 (5.00%) high mild
+Adler32 Tail/libdeflater/15
+                        time:   [15.877 ns 15.967 ns 16.066 ns]
+                        thrpt:  [890.42 MiB/s 895.89 MiB/s 900.99 MiB/s]
+Found 4 outliers among 100 measurements (4.00%)
+  4 (4.00%) high mild
+Adler32 Tail/libdeflate-rs/31
+                        time:   [6.6862 ns 6.7990 ns 6.9167 ns]
+                        thrpt:  [4.1741 GiB/s 4.2464 GiB/s 4.3180 GiB/s]
+Found 7 outliers among 100 measurements (7.00%)
+  7 (7.00%) high mild
+Adler32 Tail/libdeflater/31
+                        time:   [16.638 ns 16.856 ns 17.087 ns]
+                        thrpt:  [1.6896 GiB/s 1.7128 GiB/s 1.7353 GiB/s]
+Found 5 outliers among 100 measurements (5.00%)
+  5 (5.00%) high mild
+
+Adler32 Unaligned/libdeflate-rs/1024
+                        time:   [17.715 ns 17.919 ns 18.166 ns]
+                        thrpt:  [52.498 GiB/s 53.222 GiB/s 53.833 GiB/s]
+Found 4 outliers among 100 measurements (4.00%)
+  3 (3.00%) high mild
+  1 (1.00%) high severe
+Adler32 Unaligned/libdeflate-rs/4096
+                        time:   [64.091 ns 64.791 ns 65.528 ns]
+                        thrpt:  [58.215 GiB/s 58.877 GiB/s 59.520 GiB/s]
+Found 1 outliers among 100 measurements (1.00%)
+  1 (1.00%) high mild
+
+CRC32 Micro/libdeflate-rs/20
+                        time:   [3.5380 ns 3.5649 ns 3.5938 ns]
+                        thrpt:  [5.1830 GiB/s 5.2249 GiB/s 5.2647 GiB/s]
+                 change:
+                        time:   [-14.080% -13.163% -12.164%] (p = 0.00 < 0.05)
+                        thrpt:  [+13.848% +15.159% +16.388%]
+                        Performance has improved.
+Found 2 outliers among 100 measurements (2.00%)
+  1 (1.00%) low mild
+  1 (1.00%) high mild
+CRC32 Micro/libdeflater/20
+                        time:   [3.1167 ns 3.1315 ns 3.1475 ns]
+                        thrpt:  [5.9179 GiB/s 5.9481 GiB/s 5.9763 GiB/s]
+                 change:
+                        time:   [+9.5849% +10.551% +11.568%] (p = 0.00 < 0.05)
+                        thrpt:  [-10.368% -9.5436% -8.7465%]
+                        Performance has regressed.
+Found 7 outliers among 100 measurements (7.00%)
+  2 (2.00%) low mild
+  4 (4.00%) high mild
+  1 (1.00%) high severe
+CRC32 Micro/libdeflate-rs/28
+                        time:   [4.3811 ns 4.4119 ns 4.4439 ns]
+                        thrpt:  [5.8681 GiB/s 5.9107 GiB/s 5.9522 GiB/s]
+                 change:
+                        time:   [-6.6999% -4.8071% -3.1252%] (p = 0.00 < 0.05)
+                        thrpt:  [+3.2260% +5.0499% +7.1811%]
+                        Performance has improved.
+Found 5 outliers among 100 measurements (5.00%)
+  5 (5.00%) high mild
+CRC32 Micro/libdeflater/28
+                        time:   [3.1249 ns 3.1479 ns 3.1740 ns]
+                        thrpt:  [8.2159 GiB/s 8.2838 GiB/s 8.3448 GiB/s]
+                 change:
+                        time:   [+9.3606% +10.322% +11.301%] (p = 0.00 < 0.05)
+                        thrpt:  [-10.153% -9.3566% -8.5594%]
+                        Performance has regressed.
+Found 6 outliers among 100 measurements (6.00%)
+  5 (5.00%) high mild
+  1 (1.00%) high severe
+CRC32 Micro/libdeflate-rs/48
+                        time:   [2.7487 ns 2.7670 ns 2.7865 ns]
+                        thrpt:  [16.043 GiB/s 16.156 GiB/s 16.263 GiB/s]
+Found 3 outliers among 100 measurements (3.00%)
+  2 (2.00%) high mild
+  1 (1.00%) high severe
+CRC32 Micro/libdeflater/48
+                        time:   [3.1691 ns 3.1896 ns 3.2094 ns]
+                        thrpt:  [13.929 GiB/s 14.016 GiB/s 14.106 GiB/s]
+Found 4 outliers among 100 measurements (4.00%)
+  1 (1.00%) low mild
+  2 (2.00%) high mild
+  1 (1.00%) high severe
+CRC32 Micro/libdeflate-rs/50
+                        time:   [3.7933 ns 3.8168 ns 3.8433 ns]
+                        thrpt:  [12.116 GiB/s 12.200 GiB/s 12.276 GiB/s]
+Found 10 outliers among 100 measurements (10.00%)
+  4 (4.00%) low mild
+  3 (3.00%) high mild
+  3 (3.00%) high severe
+CRC32 Micro/libdeflater/50
+                        time:   [3.2578 ns 3.2766 ns 3.2969 ns]
+                        thrpt:  [14.124 GiB/s 14.212 GiB/s 14.294 GiB/s]
+Found 5 outliers among 100 measurements (5.00%)
+  2 (2.00%) low mild
+  3 (3.00%) high mild
+CRC32 Micro/libdeflate-rs/60
+                        time:   [5.0545 ns 5.0920 ns 5.1334 ns]
+                        thrpt:  [10.885 GiB/s 10.974 GiB/s 11.055 GiB/s]
+Found 1 outliers among 100 measurements (1.00%)
+  1 (1.00%) high mild
+CRC32 Micro/libdeflater/60
+                        time:   [3.2764 ns 3.3125 ns 3.3494 ns]
+                        thrpt:  [16.683 GiB/s 16.869 GiB/s 17.055 GiB/s]
+Found 5 outliers among 100 measurements (5.00%)
+  5 (5.00%) high mild
+CRC32 Micro/libdeflate-rs/64
+                        time:   [3.1590 ns 3.2316 ns 3.3117 ns]
+                        thrpt:  [17.998 GiB/s 18.445 GiB/s 18.868 GiB/s]
+Found 1 outliers among 100 measurements (1.00%)
+  1 (1.00%) high mild
+CRC32 Micro/libdeflater/64
+                        time:   [3.6451 ns 3.6748 ns 3.7077 ns]
+                        thrpt:  [16.076 GiB/s 16.220 GiB/s 16.352 GiB/s]
+Found 2 outliers among 100 measurements (2.00%)
+  2 (2.00%) high mild
+CRC32 Micro/libdeflate-rs/80
+                        time:   [3.6254 ns 3.6472 ns 3.6704 ns]
+                        thrpt:  [20.299 GiB/s 20.428 GiB/s 20.551 GiB/s]
+Found 4 outliers among 100 measurements (4.00%)
+  3 (3.00%) high mild
+  1 (1.00%) high severe
+CRC32 Micro/libdeflater/80
+                        time:   [3.6016 ns 3.6231 ns 3.6462 ns]
+                        thrpt:  [20.434 GiB/s 20.564 GiB/s 20.687 GiB/s]
+Found 3 outliers among 100 measurements (3.00%)
+  3 (3.00%) high mild
+CRC32 Micro/libdeflate-rs/100
+                        time:   [4.5478 ns 4.5709 ns 4.5957 ns]
+                        thrpt:  [20.265 GiB/s 20.375 GiB/s 20.478 GiB/s]
+                 change:
+                        time:   [-31.019% -30.466% -29.922%] (p = 0.00 < 0.05)
+                        thrpt:  [+42.698% +43.814% +44.967%]
+                        Performance has improved.
+Found 5 outliers among 100 measurements (5.00%)
+  5 (5.00%) high mild
+CRC32 Micro/libdeflater/100
+                        time:   [3.9633 ns 3.9914 ns 4.0217 ns]
+                        thrpt:  [23.158 GiB/s 23.333 GiB/s 23.499 GiB/s]
+                 change:
+                        time:   [+0.6113% +2.4994% +4.1140%] (p = 0.00 < 0.05)
+                        thrpt:  [-3.9514% -2.4384% -0.6076%]
+                        Change within noise threshold.
+Found 6 outliers among 100 measurements (6.00%)
+  5 (5.00%) high mild
+  1 (1.00%) high severe
+CRC32 Micro/libdeflate-rs/108
+                        time:   [5.8417 ns 5.8816 ns 5.9252 ns]
+                        thrpt:  [16.975 GiB/s 17.101 GiB/s 17.218 GiB/s]
+                 change:
+                        time:   [-22.329% -21.556% -20.647%] (p = 0.00 < 0.05)
+                        thrpt:  [+26.020% +27.479% +28.747%]
+                        Performance has improved.
+Found 4 outliers among 100 measurements (4.00%)
+  1 (1.00%) high mild
+  3 (3.00%) high severe
+CRC32 Micro/libdeflater/108
+                        time:   [3.9717 ns 3.9975 ns 4.0268 ns]
+                        thrpt:  [24.978 GiB/s 25.162 GiB/s 25.325 GiB/s]
+                 change:
+                        time:   [-4.7192% -3.5495% -2.2943%] (p = 0.00 < 0.05)
+                        thrpt:  [+2.3482% +3.6801% +4.9530%]
+                        Performance has improved.
+Found 4 outliers among 100 measurements (4.00%)
+  2 (2.00%) high mild
+  2 (2.00%) high severe
+CRC32 Micro/libdeflate-rs/127
+                        time:   [7.6472 ns 7.6954 ns 7.7448 ns]
+                        thrpt:  [15.272 GiB/s 15.370 GiB/s 15.467 GiB/s]
+Found 2 outliers among 100 measurements (2.00%)
+  2 (2.00%) high mild
+CRC32 Micro/libdeflater/127
+                        time:   [4.3208 ns 4.4265 ns 4.5419 ns]
+                        thrpt:  [26.042 GiB/s 26.721 GiB/s 27.374 GiB/s]
+Found 5 outliers among 100 measurements (5.00%)
+  1 (1.00%) high mild
+  4 (4.00%) high severe
+CRC32 Micro/libdeflate-rs/128
+                        time:   [4.7976 ns 5.1265 ns 5.4920 ns]
+                        thrpt:  [21.706 GiB/s 23.254 GiB/s 24.848 GiB/s]
+Found 1 outliers among 100 measurements (1.00%)
+  1 (1.00%) high mild
+CRC32 Micro/libdeflater/128
+                        time:   [5.2087 ns 5.2716 ns 5.3343 ns]
+                        thrpt:  [22.348 GiB/s 22.613 GiB/s 22.887 GiB/s]
+CRC32 Micro/libdeflate-rs/1024
+                        time:   [17.249 ns 17.510 ns 17.775 ns]
+                        thrpt:  [53.653 GiB/s 54.463 GiB/s 55.289 GiB/s]
+                 change:
+                        time:   [+3.0583% +4.7176% +6.4363%] (p = 0.00 < 0.05)
+                        thrpt:  [-6.0471% -4.5051% -2.9675%]
+                        Performance has regressed.
+CRC32 Micro/libdeflater/1024
+                        time:   [31.476 ns 31.997 ns 32.537 ns]
+                        thrpt:  [29.310 GiB/s 29.805 GiB/s 30.299 GiB/s]
+                 change:
+                        time:   [+9.3762% +11.894% +14.781%] (p = 0.00 < 0.05)
+                        thrpt:  [-12.877% -10.630% -8.5724%]
+                        Performance has regressed.
+Found 5 outliers among 100 measurements (5.00%)
+  4 (4.00%) high mild
+  1 (1.00%) high severe
+
+Decompress offset8/libdeflate-rs offset8
+                        time:   [46.646 µs 47.419 µs 48.209 µs]
+                        thrpt:  [20.257 GiB/s 20.594 GiB/s 20.936 GiB/s]
+                 change:
+                        time:   [+12.249% +15.251% +18.416%] (p = 0.00 < 0.05)
+                        thrpt:  [-15.552% -13.233% -10.913%]
+                        Performance has regressed.
+Found 2 outliers among 100 measurements (2.00%)
+  2 (2.00%) high mild
+
+Decompress offset3/libdeflate-rs offset3
+                        time:   [59.409 µs 60.323 µs 61.258 µs]
+                        thrpt:  [15.942 GiB/s 16.189 GiB/s 16.438 GiB/s]
+                 change:
+                        time:   [+25.046% +28.186% +31.295%] (p = 0.00 < 0.05)
+                        thrpt:  [-23.835% -21.988% -20.029%]
+                        Performance has regressed.
+
+Decompress offset3 small/libdeflate-rs offset3 small
+                        time:   [255.62 µs 259.18 µs 262.68 µs]
+                        thrpt:  [3.7178 GiB/s 3.7679 GiB/s 3.8204 GiB/s]
+
+Decompress offset3 Micro/libdeflate-rs offset3 micro
+                        time:   [60.699 µs 61.430 µs 62.151 µs]
+                        thrpt:  [15.713 GiB/s 15.897 GiB/s 16.088 GiB/s]
+Found 4 outliers among 100 measurements (4.00%)
+  3 (3.00%) low mild
+  1 (1.00%) high mild
+
+Decompress offset9 small/libdeflate-rs offset9 small
+                        time:   [99.370 µs 101.34 µs 103.51 µs]
+                        thrpt:  [9.4350 GiB/s 9.6364 GiB/s 9.8277 GiB/s]
+Found 3 outliers among 100 measurements (3.00%)
+  2 (2.00%) high mild
+  1 (1.00%) high severe
+
+Decompress offset5/libdeflate-rs offset5
+                        time:   [54.031 µs 54.919 µs 55.856 µs]
+                        thrpt:  [17.484 GiB/s 17.782 GiB/s 18.074 GiB/s]
+                 change:
+                        time:   [+20.220% +22.792% +25.495%] (p = 0.00 < 0.05)
+                        thrpt:  [-20.316% -18.561% -16.819%]
+                        Performance has regressed.
+
+Decompress offset7/libdeflate-rs offset7
+                        time:   [78.677 µs 81.122 µs 83.863 µs]
+                        thrpt:  [11.645 GiB/s 12.038 GiB/s 12.412 GiB/s]
+
+Decompress offset6 Micro/libdeflate-rs offset6 micro
+                        time:   [50.244 µs 51.018 µs 51.865 µs]
+                        thrpt:  [18.829 GiB/s 19.142 GiB/s 19.436 GiB/s]
+
+Decompress offset1/libdeflate-rs offset1
+                        time:   [30.607 µs 30.807 µs 31.005 µs]
+                        thrpt:  [31.497 GiB/s 31.699 GiB/s 31.907 GiB/s]
+Found 3 outliers among 100 measurements (3.00%)
+  2 (2.00%) high mild
+  1 (1.00%) high severe
+
+Decompress offset2/libdeflate-rs offset2
+                        time:   [43.171 µs 43.935 µs 44.732 µs]
+                        thrpt:  [21.832 GiB/s 22.227 GiB/s 22.621 GiB/s]
+Found 2 outliers among 100 measurements (2.00%)
+  2 (2.00%) high mild
+
