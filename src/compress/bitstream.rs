@@ -199,4 +199,32 @@ impl<'a> Bitstream<'a> {
         }
         (true, valid_bits)
     }
+
+    pub fn flush_align(&mut self) -> (bool, u32) {
+        while self.bitcount >= 8 {
+            if self.out_idx >= self.output.len() {
+                return (false, 0);
+            }
+            unsafe {
+                self.output
+                    .get_unchecked_mut(self.out_idx)
+                    .write((self.bitbuf & 0xFF) as u8);
+            }
+            self.out_idx += 1;
+            self.bitbuf >>= 8;
+            self.bitcount -= 8;
+        }
+
+        if self.bitcount > 0 {
+            if self.out_idx >= self.output.len() {
+                return (false, 0);
+            }
+
+            self.output[self.out_idx].write((self.bitbuf & 0xFF) as u8);
+            self.out_idx += 1;
+            self.bitbuf = 0;
+            self.bitcount = 0;
+        }
+        (true, 0)
+    }
 }

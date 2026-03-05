@@ -1356,30 +1356,56 @@ impl Compressor {
         true
     }
 
-    fn compress_uncompressed(
+    fn write_uncompressed_block_impl(
         &mut self,
         input: &[u8],
-        output: &mut [MaybeUninit<u8>],
-        flush_mode: FlushMode,
-    ) -> (CompressResult, usize, u32) {
-        let mut bs = Bitstream::new(output);
-        let mut in_idx = 0;
-        while in_idx < input.len() {
-            let bfinal = if in_idx + 65535 >= input.len() && flush_mode == FlushMode::Finish {
-                1
-            } else {
-                0
-            };
-            let block_len = min(65535, input.len() - in_idx);
-            if !bs.write_bits(bfinal, 1) || !bs.write_bits(0, 2) {
-                return (CompressResult::InsufficientSpace, 0, 0);
+        start_pos: usize,
+        processed: usize,
+        bs: &mut Bitstream,
+        is_final: bool,
+    ) -> bool {
+        let mut curr_pos = start_pos;
+        let mut remain = processed;
+        if remain == 0 {
+            if !bs.write_bits(if is_final { 1 } else { 0 }, 1) || !bs.write_bits(0, 2) {
+                return false;
             }
-            let (res, _) = bs.flush();
-            if !res {
-                return (CompressResult::InsufficientSpace, 0, 0);
+            if !bs.flush_align().0 {
+                return false;
+            }
+            if bs.out_idx + 4 > bs.output.len() {
+                return false;
+            }
+            let len = 0u16;
+            let nlen = !len;
+            unsafe {
+                std::ptr::copy_nonoverlapping(
+                    len.to_le_bytes().as_ptr(),
+                    bs.output.as_mut_ptr().add(bs.out_idx) as *mut u8,
+                    2,
+                );
+                std::ptr::copy_nonoverlapping(
+                    nlen.to_le_bytes().as_ptr(),
+                    bs.output.as_mut_ptr().add(bs.out_idx + 2) as *mut u8,
+                    2,
+                );
+            }
+            bs.out_idx += 4;
+            return true;
+        }
+
+        while remain > 0 {
+            let block_len = std::cmp::min(remain, 65535);
+            let bfinal = if is_final && block_len == remain { 1 } else { 0 };
+
+            if !bs.write_bits(bfinal, 1) || !bs.write_bits(0, 2) {
+                return false;
+            }
+            if !bs.flush_align().0 {
+                return false;
             }
             if bs.out_idx + 4 + block_len > bs.output.len() {
-                return (CompressResult::InsufficientSpace, 0, 0);
+                return false;
             }
             let len = block_len as u16;
             let nlen = !len;
@@ -1398,12 +1424,32 @@ impl Compressor {
             bs.out_idx += 4;
             unsafe {
                 std::ptr::copy_nonoverlapping(
-                    input.as_ptr().add(in_idx),
+                    input.as_ptr().add(curr_pos),
                     bs.output.as_mut_ptr().add(bs.out_idx) as *mut u8,
                     block_len,
                 );
             }
             bs.out_idx += block_len;
+            curr_pos += block_len;
+            remain -= block_len;
+        }
+        true
+    }
+
+    fn compress_uncompressed(
+        &mut self,
+        input: &[u8],
+        output: &mut [MaybeUninit<u8>],
+        flush_mode: FlushMode,
+    ) -> (CompressResult, usize, u32) {
+        let mut bs = Bitstream::new(output);
+        let mut in_idx = 0;
+        while in_idx < input.len() {
+            let block_len = min(65535, input.len() - in_idx);
+            let bfinal = in_idx + block_len >= input.len() && flush_mode == FlushMode::Finish;
+            if !self.write_uncompressed_block_impl(input, in_idx, block_len, &mut bs, bfinal) {
+                return (CompressResult::InsufficientSpace, 0, 0);
+            }
             in_idx += block_len;
         }
         if flush_mode == FlushMode::Sync {
@@ -1449,8 +1495,20 @@ impl Compressor {
                 &mut self.offset_codewords,
             );
             self.update_huffman_tables();
-            if !self.write_dynamic_block_with_sequences(input, start_pos, bs, is_final) {
-                return 0;
+
+            let dynamic_cost = self.calculate_dynamic_header_size() + self.calculate_block_data_size() + 3; // +3 for block header
+
+            // To be safe against exact alignment overhead for uncompressed block, we allow max 7 bits padding per 65535 block bytes.
+            let uncompressed_cost = (processed * 8) + (processed / 65535 + 1) * 40 + 7;
+
+            if dynamic_cost > uncompressed_cost {
+                if !self.write_uncompressed_block_impl(input, start_pos, processed, bs, is_final) {
+                    return 0;
+                }
+            } else {
+                if !self.write_dynamic_block_with_sequences(input, start_pos, bs, is_final) {
+                    return 0;
+                }
             }
             return processed;
         }
@@ -1526,18 +1584,53 @@ impl Compressor {
 
         let processed = in_idx - start_pos;
         let is_final = (start_pos + processed >= input.len()) && final_block;
-        if !bs.write_bits(if is_final { 1 } else { 0 }, 1) {
-            return 0;
-        }
-        if !bs.write_bits(1, 2) {
-            return 0;
+
+        let mut static_bits = 3 + 7; // header + EOF
+        let mut curr_in = start_pos;
+
+        for seq in &self.sequences {
+            for _ in 0..seq.litrunlen {
+                if curr_in < input.len() {
+                    let lit = input[curr_in];
+                    static_bits += if lit <= 143 { 8 } else { 9 };
+                }
+                curr_in += 1;
+            }
+            let actual_len = seq.len() as usize;
+            if actual_len >= 3 {
+                let mut length_to_slot = actual_len;
+                if length_to_slot > 258 {
+                    length_to_slot = 258;
+                }
+                let len_slot = self.get_length_slot(length_to_slot);
+                let off_slot = self.get_offset_slot(seq.offset as usize);
+                static_bits += if len_slot < 24 { 7 } else { 8 } + LENGTH_EXTRA_BITS_TABLE[len_slot] as usize;
+                static_bits += 5 + OFFSET_EXTRA_BITS_TABLE[off_slot] as usize;
+                curr_in += actual_len;
+            }
         }
 
-        if !self.write_sequences_to_bitstream(bs, input, start_pos) {
-            return 0;
-        }
-        if !self.write_sym(bs, 256) {
-            return 0;
+        let uncompressed_cost = (processed * 8) + (processed / 65535 + 1) * 40 + 7;
+
+        if static_bits > uncompressed_cost {
+            if !self.write_uncompressed_block_impl(input, start_pos, processed, bs, is_final) {
+                return 0;
+            }
+            return processed;
+        } else {
+            if !bs.write_bits(if is_final { 1 } else { 0 }, 1) {
+                return 0;
+            }
+            if !bs.write_bits(1, 2) { // static block
+                return 0;
+            }
+
+            if !self.write_sequences_to_bitstream(bs, input, start_pos) {
+                return 0;
+            }
+            if !self.write_sym(bs, 256) { // EOF
+                return 0;
+            }
         }
         processed
     }
@@ -2180,7 +2273,13 @@ impl Compressor {
     }
 
     pub fn deflate_compress_bound(size: usize) -> usize {
-        size.saturating_add((size / 65535 + 1) * 5 + 10)
+        let max_blocks = size.saturating_add(8191) / 8192;
+        let bound = size.saturating_add(14usize.saturating_mul(max_blocks));
+        if bound < 30 {
+            30
+        } else {
+            bound
+        }
     }
 
     pub fn zlib_compress_bound(size: usize) -> usize {
