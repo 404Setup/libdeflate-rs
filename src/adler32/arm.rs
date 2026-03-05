@@ -33,7 +33,7 @@ pub unsafe fn adler32_arm_neon(adler: u32, p: &[u8]) -> u32 {
             break;
         }
 
-        s2 += s1 * (n as u32);
+        s2 = ((s2 as u64 + s1 as u64 * n as u64) % DIVISOR as u64) as u32;
 
         let mut v_s1 = vdupq_n_u32(0);
         let mut v_s2 = vdupq_n_u32(0);
@@ -82,7 +82,7 @@ pub unsafe fn adler32_arm_neon(adler: u32, p: &[u8]) -> u32 {
         }
 
         s1 += vaddvq_u32(v_s1);
-        s2 += vaddvq_u32(v_s2);
+        s2 = ((s2 as u64 + vaddvq_u32(v_s2) as u64) % DIVISOR as u64) as u32;
 
         s1 %= DIVISOR;
         s2 %= DIVISOR;
@@ -90,7 +90,7 @@ pub unsafe fn adler32_arm_neon(adler: u32, p: &[u8]) -> u32 {
 
     for &b in data {
         s1 += b as u32;
-        s2 += s1;
+        s2 = ((s2 as u64 + s1 as u64) % DIVISOR as u64) as u32;
     }
 
     (s2 % DIVISOR) << 16 | (s1 % DIVISOR)
@@ -123,7 +123,7 @@ pub unsafe fn adler32_arm_neon_dotprod(adler: u32, p: &[u8]) -> u32 {
             break;
         }
 
-        s2 += s1 * (n as u32);
+        s2 = ((s2 as u64 + s1 as u64 * n as u64) % DIVISOR as u64) as u32;
 
         let mut v_s1_a = vdupq_n_u32(0);
         let mut v_s1_b = vdupq_n_u32(0);
@@ -175,7 +175,7 @@ pub unsafe fn adler32_arm_neon_dotprod(adler: u32, p: &[u8]) -> u32 {
         v_s2 = vaddq_u32(v_s2, vshlq_n_u32(v_s1_sums, 6));
 
         s1 += vaddvq_u32(v_s1);
-        s2 += vaddvq_u32(v_s2);
+        s2 = ((s2 as u64 + vaddvq_u32(v_s2) as u64) % DIVISOR as u64) as u32;
 
         s1 %= DIVISOR;
         s2 %= DIVISOR;
@@ -183,7 +183,7 @@ pub unsafe fn adler32_arm_neon_dotprod(adler: u32, p: &[u8]) -> u32 {
 
     for &b in data {
         s1 += b as u32;
-        s2 += s1;
+        s2 = ((s2 as u64 + s1 as u64) % DIVISOR as u64) as u32;
     }
 
     (s2 % DIVISOR) << 16 | (s1 % DIVISOR)
