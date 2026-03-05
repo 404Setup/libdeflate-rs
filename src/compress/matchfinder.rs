@@ -844,11 +844,11 @@ impl MatchFinder {
 
         while cur_pos_i32 != -1 && depth < max_depth {
             let p_abs = cur_pos_i32 as usize;
-            if p_abs < self.base_offset {
+            if p_abs < self.base_offset || p_abs > abs_pos {
                 break;
             }
             let offset = abs_pos - p_abs;
-            if offset > DEFLATE_MAX_MATCH_OFFSET {
+            if offset > DEFLATE_MAX_MATCH_OFFSET || offset == 0 {
                 break;
             }
 
@@ -1202,8 +1202,11 @@ impl HtMatchFinder {
             }
 
             let p_abs = cur_pos as usize;
+            if p_abs > abs_pos {
+                return (0, 0);
+            }
             let offset = abs_pos - p_abs;
-            if offset > DEFLATE_MAX_MATCH_OFFSET {
+            if offset > DEFLATE_MAX_MATCH_OFFSET || offset == 0 {
                 return (0, 0);
             }
 
