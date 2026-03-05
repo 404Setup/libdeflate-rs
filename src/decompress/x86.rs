@@ -2116,19 +2116,19 @@ pub unsafe fn decompress_bmi2_ptr(
                 bitbuf = 0;
                 bitsleft = 0;
                 if in_idx + 4 > in_len {
-                    return (DecompressResult::BadData, 0, 0);
+                    return (DecompressResult::BadData, in_idx, out_idx);
                 }
                 let len = u16::from_le_bytes([input[in_idx], input[in_idx + 1]]) as usize;
                 let nlen = u16::from_le_bytes([input[in_idx + 2], input[in_idx + 3]]) as usize;
                 in_idx += 4;
                 if len != (!nlen & 0xFFFF) {
-                    return (DecompressResult::BadData, 0, 0);
+                    return (DecompressResult::BadData, in_idx, out_idx);
                 }
                 if out_idx + len > out_len {
-                    return (DecompressResult::InsufficientSpace, 0, 0);
+                    return (DecompressResult::InsufficientSpace, in_idx, out_idx);
                 }
                 if in_idx + len > in_len {
-                    return (DecompressResult::BadData, 0, 0);
+                    return (DecompressResult::BadData, in_idx, out_idx);
                 }
                 std::ptr::copy_nonoverlapping(
                     input.as_ptr().add(in_idx),
@@ -2146,7 +2146,7 @@ pub unsafe fn decompress_bmi2_ptr(
                     bitbuf = d.bitbuf;
                     bitsleft = d.bitsleft;
                     if res != DecompressResult::Success {
-                        return (res, 0, 0);
+                        return (res, in_idx, out_idx);
                     }
                 } else {
                     d.load_static_huffman_codes();
