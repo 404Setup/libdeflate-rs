@@ -101,7 +101,7 @@ pub unsafe fn adler32_x86_sse2(adler: u32, p: &[u8]) -> u32 {
         let mut n = std::cmp::min(data.len(), BLOCK_SIZE);
         n &= !31;
 
-        s2 += s1 * (n as u32);
+        s2 = ((s2 as u64 + s1 as u64 * n as u64) % DIVISOR as u64) as u32;
 
         let mut v_s1 = _mm_setzero_si128();
         let mut v_s1_sums = _mm_setzero_si128();
@@ -246,7 +246,8 @@ pub unsafe fn adler32_x86_sse2(adler: u32, p: &[u8]) -> u32 {
         _mm_storeu_si128(s2_buf.as_mut_ptr() as *mut __m128i, v_s2);
 
         s1 += s1_buf[0] + s1_buf[2];
-        s2 += s2_buf[0] + s2_buf[1] + s2_buf[2] + s2_buf[3];
+        let s2_sum = s2_buf[0] as u64 + s2_buf[1] as u64 + s2_buf[2] as u64 + s2_buf[3] as u64;
+s2 = ((s2 as u64 + s2_sum) % DIVISOR as u64) as u32;
 
         s1 %= DIVISOR;
         s2 %= DIVISOR;
@@ -256,7 +257,7 @@ pub unsafe fn adler32_x86_sse2(adler: u32, p: &[u8]) -> u32 {
         let d = _mm_loadu_si128(data.as_ptr() as *const __m128i);
         let sad = _mm_sad_epu8(d, v_zero);
         let sum_s1 = _mm_cvtsi128_si32(_mm_add_epi32(sad, _mm_srli_si128(sad, 8)));
-        s2 += s1 * 16;
+        s2 = ((s2 as u64 + s1 as u64 * 16) % DIVISOR as u64) as u32;
         s1 += sum_s1 as u32;
 
         let d_lo = _mm_unpacklo_epi8(d, v_zero);
@@ -271,7 +272,7 @@ pub unsafe fn adler32_x86_sse2(adler: u32, p: &[u8]) -> u32 {
 
         let s_step = _mm_add_epi32(s, _mm_srli_si128(s, 8));
         let sum_s2 = _mm_cvtsi128_si32(_mm_add_epi32(s_step, _mm_srli_si128(s_step, 4)));
-        s2 += sum_s2 as u32;
+        s2 = ((s2 as u64 + sum_s2 as u64) % DIVISOR as u64) as u32;
 
         data = &data[16..];
     }
@@ -317,7 +318,7 @@ pub unsafe fn adler32_x86_avx2(adler: u32, p: &[u8]) -> u32 {
         let n = std::cmp::min(len, BLOCK_SIZE);
         let n_rounded = n & !31;
 
-        s2 += s1 * (n_rounded as u32);
+        s2 = ((s2 as u64 + s1 as u64 * n_rounded as u64) % DIVISOR as u64) as u32;
 
         let mut v_s1 = _mm256_setzero_si256();
         let mut v_s1_acc = _mm256_setzero_si256();
@@ -540,7 +541,8 @@ pub unsafe fn adler32_x86_avx2(adler: u32, p: &[u8]) -> u32 {
         _mm_storeu_si128(s2_buf.as_mut_ptr() as *mut __m128i, v_s2_128);
 
         s1 += s1_buf[0] + s1_buf[1] + s1_buf[2] + s1_buf[3];
-        s2 += s2_buf[0] + s2_buf[1] + s2_buf[2] + s2_buf[3];
+        let s2_sum = s2_buf[0] as u64 + s2_buf[1] as u64 + s2_buf[2] as u64 + s2_buf[3] as u64;
+s2 = ((s2 as u64 + s2_sum) % DIVISOR as u64) as u32;
 
         s1 %= DIVISOR;
         s2 %= DIVISOR;
@@ -553,7 +555,7 @@ pub unsafe fn adler32_x86_avx2(adler: u32, p: &[u8]) -> u32 {
         let sad = _mm_sad_epu8(d, v_zero_xmm);
         let s1_part = _mm_cvtsi128_si32(_mm_add_epi32(sad, _mm_unpackhi_epi64(sad, sad))) as u32;
 
-        s2 += s1 * 16;
+        s2 = ((s2 as u64 + s1 as u64 * 16) % DIVISOR as u64) as u32;
         s1 += s1_part;
 
         let w_16 = _mm_set_epi8(1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16);
@@ -563,7 +565,7 @@ pub unsafe fn adler32_x86_avx2(adler: u32, p: &[u8]) -> u32 {
         let s_sum = _mm_add_epi32(s, _mm_shuffle_epi32(s, 0x4E));
         let s_sum = _mm_add_epi32(s_sum, _mm_shuffle_epi32(s_sum, 0xB1));
 
-        s2 += _mm_cvtsi128_si32(s_sum) as u32;
+        s2 = ((s2 as u64 + _mm_cvtsi128_si32(s_sum) as u64) % DIVISOR as u64) as u32;
 
         ptr = ptr.add(16);
         len -= 16;
@@ -606,7 +608,7 @@ pub unsafe fn adler32_x86_avx2_vnni(adler: u32, p: &[u8]) -> u32 {
 
     while data.len() >= 32 {
         let n = std::cmp::min(data.len(), BLOCK_SIZE) & !31;
-        s2 += s1 * (n as u32);
+        s2 = ((s2 as u64 + s1 as u64 * n as u64) % DIVISOR as u64) as u32;
 
         let mut v_s1 = _mm256_setzero_si256();
         let mut v_s2 = _mm256_setzero_si256();
@@ -812,7 +814,7 @@ pub unsafe fn adler32_x86_avx2_vnni(adler: u32, p: &[u8]) -> u32 {
         let v_s2_sum = _mm_add_epi32(v_s2_sum, _mm_shuffle_epi32(v_s2_sum, 0x02));
 
         s1 += _mm_cvtsi128_si32(v_s1_sum) as u32;
-        s2 += _mm_cvtsi128_si32(v_s2_sum) as u32;
+        s2 = ((s2 as u64 + _mm_cvtsi128_si32(v_s2_sum) as u64) % DIVISOR as u64) as u32;
 
         s1 %= DIVISOR;
         s2 %= DIVISOR;
@@ -825,7 +827,7 @@ pub unsafe fn adler32_x86_avx2_vnni(adler: u32, p: &[u8]) -> u32 {
         let sad = _mm_sad_epu8(d, v_zero_xmm);
         let s1_part = _mm_cvtsi128_si32(_mm_add_epi32(sad, _mm_unpackhi_epi64(sad, sad))) as u32;
 
-        s2 += s1 * 16;
+        s2 = ((s2 as u64 + s1 as u64 * 16) % DIVISOR as u64) as u32;
         s1 += s1_part;
 
         let w_16 = _mm_set_epi8(1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16);
@@ -835,7 +837,7 @@ pub unsafe fn adler32_x86_avx2_vnni(adler: u32, p: &[u8]) -> u32 {
         let s_sum = _mm_add_epi32(s, _mm_shuffle_epi32(s, 0x4E));
         let s_sum = _mm_add_epi32(s_sum, _mm_shuffle_epi32(s_sum, 0xB1));
 
-        s2 += _mm_cvtsi128_si32(s_sum) as u32;
+        s2 = ((s2 as u64 + _mm_cvtsi128_si32(s_sum) as u64) % DIVISOR as u64) as u32;
 
         let processed = 16;
         data = &data[processed..];
@@ -893,7 +895,7 @@ pub unsafe fn adler32_x86_avx512_vnni(adler: u32, p: &[u8]) -> u32 {
 
     while data.len() >= 64 {
         let n = std::cmp::min(data.len(), BLOCK_SIZE) & !63;
-        s2 += s1 * (n as u32);
+        s2 = ((s2 as u64 + s1 as u64 * n as u64) % DIVISOR as u64) as u32;
 
         let mut v_s1 = _mm512_setzero_si512();
         let mut v_s2 = _mm512_setzero_si512();
@@ -1068,7 +1070,7 @@ pub unsafe fn adler32_x86_avx512_vnni(adler: u32, p: &[u8]) -> u32 {
         let v_s2_sum = _mm_add_epi32(v_s2_sum, _mm_shuffle_epi32(v_s2_sum, 0x02));
 
         s1 += _mm_cvtsi128_si32(v_s1_sum) as u32;
-        s2 += _mm_cvtsi128_si32(v_s2_sum) as u32;
+        s2 = ((s2 as u64 + _mm_cvtsi128_si32(v_s2_sum) as u64) % DIVISOR as u64) as u32;
 
         s1 %= DIVISOR;
         s2 %= DIVISOR;
@@ -1088,7 +1090,7 @@ pub unsafe fn adler32_x86_avx512_vnni(adler: u32, p: &[u8]) -> u32 {
         let sum_u = hsum_epi32_avx256(u);
         let sum_p = hsum_epi32_avx256(p);
 
-        s2 += s1 * 32 + sum_p;
+        s2 = ((s2 as u64 + s1 as u64 * 32 + sum_p as u64) % DIVISOR as u64) as u32;
         s1 += sum_u;
 
         data = &data[32..];
