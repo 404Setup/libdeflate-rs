@@ -684,12 +684,7 @@ impl Compressor {
                             buf.set_len(bound);
                         }
 
-                        let buf_uninit = unsafe {
-                            std::slice::from_raw_parts_mut(
-                                buf.as_mut_ptr() as *mut MaybeUninit<u8>,
-                                buf.len(),
-                            )
-                        };
+                        let buf_uninit = crate::common::slice_as_uninit_mut(buf);
 
                         let (res, size, _) = compressor.compress(chunk, buf_uninit, mode);
                         if res == CompressResult::Success {
