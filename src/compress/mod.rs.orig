@@ -1144,17 +1144,16 @@ impl Compressor {
             num_offset_syms -= 1;
         }
 
-        let mut lens = [0u8; DEFLATE_NUM_LITLEN_SYMS + DEFLATE_NUM_OFFSET_SYMS];
-        let lens_len = num_litlen_syms + num_offset_syms;
-        lens[..num_litlen_syms].copy_from_slice(&self.litlen_lens[..num_litlen_syms]);
-        lens[num_litlen_syms..lens_len].copy_from_slice(&self.offset_lens[..num_offset_syms]);
+        let mut lens = Vec::with_capacity(num_litlen_syms + num_offset_syms);
+        lens.extend_from_slice(&self.litlen_lens[..num_litlen_syms]);
+        lens.extend_from_slice(&self.offset_lens[..num_offset_syms]);
 
         let mut precode_freqs = [0u32; 19];
         let mut i = 0;
-        while i < lens_len {
+        while i < lens.len() {
             let len = lens[i];
             let mut run = 1;
-            while i + run < lens_len && lens[i + run] == len {
+            while i + run < lens.len() && lens[i + run] == len {
                 run += 1;
             }
             if len == 0 {
