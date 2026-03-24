@@ -73,3 +73,14 @@ pub const SEQ_STORE_LENGTH: usize = 50000;
 pub fn bsr32(v: u32) -> u32 {
     31 - v.leading_zeros()
 }
+
+/// Safely converts a mutable byte slice to a mutable `MaybeUninit<u8>` slice.
+#[inline(always)]
+pub fn slice_as_uninit_mut(slice: &mut [u8]) -> &mut [std::mem::MaybeUninit<u8>] {
+    unsafe {
+        std::slice::from_raw_parts_mut(
+            slice.as_mut_ptr() as *mut std::mem::MaybeUninit<u8>,
+            slice.len(),
+        )
+    }
+}

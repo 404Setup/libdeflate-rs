@@ -80,12 +80,7 @@ impl<W: Write + Send> DeflateEncoder<W> {
                 } else {
                     crate::compress::FlushMode::Sync
                 };
-                let out_uninit = unsafe {
-                    std::slice::from_raw_parts_mut(
-                        output.as_mut_ptr() as *mut MaybeUninit<u8>,
-                        output.len(),
-                    )
-                };
+                let out_uninit = crate::common::slice_as_uninit_mut(output);
                 let (res, size, _) = compressor.compress(chunk, out_uninit, mode);
                 if res == CompressResult::Success {
                     if let Some(writer) = &mut self.writer {
@@ -119,12 +114,7 @@ impl<W: Write + Send> DeflateEncoder<W> {
                         } else {
                             crate::compress::FlushMode::Sync
                         };
-                        let out_uninit = unsafe {
-                            std::slice::from_raw_parts_mut(
-                                output.as_mut_ptr() as *mut MaybeUninit<u8>,
-                                output.len(),
-                            )
-                        };
+                        let out_uninit = crate::common::slice_as_uninit_mut(output);
                         let (res, size, _) = compressor.compress(chunk, out_uninit, mode);
                         if res == CompressResult::Success {
                             Ok(size)
@@ -169,12 +159,7 @@ impl<W: Write + Send> DeflateEncoder<W> {
             } else {
                 crate::compress::FlushMode::Sync
             };
-            let out_uninit = unsafe {
-                std::slice::from_raw_parts_mut(
-                    output.as_mut_ptr() as *mut MaybeUninit<u8>,
-                    output.len(),
-                )
-            };
+            let out_uninit = crate::common::slice_as_uninit_mut(output);
             let (res, size, _) = compressor.compress(&self.buffer, out_uninit, mode);
             if res == CompressResult::Success {
                 if let Some(writer) = &mut self.writer {

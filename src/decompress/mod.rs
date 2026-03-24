@@ -1129,12 +1129,7 @@ impl Decompressor {
         input: &[u8],
         output: &mut [u8],
     ) -> (DecompressResult, usize, usize) {
-        let output_uninit = unsafe {
-            std::slice::from_raw_parts_mut(
-                output.as_mut_ptr() as *mut std::mem::MaybeUninit<u8>,
-                output.len(),
-            )
-        };
+        let output_uninit = crate::common::slice_as_uninit_mut(output);
         unsafe { self.decompress_zlib_uninit(input, output_uninit) }
     }
 
@@ -1241,12 +1236,7 @@ impl Decompressor {
         input: &[u8],
         output: &mut [u8],
     ) -> (DecompressResult, usize, usize) {
-        let output_uninit = unsafe {
-            std::slice::from_raw_parts_mut(
-                output.as_mut_ptr() as *mut std::mem::MaybeUninit<u8>,
-                output.len(),
-            )
-        };
+        let output_uninit = crate::common::slice_as_uninit_mut(output);
         unsafe { self.decompress_gzip_uninit(input, output_uninit) }
     }
 }

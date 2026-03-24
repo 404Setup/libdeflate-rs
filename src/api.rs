@@ -114,12 +114,7 @@ impl Compressor {
                 "Input and output buffers overlap",
             ));
         }
-        let out_uninit = unsafe {
-            std::slice::from_raw_parts_mut(
-                output.as_mut_ptr() as *mut std::mem::MaybeUninit<u8>,
-                output.len(),
-            )
-        };
+        let out_uninit = crate::common::slice_as_uninit_mut(output);
         let (res, size) = f(&mut self.inner, data, out_uninit);
         if res == CompressResult::Success {
             Ok(size)
@@ -274,12 +269,7 @@ impl Decompressor {
             ));
         }
 
-        let out_uninit = unsafe {
-            std::slice::from_raw_parts_mut(
-                output.as_mut_ptr() as *mut std::mem::MaybeUninit<u8>,
-                output.len(),
-            )
-        };
+        let out_uninit = crate::common::slice_as_uninit_mut(output);
         let (res, _, size) = f(&mut self.inner, data, out_uninit);
         if res == crate::decompress::DecompressResult::Success {
             Ok(size)
