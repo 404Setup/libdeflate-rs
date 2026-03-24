@@ -416,6 +416,7 @@ pub struct Compressor {
     dp_path: Vec<u32>,
     split_stats: BlockSplitStats,
     matches: Vec<(u16, u16)>,
+    path_nodes: Vec<(u16, u16)>,
 }
 
 impl Compressor {
@@ -461,6 +462,11 @@ impl Compressor {
             split_stats: BlockSplitStats::new(),
             matches: if level >= 10 {
                 Vec::with_capacity(32)
+            } else {
+                Vec::new()
+            },
+            path_nodes: if level >= 10 {
+                Vec::with_capacity(SOFT_MAX_BLOCK_LENGTH / 3)
             } else {
                 Vec::new()
             },
@@ -982,18 +988,18 @@ impl Compressor {
         self.litlen_freqs[256] = 1;
 
         let mut pos = processed;
-        let mut path_nodes = Vec::with_capacity(processed / 3);
+        self.path_nodes.clear();
         while pos > 0 {
             let packed = self.dp_path[pos];
             let length = (packed & 0xFFFF) as u16;
             let offset = (packed >> 16) as u16;
-            path_nodes.push((length, offset));
+            self.path_nodes.push((length, offset));
             pos -= length as usize;
         }
 
         let mut litrunlen = 0;
         let mut cur_pos = 0;
-        for &(length, offset) in path_nodes.iter().rev() {
+        for &(length, offset) in self.path_nodes.iter().rev() {
             if length == 1 {
                 self.litlen_freqs[block_input[cur_pos] as usize] += 1;
                 litrunlen += 1;
@@ -1772,18 +1778,18 @@ impl Compressor {
         self.litlen_freqs[256] = 1;
 
         let mut pos = processed;
-        let mut path_nodes = Vec::with_capacity(processed / 3);
+        self.path_nodes.clear();
         while pos > 0 {
             let packed = self.dp_path[pos];
             let length = (packed & 0xFFFF) as u16;
             let offset = (packed >> 16) as u16;
-            path_nodes.push((length, offset));
+            self.path_nodes.push((length, offset));
             pos -= length as usize;
         }
 
         let mut litrunlen = 0;
         let mut cur_pos = 0;
-        for &(length, offset) in path_nodes.iter().rev() {
+        for &(length, offset) in self.path_nodes.iter().rev() {
             if length == 1 {
                 self.litlen_freqs[block_input[cur_pos] as usize] += 1;
                 litrunlen += 1;
