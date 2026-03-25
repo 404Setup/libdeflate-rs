@@ -36,7 +36,8 @@ fn test_deflate_interop() {
         for &pattern in &patterns {
             for level in 1..=9 {
                 let mut our_compressor = libdeflate::api::Compressor::new(level).unwrap();
-                let mut their_compressor = libdeflater::Compressor::new(libdeflater::CompressionLvl::new(level).unwrap());
+                let mut their_compressor =
+                    libdeflater::Compressor::new(libdeflater::CompressionLvl::new(level).unwrap());
                 let mut their_decompressor = libdeflater::Decompressor::new();
 
                 let data = generate_test_data(size, pattern);
@@ -44,12 +45,16 @@ fn test_deflate_interop() {
                 // 1. our compress -> their decompress
                 let bound = our_compressor.deflate_compress_bound(data.len());
                 let mut comp1 = vec![0u8; bound];
-                let comp1_sz = our_compressor.compress_deflate_into(&data, &mut comp1).unwrap();
+                let comp1_sz = our_compressor
+                    .compress_deflate_into(&data, &mut comp1)
+                    .unwrap();
                 comp1.truncate(comp1_sz);
 
                 let mut decomp1 = vec![0u8; data.len()];
                 if size > 0 {
-                    let decomp_sz = their_decompressor.deflate_decompress(&comp1, &mut decomp1).unwrap();
+                    let decomp_sz = their_decompressor
+                        .deflate_decompress(&comp1, &mut decomp1)
+                        .unwrap();
                     assert_eq!(decomp_sz, data.len());
                     assert_eq!(decomp1, data);
                 }
@@ -57,10 +62,14 @@ fn test_deflate_interop() {
                 // 2. their compress -> our decompress
                 let their_bound = their_compressor.deflate_compress_bound(data.len());
                 let mut comp2 = vec![0u8; their_bound];
-                let comp2_sz = their_compressor.deflate_compress(&data, &mut comp2).unwrap();
+                let comp2_sz = their_compressor
+                    .deflate_compress(&data, &mut comp2)
+                    .unwrap();
                 comp2.truncate(comp2_sz);
 
-                let decomp2 = our_decompressor.decompress_deflate(&comp2, data.len()).unwrap();
+                let decomp2 = our_decompressor
+                    .decompress_deflate(&comp2, data.len())
+                    .unwrap();
                 assert_eq!(decomp2, data);
             }
         }
@@ -78,7 +87,8 @@ fn test_zlib_interop() {
         for &pattern in &patterns {
             for level in 1..=9 {
                 let mut our_compressor = libdeflate::api::Compressor::new(level).unwrap();
-                let mut their_compressor = libdeflater::Compressor::new(libdeflater::CompressionLvl::new(level).unwrap());
+                let mut their_compressor =
+                    libdeflater::Compressor::new(libdeflater::CompressionLvl::new(level).unwrap());
                 let mut their_decompressor = libdeflater::Decompressor::new();
 
                 let data = generate_test_data(size, pattern);
@@ -86,12 +96,16 @@ fn test_zlib_interop() {
                 // 1. our compress -> their decompress
                 let bound = our_compressor.zlib_compress_bound(data.len());
                 let mut comp1 = vec![0u8; bound];
-                let comp1_sz = our_compressor.compress_zlib_into(&data, &mut comp1).unwrap();
+                let comp1_sz = our_compressor
+                    .compress_zlib_into(&data, &mut comp1)
+                    .unwrap();
                 comp1.truncate(comp1_sz);
 
                 let mut decomp1 = vec![0u8; data.len()];
                 if size > 0 {
-                    let decomp_sz = their_decompressor.zlib_decompress(&comp1, &mut decomp1).unwrap();
+                    let decomp_sz = their_decompressor
+                        .zlib_decompress(&comp1, &mut decomp1)
+                        .unwrap();
                     assert_eq!(decomp_sz, data.len());
                     assert_eq!(decomp1, data);
                 }
@@ -102,7 +116,9 @@ fn test_zlib_interop() {
                 let comp2_sz = their_compressor.zlib_compress(&data, &mut comp2).unwrap();
                 comp2.truncate(comp2_sz);
 
-                let decomp2 = our_decompressor.decompress_zlib(&comp2, data.len()).unwrap();
+                let decomp2 = our_decompressor
+                    .decompress_zlib(&comp2, data.len())
+                    .unwrap();
                 assert_eq!(decomp2, data);
             }
         }
@@ -120,7 +136,8 @@ fn test_gzip_interop() {
         for &pattern in &patterns {
             for level in 1..=9 {
                 let mut our_compressor = libdeflate::api::Compressor::new(level).unwrap();
-                let mut their_compressor = libdeflater::Compressor::new(libdeflater::CompressionLvl::new(level).unwrap());
+                let mut their_compressor =
+                    libdeflater::Compressor::new(libdeflater::CompressionLvl::new(level).unwrap());
                 let mut their_decompressor = libdeflater::Decompressor::new();
 
                 let data = generate_test_data(size, pattern);
@@ -128,12 +145,16 @@ fn test_gzip_interop() {
                 // 1. our compress -> their decompress
                 let bound = our_compressor.gzip_compress_bound(data.len());
                 let mut comp1 = vec![0u8; bound];
-                let comp1_sz = our_compressor.compress_gzip_into(&data, &mut comp1).unwrap();
+                let comp1_sz = our_compressor
+                    .compress_gzip_into(&data, &mut comp1)
+                    .unwrap();
                 comp1.truncate(comp1_sz);
 
                 let mut decomp1 = vec![0u8; data.len()];
                 if size > 0 {
-                    let decomp_sz = their_decompressor.gzip_decompress(&comp1, &mut decomp1).unwrap();
+                    let decomp_sz = their_decompressor
+                        .gzip_decompress(&comp1, &mut decomp1)
+                        .unwrap();
                     assert_eq!(decomp_sz, data.len());
                     assert_eq!(decomp1, data);
                 }
@@ -144,7 +165,9 @@ fn test_gzip_interop() {
                 let comp2_sz = their_compressor.gzip_compress(&data, &mut comp2).unwrap();
                 comp2.truncate(comp2_sz);
 
-                let decomp2 = our_decompressor.decompress_gzip(&comp2, data.len()).unwrap();
+                let decomp2 = our_decompressor
+                    .decompress_gzip(&comp2, data.len())
+                    .unwrap();
                 assert_eq!(decomp2, data);
             }
         }
