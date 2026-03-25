@@ -540,12 +540,8 @@ pub unsafe fn adler32_x86_avx2(adler: u32, p: &[u8]) -> u32 {
         _mm_storeu_si128(s1_buf.as_mut_ptr() as *mut __m128i, v_s1_128);
         _mm_storeu_si128(s2_buf.as_mut_ptr() as *mut __m128i, v_s2_128);
 
-        s1 = ((s1 as u64
-            + s1_buf[0] as u64
-            + s1_buf[1] as u64
-            + s1_buf[2] as u64
-            + s1_buf[3] as u64)
-            % DIVISOR as u64) as u32;
+        s1 = (s1 as u64 + s1_buf[0] as u64 + s1_buf[1] as u64 + s1_buf[2] as u64 + s1_buf[3] as u64)
+            as u32;
         let s2_sum = s2_buf[0] as u64 + s2_buf[1] as u64 + s2_buf[2] as u64 + s2_buf[3] as u64;
         s2 = ((s2 as u64 + s2_sum) % DIVISOR as u64) as u32;
 
