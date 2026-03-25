@@ -245,7 +245,7 @@ pub unsafe fn adler32_x86_sse2(adler: u32, p: &[u8]) -> u32 {
         _mm_storeu_si128(s1_buf.as_mut_ptr() as *mut __m128i, v_s1);
         _mm_storeu_si128(s2_buf.as_mut_ptr() as *mut __m128i, v_s2);
 
-        s1 = ((s1 as u64 + s1_buf[0] as u64 + s1_buf[2] as u64) % DIVISOR as u64) as u32;
+        s1 = (s1 as u64 + s1_buf[0] as u64 + s1_buf[2] as u64) as u32;
         let s2_sum = s2_buf[0] as u64 + s2_buf[1] as u64 + s2_buf[2] as u64 + s2_buf[3] as u64;
         s2 = ((s2 as u64 + s2_sum) % DIVISOR as u64) as u32;
 
@@ -258,7 +258,7 @@ pub unsafe fn adler32_x86_sse2(adler: u32, p: &[u8]) -> u32 {
         let sad = _mm_sad_epu8(d, v_zero);
         let sum_s1 = _mm_cvtsi128_si32(_mm_add_epi32(sad, _mm_srli_si128(sad, 8))) as u32;
         s2 = ((s2 as u64 + s1 as u64 * 16) % DIVISOR as u64) as u32;
-        s1 = ((s1 as u64 + sum_s1 as u32 as u64) % DIVISOR as u64) as u32;
+        s1 = (s1 as u64 + sum_s1 as u32 as u64) as u32;
 
         let d_lo = _mm_unpacklo_epi8(d, v_zero);
         let d_hi = _mm_unpackhi_epi8(d, v_zero);
@@ -561,7 +561,7 @@ pub unsafe fn adler32_x86_avx2(adler: u32, p: &[u8]) -> u32 {
         let s1_part = _mm_cvtsi128_si32(_mm_add_epi32(sad, _mm_unpackhi_epi64(sad, sad))) as u32;
 
         s2 = ((s2 as u64 + s1 as u64 * 16) % DIVISOR as u64) as u32;
-        s1 = ((s1 as u64 + s1_part as u64) % DIVISOR as u64) as u32;
+        s1 = (s1 as u64 + s1_part as u64) as u32;
 
         let w_16 = _mm_set_epi8(1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16);
         let p = _mm_maddubs_epi16(d, w_16);
@@ -818,7 +818,7 @@ pub unsafe fn adler32_x86_avx2_vnni(adler: u32, p: &[u8]) -> u32 {
         let v_s2_sum = _mm_add_epi32(v_s2_128, _mm_shuffle_epi32(v_s2_128, 0x31));
         let v_s2_sum = _mm_add_epi32(v_s2_sum, _mm_shuffle_epi32(v_s2_sum, 0x02));
 
-        s1 = ((s1 as u64 + _mm_cvtsi128_si32(v_s1_sum) as u32 as u64) % DIVISOR as u64) as u32;
+        s1 = (s1 as u64 + _mm_cvtsi128_si32(v_s1_sum) as u32 as u64) as u32;
         s2 = ((s2 as u64 + _mm_cvtsi128_si32(v_s2_sum) as u32 as u64) % DIVISOR as u64) as u32;
 
         s1 %= DIVISOR;
@@ -833,7 +833,7 @@ pub unsafe fn adler32_x86_avx2_vnni(adler: u32, p: &[u8]) -> u32 {
         let s1_part = _mm_cvtsi128_si32(_mm_add_epi32(sad, _mm_unpackhi_epi64(sad, sad))) as u32;
 
         s2 = ((s2 as u64 + s1 as u64 * 16) % DIVISOR as u64) as u32;
-        s1 = ((s1 as u64 + s1_part as u64) % DIVISOR as u64) as u32;
+        s1 = (s1 as u64 + s1_part as u64) as u32;
 
         let w_16 = _mm_set_epi8(1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16);
         let p = _mm_maddubs_epi16(d, w_16);
@@ -1074,7 +1074,7 @@ pub unsafe fn adler32_x86_avx512_vnni(adler: u32, p: &[u8]) -> u32 {
         let v_s2_sum = _mm_add_epi32(v_s2_128, _mm_shuffle_epi32(v_s2_128, 0x31));
         let v_s2_sum = _mm_add_epi32(v_s2_sum, _mm_shuffle_epi32(v_s2_sum, 0x02));
 
-        s1 = ((s1 as u64 + _mm_cvtsi128_si32(v_s1_sum) as u32 as u64) % DIVISOR as u64) as u32;
+        s1 = (s1 as u64 + _mm_cvtsi128_si32(v_s1_sum) as u32 as u64) as u32;
         s2 = ((s2 as u64 + _mm_cvtsi128_si32(v_s2_sum) as u32 as u64) % DIVISOR as u64) as u32;
 
         s1 %= DIVISOR;
@@ -1096,7 +1096,7 @@ pub unsafe fn adler32_x86_avx512_vnni(adler: u32, p: &[u8]) -> u32 {
         let sum_p = hsum_epi32_avx256(p);
 
         s2 = ((s2 as u64 + s1 as u64 * 32 + sum_p as u64) % DIVISOR as u64) as u32;
-        s1 = ((s1 as u64 + sum_u as u64) % DIVISOR as u64) as u32;
+        s1 = (s1 as u64 + sum_u as u64) as u32;
 
         data = &data[32..];
     }
