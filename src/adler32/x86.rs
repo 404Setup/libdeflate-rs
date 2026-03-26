@@ -258,7 +258,7 @@ pub unsafe fn adler32_x86_sse2(adler: u32, p: &[u8]) -> u32 {
         let sad = _mm_sad_epu8(d, v_zero);
         let sum_s1 = _mm_cvtsi128_si32(_mm_add_epi32(sad, _mm_srli_si128(sad, 8))) as u32;
         s2 = ((s2 as u64 + s1 as u64 * 16) % DIVISOR as u64) as u32;
-        s1 = (s1 as u64 + sum_s1 as u32 as u64) as u32;
+        s1 = (s1 as u64 + sum_s1 as u64) as u32;
 
         let d_lo = _mm_unpacklo_epi8(d, v_zero);
         let d_hi = _mm_unpackhi_epi8(d, v_zero);

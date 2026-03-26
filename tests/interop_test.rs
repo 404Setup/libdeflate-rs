@@ -1,6 +1,3 @@
-use std::io::Read;
-use std::io::Write;
-
 fn generate_test_data(size: usize, pattern: u8) -> Vec<u8> {
     let mut data = vec![0u8; size];
     if pattern == 0 {

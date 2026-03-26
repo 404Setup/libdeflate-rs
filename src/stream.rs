@@ -3,7 +3,6 @@ use crate::decompress::{DecompressResult, Decompressor, DecompressorState};
 use rayon::prelude::*;
 use std::cmp::min;
 use std::io::{self, Read, Write};
-use std::mem::MaybeUninit;
 
 /// A streaming encoder that compresses data using the DEFLATE algorithm.
 ///

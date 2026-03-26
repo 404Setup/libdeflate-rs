@@ -690,7 +690,7 @@ impl Compressor {
                             buf.set_len(bound);
                         }
 
-                        let buf_uninit = crate::common::slice_as_uninit_mut(buf);
+                        let buf_uninit = slice_as_uninit_mut(buf);
 
                         let (res, size, _) = compressor.compress(chunk, buf_uninit, mode);
                         if res == CompressResult::Success {
@@ -1397,7 +1397,7 @@ impl Compressor {
         }
 
         while remain > 0 {
-            let block_len = std::cmp::min(remain, 65535);
+            let block_len = min(remain, 65535);
             let bfinal = if is_final && block_len == remain {
                 1
             } else {

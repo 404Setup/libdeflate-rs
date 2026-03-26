@@ -1,6 +1,6 @@
 [package]
 name = "libdeflate"
-version = "26.1.2"
+version = "26.2.0"
 rust-version = "1.92.0"
 edition = "2024"
 authors = ["404"]
