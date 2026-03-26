@@ -1398,7 +1398,11 @@ impl Compressor {
 
         while remain > 0 {
             let block_len = std::cmp::min(remain, 65535);
-            let bfinal = if is_final && block_len == remain { 1 } else { 0 };
+            let bfinal = if is_final && block_len == remain {
+                1
+            } else {
+                0
+            };
 
             if !bs.write_bits(bfinal, 1) || !bs.write_bits(0, 2) {
                 return false;
@@ -1498,7 +1502,8 @@ impl Compressor {
             );
             self.update_huffman_tables();
 
-            let dynamic_cost = self.calculate_dynamic_header_size() + self.calculate_block_data_size() + 3; // +3 for block header
+            let dynamic_cost =
+                self.calculate_dynamic_header_size() + self.calculate_block_data_size() + 3; // +3 for block header
 
             // To be safe against exact alignment overhead for uncompressed block, we allow max 7 bits padding per 65535 block bytes.
             let uncompressed_cost = (processed * 8) + (processed / 65535 + 1) * 40 + 7;
@@ -1606,7 +1611,8 @@ impl Compressor {
                 }
                 let len_slot = self.get_length_slot(length_to_slot);
                 let off_slot = self.get_offset_slot(seq.offset as usize);
-                static_bits += if len_slot < 24 { 7 } else { 8 } + LENGTH_EXTRA_BITS_TABLE[len_slot] as usize;
+                static_bits +=
+                    if len_slot < 24 { 7 } else { 8 } + LENGTH_EXTRA_BITS_TABLE[len_slot] as usize;
                 static_bits += 5 + OFFSET_EXTRA_BITS_TABLE[off_slot] as usize;
                 curr_in += actual_len;
             }
@@ -1623,14 +1629,16 @@ impl Compressor {
             if !bs.write_bits(if is_final { 1 } else { 0 }, 1) {
                 return 0;
             }
-            if !bs.write_bits(1, 2) { // static block
+            if !bs.write_bits(1, 2) {
+                // static block
                 return 0;
             }
 
             if !self.write_sequences_to_bitstream(bs, input, start_pos) {
                 return 0;
             }
-            if !self.write_sym(bs, 256) { // EOF
+            if !self.write_sym(bs, 256) {
+                // EOF
                 return 0;
             }
         }
@@ -2277,11 +2285,7 @@ impl Compressor {
     pub fn deflate_compress_bound(size: usize) -> usize {
         let max_blocks = size.saturating_add(8191) / 8192;
         let bound = size.saturating_add(14usize.saturating_mul(max_blocks));
-        if bound < 30 {
-            30
-        } else {
-            bound
-        }
+        if bound < 30 { 30 } else { bound }
     }
 
     pub fn zlib_compress_bound(size: usize) -> usize {
