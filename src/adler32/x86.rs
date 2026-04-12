@@ -4,7 +4,7 @@ use core::arch::x86::*;
 use core::arch::x86_64::*;
 
 const DIVISOR: u32 = 65521;
-const BLOCK_SIZE: usize = 4096;
+const BLOCK_SIZE: usize = 4032;
 
 macro_rules! adler32_chunk8 {
     ($s1:expr, $s2:expr, $ptr:expr, $len:expr) => {
@@ -576,7 +576,7 @@ pub unsafe fn adler32_x86_avx2(adler: u32, p: &[u8]) -> u32 {
     s1 %= DIVISOR;
     s2 %= DIVISOR;
 
-    (s2 << 16) | s1
+    (s2 % DIVISOR) << 16 | (s1 % DIVISOR)
 }
 
 #[target_feature(enable = "avxvnni")]
@@ -850,7 +850,7 @@ pub unsafe fn adler32_x86_avx2_vnni(adler: u32, p: &[u8]) -> u32 {
     s1 %= DIVISOR;
     s2 %= DIVISOR;
 
-    (s2 << 16) | s1
+    (s2 % DIVISOR) << 16 | (s1 % DIVISOR)
 }
 
 #[cfg(target_arch = "x86_64")]
@@ -1103,5 +1103,5 @@ pub unsafe fn adler32_x86_avx512_vnni(adler: u32, p: &[u8]) -> u32 {
     s1 %= DIVISOR;
     s2 %= DIVISOR;
 
-    (s2 << 16) | s1
+    (s2 % DIVISOR) << 16 | (s1 % DIVISOR)
 }

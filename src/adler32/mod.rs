@@ -2,7 +2,7 @@ use std::cmp::min;
 use std::sync::OnceLock;
 
 const DIVISOR: u32 = 65521;
-const MAX_CHUNK_LEN: usize = 4096;
+const MAX_CHUNK_LEN: usize = 4032;
 
 #[inline]
 fn adler32_chunk(s1: &mut u32, s2: &mut u32, p: &[u8]) {
@@ -30,7 +30,7 @@ fn adler32_chunk(s1: &mut u32, s2: &mut u32, p: &[u8]) {
         let b14 = unsafe { *ptr.add(14) as u32 };
         let b15 = unsafe { *ptr.add(15) as u32 };
 
-        s2_local += (s1_local << 4)
+        s2_local += (s1_local * 16)
             + (b0 * 16)
             + (b1 * 15)
             + (b2 * 14)
@@ -55,21 +55,6 @@ fn adler32_chunk(s1: &mut u32, s2: &mut u32, p: &[u8]) {
             ptr = ptr.add(16);
         }
         len -= 16;
-    }
-
-    while len >= 4 {
-        let b0 = unsafe { *ptr.add(0) as u32 };
-        let b1 = unsafe { *ptr.add(1) as u32 };
-        let b2 = unsafe { *ptr.add(2) as u32 };
-        let b3 = unsafe { *ptr.add(3) as u32 };
-
-        s2_local += (s1_local << 2) + (b0 * 4) + (b1 * 3) + (b2 * 2) + b3;
-        s1_local += b0 + b1 + b2 + b3;
-
-        unsafe {
-            ptr = ptr.add(4);
-        }
-        len -= 4;
     }
 
     while len > 0 {
@@ -104,10 +89,10 @@ pub fn adler32_generic(adler: u32, mut buffer: &[u8]) -> u32 {
 }
 
 #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
-mod x86;
+pub mod x86;
 
 #[cfg(any(target_arch = "arm", target_arch = "aarch64"))]
-mod arm;
+pub mod arm;
 
 type Adler32Fn = unsafe fn(u32, &[u8]) -> u32;
 

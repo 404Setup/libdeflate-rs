@@ -28,7 +28,7 @@ pub unsafe fn adler32_arm_neon(adler: u32, p: &[u8]) -> u32 {
     ];
 
     while data.len() > 0 {
-        let n = std::cmp::min(data.len(), 5504) & !63;
+        let n = std::cmp::min(data.len(), 4032) & !63;
         if n == 0 {
             break;
         }
@@ -118,7 +118,7 @@ pub unsafe fn adler32_arm_neon_dotprod(adler: u32, p: &[u8]) -> u32 {
     let ones = vdupq_n_u8(1);
 
     while data.len() > 0 {
-        let n = std::cmp::min(data.len(), 5504) & !63;
+        let n = std::cmp::min(data.len(), 4032) & !63;
         if n == 0 {
             break;
         }
