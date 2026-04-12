@@ -50,11 +50,20 @@ impl<W: Write + Send> DeflateEncoder<W> {
             let chunks: Vec<&[u8]> = self.buffer.chunks(chunk_size).collect();
             let num_chunks = chunks.len();
 
-            while self.compressors.len() < num_chunks {
-                self.compressors.push(Compressor::new(self.level));
+            if self.compressors.len() < num_chunks {
+                self.compressors.reserve(num_chunks - self.compressors.len());
+                while self.compressors.len() < num_chunks {
+                    self.compressors.push(Compressor::new(self.level));
+                }
             }
-            while self.output_buffers.len() < num_chunks {
-                self.output_buffers.push(Vec::new());
+
+            if self.output_buffers.len() < num_chunks {
+                self.output_buffers
+                    .reserve(num_chunks - self.output_buffers.len());
+                let bound = Compressor::deflate_compress_bound(chunk_size) + 5;
+                while self.output_buffers.len() < num_chunks {
+                    self.output_buffers.push(Vec::with_capacity(bound));
+                }
             }
 
             if num_chunks == 1 {
@@ -135,7 +144,8 @@ impl<W: Write + Send> DeflateEncoder<W> {
                 self.compressors.push(Compressor::new(self.level));
             }
             if self.output_buffers.is_empty() {
-                self.output_buffers.push(Vec::new());
+                let bound = Compressor::deflate_compress_bound(self.buffer.len()) + 5;
+                self.output_buffers.push(Vec::with_capacity(bound));
             }
 
             let compressor = &mut self.compressors[0];
