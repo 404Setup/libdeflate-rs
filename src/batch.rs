@@ -63,15 +63,18 @@ impl BatchDecompressor {
             .map_init(
                 || (Decompressor::new(), Vec::new()),
                 |(decompressor, buffer), (&input, &max_size)| {
+                    buffer.clear();
                     if buffer.capacity() < max_size {
-                        buffer.reserve(max_size.saturating_sub(buffer.len()));
+                        buffer.reserve(max_size);
                     }
-                    unsafe {
-                        buffer.set_len(max_size);
-                    }
+                    let buf_uninit = &mut buffer.spare_capacity_mut()[..max_size];
 
-                    let (res, _, size) = decompressor.decompress(input, buffer);
+                    let (res, _, size) = unsafe { decompressor.decompress_uninit(input, buf_uninit) };
+                    buffer.clear();
                     if res == DecompressResult::Success {
+                        unsafe {
+                            buffer.set_len(size);
+                        }
                         Some(buffer[..size].to_vec())
                     } else {
                         None

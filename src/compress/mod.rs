@@ -683,28 +683,28 @@ impl Compressor {
                         let mode = if is_last { flush_mode } else { FlushMode::Sync };
 
                         let bound = Self::deflate_compress_bound(chunk.len());
+                        buf.clear();
                         if buf.capacity() < bound {
-                            buf.reserve(bound - buf.len());
-                        }
-                        unsafe {
-                            buf.set_len(bound);
+                            buf.reserve(bound);
                         }
 
-                        let buf_uninit = slice_as_uninit_mut(buf);
+                        let buf_uninit = &mut buf.spare_capacity_mut()[..bound];
 
                         let (res, size, _) = compressor.compress(chunk, buf_uninit, mode);
                         if res == CompressResult::Success {
                             unsafe {
                                 buf.set_len(size);
                             }
-                            if size < buf.capacity() / 2 {
+                            let result = if size < buf.capacity() / 2 {
                                 Ok(buf.to_vec())
                             } else {
                                 Ok(std::mem::replace(
                                     buf,
                                     Vec::with_capacity(chunk_size + chunk_size / 2),
                                 ))
-                            }
+                            };
+                            buf.clear();
+                            result
                         } else {
                             Err(io::Error::other("Compression failed"))
                         }
@@ -920,12 +920,7 @@ impl Compressor {
         self.dp_costs[0] = 0;
 
         self.dp_path.clear();
-        if self.dp_path.capacity() < processed + 1 {
-            self.dp_path.reserve(processed + 1 - self.dp_path.len());
-        }
-        unsafe {
-            self.dp_path.set_len(processed + 1);
-        }
+        self.dp_path.resize(processed + 1, 0);
 
         mf.reset();
         let mut pos = 0;
@@ -1717,12 +1712,7 @@ impl Compressor {
         self.dp_costs[0] = 0;
 
         self.dp_path.clear();
-        if self.dp_path.capacity() < processed + 1 {
-            self.dp_path.reserve(processed + 1 - self.dp_path.len());
-        }
-        unsafe {
-            self.dp_path.set_len(processed + 1);
-        }
+        self.dp_path.resize(processed + 1, 0);
 
         mf.reset();
         let mut pos = 0;
