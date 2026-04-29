@@ -458,12 +458,9 @@ impl Decompressor {
                 let rep_count = 3 + ((self.bitbuf & 3) as usize);
                 self.bitbuf >>= 2;
                 self.bitsleft -= 2;
-                for _ in 0..rep_count {
-                    if i < total_syms {
-                        self.lens[i] = rep_val;
-                        i += 1;
-                    }
-                }
+                let fill_len = min(rep_count, total_syms - i);
+                self.lens[i..i + fill_len].fill(rep_val);
+                i += fill_len;
             } else if presym == 17 {
                 if self.bitsleft < 3 {
                     return DecompressResult::ShortInput;
@@ -471,12 +468,9 @@ impl Decompressor {
                 let rep_count = 3 + ((self.bitbuf & 7) as usize);
                 self.bitbuf >>= 3;
                 self.bitsleft -= 3;
-                for _ in 0..rep_count {
-                    if i < total_syms {
-                        self.lens[i] = 0;
-                        i += 1;
-                    }
-                }
+                let fill_len = min(rep_count, total_syms - i);
+                self.lens[i..i + fill_len].fill(0);
+                i += fill_len;
             } else {
                 if self.bitsleft < 7 {
                     return DecompressResult::ShortInput;
@@ -484,12 +478,9 @@ impl Decompressor {
                 let rep_count = 11 + ((self.bitbuf & 0x7F) as usize);
                 self.bitbuf >>= 7;
                 self.bitsleft -= 7;
-                for _ in 0..rep_count {
-                    if i < total_syms {
-                        self.lens[i] = 0;
-                        i += 1;
-                    }
-                }
+                let fill_len = min(rep_count, total_syms - i);
+                self.lens[i..i + fill_len].fill(0);
+                i += fill_len;
             }
         }
         if i != total_syms {
