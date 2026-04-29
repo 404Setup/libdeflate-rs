@@ -91,6 +91,7 @@ impl Compressor {
                 Ok(output)
             }
             CompressResult::InsufficientSpace => Err(io::Error::other("Insufficient space")),
+            CompressResult::InternalError => Err(io::Error::other("Compression failed")),
         }
     }
 
@@ -116,10 +117,9 @@ impl Compressor {
         }
         let out_uninit = crate::common::slice_as_uninit_mut(output);
         let (res, size) = f(&mut self.inner, data, out_uninit);
-        if res == CompressResult::Success {
-            Ok(size)
-        } else {
-            Err(io::Error::other(error_msg))
+        match res {
+            CompressResult::Success => Ok(size),
+            _ => Err(io::Error::other(error_msg)),
         }
     }
 }
