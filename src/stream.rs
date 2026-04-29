@@ -47,8 +47,7 @@ impl<W: Write + Send> DeflateEncoder<W> {
         let buffer_len = self.buffer.len();
 
         if buffer_len > chunk_size {
-            let chunks: Vec<&[u8]> = self.buffer.chunks(chunk_size).collect();
-            let num_chunks = chunks.len();
+            let num_chunks = self.buffer.chunks(chunk_size).len();
 
             if self.compressors.len() < num_chunks {
                 self.compressors.reserve(num_chunks - self.compressors.len());
@@ -66,77 +65,45 @@ impl<W: Write + Send> DeflateEncoder<W> {
                 }
             }
 
-            if num_chunks == 1 {
-                let chunk = chunks[0];
-                let compressor = &mut self.compressors[0];
-                let output = &mut self.output_buffers[0];
-                let mut bound = Compressor::deflate_compress_bound(chunk.len());
-                if !final_block {
-                    bound += 5;
-                }
-                if output.len() < bound {
-                    output
-                        .try_reserve(bound - output.len())
-                        .map_err(io::Error::other)?;
-                    unsafe {
-                        output.set_len(bound);
+            let compressed_chunks: Vec<io::Result<usize>> = self
+                .buffer
+                .par_chunks(chunk_size)
+                .zip(self.compressors.par_iter_mut())
+                .zip(self.output_buffers.par_iter_mut())
+                .enumerate()
+                .map(|(i, ((chunk, compressor), output))| {
+                    let mut bound = Compressor::deflate_compress_bound(chunk.len());
+                    if !(final_block && i == num_chunks - 1) {
+                        bound += 5;
                     }
-                }
-
-                let mode = if final_block {
-                    crate::compress::FlushMode::Finish
-                } else {
-                    crate::compress::FlushMode::Sync
-                };
-                let out_uninit = crate::common::slice_as_uninit_mut(output);
-                let (res, size, _) = compressor.compress(chunk, out_uninit, mode);
-                if res == CompressResult::Success {
-                    if let Some(writer) = &mut self.writer {
-                        writer.write_all(&output[..size])?;
+                    if output.len() < bound {
+                        output
+                            .try_reserve(bound - output.len())
+                            .map_err(io::Error::other)?;
+                        unsafe {
+                            output.set_len(bound);
+                        }
                     }
-                } else {
-                    return Err(io::Error::other("Compression failed"));
-                }
-            } else {
-                let compressed_chunks: Vec<io::Result<usize>> = chunks
-                    .par_iter()
-                    .zip(self.compressors.par_iter_mut())
-                    .zip(self.output_buffers.par_iter_mut())
-                    .enumerate()
-                    .map(|(i, ((&chunk, compressor), output))| {
-                        let mut bound = Compressor::deflate_compress_bound(chunk.len());
-                        if !(final_block && i == num_chunks - 1) {
-                            bound += 5;
-                        }
-                        if output.len() < bound {
-                            output
-                                .try_reserve(bound - output.len())
-                                .map_err(io::Error::other)?;
-                            unsafe {
-                                output.set_len(bound);
-                            }
-                        }
 
-                        let mode = if final_block && i == num_chunks - 1 {
-                            crate::compress::FlushMode::Finish
-                        } else {
-                            crate::compress::FlushMode::Sync
-                        };
-                        let out_uninit = crate::common::slice_as_uninit_mut(output);
-                        let (res, size, _) = compressor.compress(chunk, out_uninit, mode);
-                        if res == CompressResult::Success {
-                            Ok(size)
-                        } else {
-                            Err(io::Error::other("Compression failed"))
-                        }
-                    })
-                    .collect();
-
-                if let Some(writer) = &mut self.writer {
-                    for (i, size_res) in compressed_chunks.into_iter().enumerate() {
-                        let size = size_res?;
-                        writer.write_all(&self.output_buffers[i][..size])?;
+                    let mode = if final_block && i == num_chunks - 1 {
+                        crate::compress::FlushMode::Finish
+                    } else {
+                        crate::compress::FlushMode::Sync
+                    };
+                    let out_uninit = crate::common::slice_as_uninit_mut(output);
+                    let (res, size, _) = compressor.compress(chunk, out_uninit, mode);
+                    if res == CompressResult::Success {
+                        Ok(size)
+                    } else {
+                        Err(io::Error::other("Compression failed"))
                     }
+                })
+                .collect();
+
+            if let Some(writer) = &mut self.writer {
+                for (i, size_res) in compressed_chunks.into_iter().enumerate() {
+                    let size = size_res?;
+                    writer.write_all(&self.output_buffers[i][..size])?;
                 }
             }
         } else {
