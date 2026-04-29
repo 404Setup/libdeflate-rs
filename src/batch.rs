@@ -41,11 +41,7 @@ impl BatchCompressor {
 
 pub struct BatchDecompressor;
 
-impl Default for BatchDecompressor {
-    fn default() -> Self {
-        Self::new()
-    }
-}
+crate::impl_default_new!(BatchDecompressor);
 
 impl BatchDecompressor {
     pub fn new() -> Self {
