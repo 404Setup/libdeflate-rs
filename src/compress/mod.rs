@@ -210,6 +210,7 @@ fn compute_static_tables() -> StaticTables {
 pub enum CompressResult {
     Success,
     InsufficientSpace,
+    InternalError,
 }
 
 #[derive(Clone, Copy)]
@@ -740,7 +741,10 @@ impl Compressor {
 
         let mut bs = Bitstream::new(output);
 
-        let mut mf_enum = self.mf.take().unwrap();
+        let mut mf_enum = match self.mf.take() {
+            Some(mf) => mf,
+            None => return (CompressResult::InternalError, 0, 0),
+        };
 
         let res = match &mut mf_enum {
             MatchFinderEnum::Chain(mf) => self.compress_loop(mf, input, &mut bs, flush_mode),
@@ -1030,7 +1034,7 @@ impl Compressor {
         (processed, bits)
     }
 
-    pub fn compress_to_size(&mut self, input: &[u8], final_block: bool) -> usize {
+    pub fn compress_to_size(&mut self, input: &[u8], final_block: bool) -> (CompressResult, usize) {
         if self.compression_level == 0 {
             let num_blocks = input.len() / 65535
                 + if !input.len().is_multiple_of(65535) || (input.is_empty() && final_block) {
@@ -1038,10 +1042,13 @@ impl Compressor {
                 } else {
                     0
                 };
-            return input.len() + num_blocks * 5;
+            return (CompressResult::Success, input.len() + num_blocks * 5);
         }
 
-        let mut mf_enum = self.mf.take().unwrap();
+        let mut mf_enum = match self.mf.take() {
+            Some(mf) => mf,
+            None => return (CompressResult::InternalError, 0),
+        };
 
         let res = match &mut mf_enum {
             MatchFinderEnum::Chain(mf) => self.compress_to_size_loop(mf, input, final_block),
@@ -1050,7 +1057,7 @@ impl Compressor {
         };
 
         self.mf = Some(mf_enum);
-        res
+        (CompressResult::Success, res)
     }
 
     fn accumulate_greedy_frequencies<T: MatchFinderTrait>(
@@ -2405,5 +2412,25 @@ impl Compressor {
         }
         out_idx += 4;
         (CompressResult::Success, out_idx)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_compressor_missing_mf() {
+        let mut compressor = Compressor::new(6);
+        compressor.mf = None;
+
+        let input = b"hello world";
+        let mut output = [MaybeUninit::uninit(); 100];
+
+        let (res, _, _) = compressor.compress(input, &mut output, FlushMode::Finish);
+        assert_eq!(res, CompressResult::InternalError);
+
+        let (res, _) = compressor.compress_to_size(input, true);
+        assert_eq!(res, CompressResult::InternalError);
     }
 }
