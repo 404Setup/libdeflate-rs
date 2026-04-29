@@ -84,3 +84,46 @@ pub fn slice_as_uninit_mut(slice: &mut [u8]) -> &mut [std::mem::MaybeUninit<u8>]
         )
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_slice_as_uninit_mut() {
+        let mut buf = [0u8; 4];
+        let buf_ptr = buf.as_mut_ptr();
+        {
+            let uninit_slice = slice_as_uninit_mut(&mut buf);
+
+            assert_eq!(uninit_slice.len(), 4);
+            assert_eq!(uninit_slice.as_mut_ptr() as *mut u8, buf_ptr);
+
+            // Safety: we are writing to a valid element and then checking it
+            uninit_slice[0].write(42);
+            uninit_slice[3].write(255);
+        }
+
+        assert_eq!(buf[0], 42);
+        assert_eq!(buf[3], 255);
+    }
+
+    #[test]
+    fn test_slice_as_uninit_mut_empty() {
+        let mut buf: [u8; 0] = [];
+        let uninit_slice = slice_as_uninit_mut(&mut buf);
+        assert_eq!(uninit_slice.len(), 0);
+    }
+
+    #[test]
+    fn test_bsr32() {
+        assert_eq!(bsr32(1), 0);
+        assert_eq!(bsr32(2), 1);
+        assert_eq!(bsr32(3), 1);
+        assert_eq!(bsr32(4), 2);
+        assert_eq!(bsr32(7), 2);
+        assert_eq!(bsr32(8), 3);
+        assert_eq!(bsr32(0x80000000), 31);
+        assert_eq!(bsr32(u32::MAX), 31);
+    }
+}
