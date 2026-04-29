@@ -84,3 +84,15 @@ pub fn slice_as_uninit_mut(slice: &mut [u8]) -> &mut [std::mem::MaybeUninit<u8>]
         )
     }
 }
+
+#[macro_export]
+macro_rules! impl_default_new {
+    ($t:ty) => {
+        impl Default for $t {
+            #[inline(always)]
+            fn default() -> Self {
+                Self::new()
+            }
+        }
+    };
+}

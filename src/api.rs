@@ -130,11 +130,7 @@ pub struct Decompressor {
     limit_ratio: usize,
 }
 
-impl Default for Decompressor {
-    fn default() -> Self {
-        Self::new()
-    }
-}
+crate::impl_default_new!(Decompressor);
 
 impl Decompressor {
     pub fn new() -> Self {
