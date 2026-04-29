@@ -26,6 +26,7 @@ impl BatchCompressor {
                     let (res, size, _) =
                         compressor.compress(input, buf_slice, crate::compress::FlushMode::Finish);
                     if res == CompressResult::Success {
+                        assert!(size <= bound);
                         unsafe {
                             buffer.set_len(size);
                         }
@@ -59,16 +60,20 @@ impl BatchDecompressor {
             .map_init(
                 || (Decompressor::new(), Vec::new()),
                 |(decompressor, buffer), (&input, &max_size)| {
+                    buffer.clear();
                     if buffer.capacity() < max_size {
-                        buffer.reserve(max_size.saturating_sub(buffer.len()));
+                        buffer.reserve(max_size);
                     }
-                    unsafe {
-                        buffer.set_len(max_size);
-                    }
+                    let buf_uninit = buffer.spare_capacity_mut();
+                    let buf_slice = &mut buf_uninit[..max_size];
 
-                    let (res, _, size) = decompressor.decompress(input, buffer);
+                    let (res, _, size) = unsafe { decompressor.decompress_uninit(input, buf_slice) };
                     if res == DecompressResult::Success {
-                        Some(buffer[..size].to_vec())
+                        assert!(size <= max_size);
+                        unsafe {
+                            buffer.set_len(size);
+                        }
+                        Some(buffer.to_vec())
                     } else {
                         None
                     }

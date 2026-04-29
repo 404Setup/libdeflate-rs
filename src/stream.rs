@@ -74,13 +74,11 @@ impl<W: Write + Send> DeflateEncoder<W> {
                 if !final_block {
                     bound += 5;
                 }
-                if output.len() < bound {
+                output.clear();
+                if output.capacity() < bound {
                     output
-                        .try_reserve(bound - output.len())
+                        .try_reserve(bound)
                         .map_err(io::Error::other)?;
-                    unsafe {
-                        output.set_len(bound);
-                    }
                 }
 
                 let mode = if final_block {
@@ -88,9 +86,14 @@ impl<W: Write + Send> DeflateEncoder<W> {
                 } else {
                     crate::compress::FlushMode::Sync
                 };
-                let out_uninit = crate::common::slice_as_uninit_mut(output);
+                let out_uninit = output.spare_capacity_mut();
+                let out_uninit = &mut out_uninit[..bound];
                 let (res, size, _) = compressor.compress(chunk, out_uninit, mode);
                 if res == CompressResult::Success {
+                    assert!(size <= bound);
+                    unsafe {
+                        output.set_len(size);
+                    }
                     if let Some(writer) = &mut self.writer {
                         writer.write_all(&output[..size])?;
                     }
@@ -108,13 +111,11 @@ impl<W: Write + Send> DeflateEncoder<W> {
                         if !(final_block && i == num_chunks - 1) {
                             bound += 5;
                         }
-                        if output.len() < bound {
+                        output.clear();
+                        if output.capacity() < bound {
                             output
-                                .try_reserve(bound - output.len())
+                                .try_reserve(bound)
                                 .map_err(io::Error::other)?;
-                            unsafe {
-                                output.set_len(bound);
-                            }
                         }
 
                         let mode = if final_block && i == num_chunks - 1 {
@@ -122,9 +123,14 @@ impl<W: Write + Send> DeflateEncoder<W> {
                         } else {
                             crate::compress::FlushMode::Sync
                         };
-                        let out_uninit = crate::common::slice_as_uninit_mut(output);
+                        let out_uninit = output.spare_capacity_mut();
+                        let out_uninit = &mut out_uninit[..bound];
                         let (res, size, _) = compressor.compress(chunk, out_uninit, mode);
                         if res == CompressResult::Success {
+                            assert!(size <= bound);
+                            unsafe {
+                                output.set_len(size);
+                            }
                             Ok(size)
                         } else {
                             Err(io::Error::other("Compression failed"))
@@ -154,13 +160,11 @@ impl<W: Write + Send> DeflateEncoder<W> {
             if !final_block {
                 bound += 5;
             }
-            if output.len() < bound {
+            output.clear();
+            if output.capacity() < bound {
                 output
-                    .try_reserve(bound - output.len())
+                    .try_reserve(bound)
                     .map_err(io::Error::other)?;
-                unsafe {
-                    output.set_len(bound);
-                }
             }
 
             let mode = if final_block {
@@ -168,9 +172,14 @@ impl<W: Write + Send> DeflateEncoder<W> {
             } else {
                 crate::compress::FlushMode::Sync
             };
-            let out_uninit = crate::common::slice_as_uninit_mut(output);
+            let out_uninit = output.spare_capacity_mut();
+            let out_uninit = &mut out_uninit[..bound];
             let (res, size, _) = compressor.compress(&self.buffer, out_uninit, mode);
             if res == CompressResult::Success {
+                assert!(size <= bound);
+                unsafe {
+                    output.set_len(size);
+                }
                 if let Some(writer) = &mut self.writer {
                     writer.write_all(&output[..size])?;
                 }
