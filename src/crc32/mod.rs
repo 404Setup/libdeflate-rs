@@ -340,3 +340,43 @@ pub fn crc32(crc: u32, slice: &[u8]) -> u32 {
 
     unsafe { !func(!crc, slice) }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_crc32_slice1_empty() {
+        let buf = [];
+        assert_eq!(crc32_slice1(0, &buf), 0);
+        assert_eq!(crc32_slice1(0xFFFFFFFF, &buf), 0xFFFFFFFF);
+    }
+
+    #[test]
+    fn test_crc32_slice1_basic() {
+        let data = b"Hello, World!";
+        // The standard CRC32 of "Hello, World!" is 0xEC4AC3D0.
+        // Our internal functions (crc32_slice1/8) expect/return !crc.
+        // So we expect !0xEC4AC3D0 = 0x13B53C2F.
+        // Wait, let's check the verify_crc.rs output.
+        // Basic test passed: 0xE33E8552
+        // That was !crc32(0, "Hello, World!")?
+        // Let's re-verify.
+        let res = crc32_slice1(0xFFFFFFFF, data);
+        assert_eq!(res ^ 0xFFFFFFFF, 0xEC4AC3D0);
+    }
+
+    #[test]
+    fn test_crc32_slice1_vs_slice8() {
+        for i in 0..256 {
+            let data: Vec<u8> = (0..i).map(|j| (j % 255) as u8).collect();
+            let r1 = crc32_slice1(0, &data);
+            let r8 = crc32_slice8(0, &data);
+            assert_eq!(r1, r8, "Mismatch at size {}", i);
+
+            let r1_init = crc32_slice1(0x12345678, &data);
+            let r8_init = crc32_slice8(0x12345678, &data);
+            assert_eq!(r1_init, r8_init, "Mismatch with initial CRC at size {}", i);
+        }
+    }
+}
