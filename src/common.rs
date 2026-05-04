@@ -96,3 +96,45 @@ macro_rules! impl_default_new {
         }
     };
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_bsr32() {
+        assert_eq!(bsr32(1), 0);
+        assert_eq!(bsr32(2), 1);
+        assert_eq!(bsr32(3), 1);
+        assert_eq!(bsr32(4), 2);
+        assert_eq!(bsr32(7), 2);
+        assert_eq!(bsr32(8), 3);
+        assert_eq!(bsr32(15), 3);
+        assert_eq!(bsr32(16), 4);
+        assert_eq!(bsr32(0x80000000), 31);
+        assert_eq!(bsr32(0xFFFFFFFF), 31);
+    }
+
+    #[test]
+    fn test_slice_as_uninit_mut() {
+        let mut data = [1u8, 2, 3, 4, 5];
+        let uninit_slice = slice_as_uninit_mut(&mut data);
+
+        assert_eq!(uninit_slice.len(), 5);
+
+        // Mutate through the uninit slice
+        uninit_slice[0].write(10);
+        uninit_slice[4].write(50);
+
+        assert_eq!(data[0], 10);
+        assert_eq!(data[1], 2);
+        assert_eq!(data[4], 50);
+    }
+
+    #[test]
+    fn test_slice_as_uninit_mut_empty() {
+        let mut data: [u8; 0] = [];
+        let uninit_slice = slice_as_uninit_mut(&mut data);
+        assert_eq!(uninit_slice.len(), 0);
+    }
+}
