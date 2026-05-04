@@ -85,6 +85,7 @@ impl Compressor {
         let (res, size) = f(&mut self.inner, data, out_uninit);
         match res {
             CompressResult::Success => {
+                assert!(size <= bound);
                 unsafe {
                     output.set_len(size);
                 }
@@ -118,7 +119,10 @@ impl Compressor {
         let out_uninit = crate::common::slice_as_uninit_mut(output);
         let (res, size) = f(&mut self.inner, data, out_uninit);
         match res {
-            CompressResult::Success => Ok(size),
+            CompressResult::Success => {
+                assert!(size <= output.len());
+                Ok(size)
+            }
             _ => Err(io::Error::other(error_msg)),
         }
     }
@@ -233,6 +237,7 @@ impl Decompressor {
 
         let (res, _, size) = f(&mut self.inner, data, out_uninit);
         if res == crate::decompress::DecompressResult::Success {
+            assert!(size <= expected_size);
             unsafe {
                 output.set_len(size);
             }
@@ -268,6 +273,7 @@ impl Decompressor {
         let out_uninit = crate::common::slice_as_uninit_mut(output);
         let (res, _, size) = f(&mut self.inner, data, out_uninit);
         if res == crate::decompress::DecompressResult::Success {
+            assert!(size <= output.len());
             Ok(size)
         } else {
             Err(io::Error::new(
