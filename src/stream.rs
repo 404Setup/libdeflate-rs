@@ -199,7 +199,9 @@ impl<W: Write + Send> DeflateEncoder<W> {
     /// but will silently ignore any errors.
     pub fn finish(mut self) -> io::Result<W> {
         self.flush_buffer(true)?;
-        Ok(self.writer.take().unwrap())
+        self.writer
+            .take()
+            .ok_or_else(|| io::Error::new(io::ErrorKind::Other, "encoder already finished"))
     }
 }
 
