@@ -30,7 +30,7 @@ impl BatchCompressor {
                         unsafe {
                             buffer.set_len(size);
                         }
-                        buffer.to_vec()
+                        std::mem::take(buffer)
                     } else {
                         Vec::new()
                     }
@@ -73,7 +73,7 @@ impl BatchDecompressor {
                         unsafe {
                             buffer.set_len(size);
                         }
-                        Some(buffer.to_vec())
+                        Some(std::mem::take(buffer))
                     } else {
                         None
                     }

@@ -1070,8 +1070,8 @@ pub unsafe fn adler32_x86_avx512_vnni(adler: u32, p: &[u8]) -> u32 {
         let v_s2_sum = _mm_add_epi32(v_s2_128, _mm_shuffle_epi32(v_s2_128, 0x31));
         let v_s2_sum = _mm_add_epi32(v_s2_sum, _mm_shuffle_epi32(v_s2_sum, 0x02));
 
-        s1 = (s1 as u64 + _mm_cvtsi128_si32(v_s1_sum) as u32 as u64) as u32;
-        s2 = ((s2 as u64 + _mm_cvtsi128_si32(v_s2_sum) as u32 as u64) % DIVISOR as u64) as u32;
+        s1 = (s1 as u64 + (_mm_cvtsi128_si32(v_s1_sum) as u32) as u64) as u32;
+        s2 = ((s2 as u64 + (_mm_cvtsi128_si32(v_s2_sum) as u32) as u64) % DIVISOR as u64) as u32;
 
         s1 %= DIVISOR;
         s2 %= DIVISOR;
