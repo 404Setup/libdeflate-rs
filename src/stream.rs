@@ -50,7 +50,8 @@ impl<W: Write + Send> DeflateEncoder<W> {
             let num_chunks = (buffer_len + chunk_size - 1) / chunk_size;
 
             if self.compressors.len() < num_chunks {
-                self.compressors.reserve(num_chunks - self.compressors.len());
+                self.compressors
+                    .reserve(num_chunks - self.compressors.len());
                 while self.compressors.len() < num_chunks {
                     self.compressors.push(Compressor::new(self.level));
                 }
@@ -121,9 +122,7 @@ impl<W: Write + Send> DeflateEncoder<W> {
             }
             output.clear();
             if output.capacity() < bound {
-                output
-                    .try_reserve(bound)
-                    .map_err(io::Error::other)?;
+                output.try_reserve(bound).map_err(io::Error::other)?;
             }
 
             let mode = if final_block {

@@ -19,17 +19,14 @@ impl BatchCompressor {
                 |(compressor, buffer), &input| {
                     let bound = Compressor::deflate_compress_bound(input.len());
                     buffer.clear();
-                    buffer.reserve(bound);
-                    let buf_uninit = buffer.spare_capacity_mut();
-                    let buf_slice = &mut buf_uninit[..bound];
+                    buffer.resize(bound, 0);
+                    let buf_slice = crate::common::slice_as_uninit_mut(&mut buffer[..bound]);
 
                     let (res, size, _) =
                         compressor.compress(input, buf_slice, crate::compress::FlushMode::Finish);
                     if res == CompressResult::Success {
                         assert!(size <= bound);
-                        unsafe {
-                            buffer.set_len(size);
-                        }
+                        buffer.truncate(size);
                         std::mem::take(buffer)
                     } else {
                         Vec::new()
@@ -61,18 +58,14 @@ impl BatchDecompressor {
                 || (Decompressor::new(), Vec::new()),
                 |(decompressor, buffer), (&input, &max_size)| {
                     buffer.clear();
-                    if buffer.capacity() < max_size {
-                        buffer.reserve(max_size);
-                    }
-                    let buf_uninit = buffer.spare_capacity_mut();
-                    let buf_slice = &mut buf_uninit[..max_size];
+                    buffer.resize(max_size, 0);
+                    let buf_slice = crate::common::slice_as_uninit_mut(&mut buffer[..max_size]);
 
-                    let (res, _, size) = unsafe { decompressor.decompress_uninit(input, buf_slice) };
+                    let (res, _, size) =
+                        unsafe { decompressor.decompress_uninit(input, buf_slice) };
                     if res == DecompressResult::Success {
                         assert!(size <= max_size);
-                        unsafe {
-                            buffer.set_len(size);
-                        }
+                        buffer.truncate(size);
                         Some(std::mem::take(buffer))
                     } else {
                         None
