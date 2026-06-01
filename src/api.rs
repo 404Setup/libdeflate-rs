@@ -79,16 +79,14 @@ impl Compressor {
         let mut output = Vec::new();
         output.try_reserve_exact(bound).map_err(io::Error::other)?;
 
-        let out_uninit = output.spare_capacity_mut();
-        let out_uninit = &mut out_uninit[..bound];
+        output.resize(bound, 0);
+        let out_uninit = crate::common::slice_as_uninit_mut(&mut output[..bound]);
 
         let (res, size) = f(&mut self.inner, data, out_uninit);
         match res {
             CompressResult::Success => {
                 assert!(size <= bound);
-                unsafe {
-                    output.set_len(size);
-                }
+                output.truncate(size);
                 Ok(output)
             }
             CompressResult::InsufficientSpace => Err(io::Error::other("Insufficient space")),
@@ -232,15 +230,13 @@ impl Decompressor {
             .try_reserve_exact(expected_size)
             .map_err(io::Error::other)?;
 
-        let out_uninit = output.spare_capacity_mut();
-        let out_uninit = &mut out_uninit[..expected_size];
+        output.resize(expected_size, 0);
+        let out_uninit = crate::common::slice_as_uninit_mut(&mut output[..expected_size]);
 
         let (res, _, size) = f(&mut self.inner, data, out_uninit);
         if res == crate::decompress::DecompressResult::Success {
             assert!(size <= expected_size);
-            unsafe {
-                output.set_len(size);
-            }
+            output.truncate(size);
             Ok(output)
         } else {
             Err(io::Error::new(
