@@ -2421,4 +2421,97 @@ mod tests {
         let (res, _) = compressor.compress_to_size(input, true);
         assert_eq!(res, CompressResult::InternalError);
     }
+
+    #[test]
+    fn test_compress_to_size_large_input() {
+        // Create an input larger than 64KB to trigger multiple internal block splits
+        // during calculation without needing chunks (compress_to_size gets full chunk).
+        let size = 100 * 1024;
+        let mut input = Vec::with_capacity(size);
+        for i in 0..size {
+            // Semi-compressible data
+            input.push((i % 256) as u8);
+        }
+
+        // Test with different calculation loops
+        for level in [1, 6, 10] {
+            let mut compressor = Compressor::new(level);
+            let (res, calc_size) = compressor.compress_to_size(&input, true);
+            assert_eq!(res, CompressResult::Success);
+            assert!(calc_size > 0);
+
+            // To ensure it's somewhat accurate and bounded, we know it shouldn't grow massively
+            // over uncompressed size.
+            let bound = Compressor::deflate_compress_bound(size);
+            assert!(calc_size <= bound);
+        }
+    }
+
+    #[test]
+    fn test_compress_to_size_different_levels() {
+        // A repetitive string that compresses well.
+        let input = b"abcabcabcabcabcabcabcabcabcabcabcabcabcabcabc";
+
+        let mut compressor_1 = Compressor::new(1); // Should use Table match finder
+        let (res_1, size_1) = compressor_1.compress_to_size(input, true);
+        assert_eq!(res_1, CompressResult::Success);
+        assert!(size_1 > 0);
+        assert!(size_1 < input.len()); // It should compress at least a bit
+
+        let mut compressor_6 = Compressor::new(6); // Should use Chain match finder
+        let (res_6, size_6) = compressor_6.compress_to_size(input, true);
+        assert_eq!(res_6, CompressResult::Success);
+        assert!(size_6 > 0);
+        assert!(size_6 < input.len());
+
+        let mut compressor_10 = Compressor::new(10); // Should use Bt match finder
+        let (res_10, size_10) = compressor_10.compress_to_size(input, true);
+        assert_eq!(res_10, CompressResult::Success);
+        assert!(size_10 > 0);
+        assert!(size_10 < input.len());
+
+        // Also test non-repetitive string (size might be larger due to headers but still returns valid size)
+        let non_repetitive: Vec<u8> = (0..100).map(|i| i as u8).collect();
+        let (res_nr, size_nr) = compressor_6.compress_to_size(&non_repetitive, true);
+        assert_eq!(res_nr, CompressResult::Success);
+        assert!(size_nr > 0);
+    }
+
+    #[test]
+    fn test_compress_to_size_level_0() {
+        let mut compressor = Compressor::new(0);
+
+        // Empty input, final block
+        let (res, size) = compressor.compress_to_size(b"", true);
+        assert_eq!(res, CompressResult::Success);
+        assert_eq!(size, 5); // 0 + 1 * 5
+
+        // Empty input, not final block
+        let (res, size) = compressor.compress_to_size(b"", false);
+        assert_eq!(res, CompressResult::Success);
+        assert_eq!(size, 0); // 0 + 0 * 5
+
+        // Small input, final block
+        let input = vec![0; 100];
+        let (res, size) = compressor.compress_to_size(&input, true);
+        assert_eq!(res, CompressResult::Success);
+        assert_eq!(size, 105); // 100 + 1 * 5
+
+        // Exact block size (65535), final block
+        let input = vec![0; 65535];
+        let (res, size) = compressor.compress_to_size(&input, true);
+        assert_eq!(res, CompressResult::Success);
+        assert_eq!(size, 65535 + 5);
+
+        // Exact block size (65535), not final block
+        let (res, size) = compressor.compress_to_size(&input, false);
+        assert_eq!(res, CompressResult::Success);
+        assert_eq!(size, 65535 + 5);
+
+        // Larger than block size, final block
+        let input = vec![0; 65536];
+        let (res, size) = compressor.compress_to_size(&input, true);
+        assert_eq!(res, CompressResult::Success);
+        assert_eq!(size, 65536 + 10); // 2 blocks * 5
+    }
 }
