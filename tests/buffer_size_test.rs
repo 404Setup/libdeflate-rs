@@ -85,8 +85,20 @@ fn test_small_vs_large_buffer() {
     let writer_small = Arc::new(Mutex::new(Vec::new()));
     let writer_large = Arc::new(Mutex::new(Vec::new()));
 
-    let mut encoder_small = DeflateEncoder::new(SharedWriter { data: writer_small.clone() }, 6).with_buffer_size(10);
-    let mut encoder_large = DeflateEncoder::new(SharedWriter { data: writer_large.clone() }, 6).with_buffer_size(10000);
+    let mut encoder_small = DeflateEncoder::new(
+        SharedWriter {
+            data: writer_small.clone(),
+        },
+        6,
+    )
+    .with_buffer_size(10);
+    let mut encoder_large = DeflateEncoder::new(
+        SharedWriter {
+            data: writer_large.clone(),
+        },
+        6,
+    )
+    .with_buffer_size(10000);
 
     encoder_small.write_all(&data).unwrap();
     encoder_small.finish().unwrap();

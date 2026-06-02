@@ -256,7 +256,8 @@ pub unsafe fn adler32_x86_sse2(adler: u32, p: &[u8]) -> u32 {
     if data.len() >= 16 {
         let d = _mm_loadu_si128(data.as_ptr() as *const __m128i);
         let sad = _mm_sad_epu8(d, v_zero);
-        let sum_s1 = _mm_cvtsi128_si32(_mm_add_epi32(sad, _mm_srli_si128(sad, 8))) as u32;
+        let sum_s1 =
+            (_mm_cvtsi128_si32(_mm_add_epi32(sad, _mm_srli_si128(sad, 8))) as u32) as u64 as u32;
         s2 = ((s2 as u64 + s1 as u64 * 16) % DIVISOR as u64) as u32;
         s1 = (s1 as u64 + sum_s1 as u64) as u32;
 
@@ -271,7 +272,8 @@ pub unsafe fn adler32_x86_sse2(adler: u32, p: &[u8]) -> u32 {
         let s = _mm_add_epi32(s_lo, s_hi);
 
         let s_step = _mm_add_epi32(s, _mm_srli_si128(s, 8));
-        let sum_s2 = _mm_cvtsi128_si32(_mm_add_epi32(s_step, _mm_srli_si128(s_step, 4))) as u32;
+        let sum_s2 = (_mm_cvtsi128_si32(_mm_add_epi32(s_step, _mm_srli_si128(s_step, 4))) as u32)
+            as u64 as u32;
         s2 = ((s2 as u64 + sum_s2 as u64) % DIVISOR as u64) as u32;
 
         data = &data[16..];
@@ -554,7 +556,8 @@ pub unsafe fn adler32_x86_avx2(adler: u32, p: &[u8]) -> u32 {
         let v_zero_xmm = _mm_setzero_si128();
 
         let sad = _mm_sad_epu8(d, v_zero_xmm);
-        let s1_part = _mm_cvtsi128_si32(_mm_add_epi32(sad, _mm_unpackhi_epi64(sad, sad))) as u32;
+        let s1_part = (_mm_cvtsi128_si32(_mm_add_epi32(sad, _mm_unpackhi_epi64(sad, sad))) as u32)
+            as u64 as u32;
 
         s2 = ((s2 as u64 + s1 as u64 * 16) % DIVISOR as u64) as u32;
         s1 = (s1 as u64 + s1_part as u64) as u32;
@@ -826,7 +829,8 @@ pub unsafe fn adler32_x86_avx2_vnni(adler: u32, p: &[u8]) -> u32 {
         let v_zero_xmm = _mm_setzero_si128();
 
         let sad = _mm_sad_epu8(d, v_zero_xmm);
-        let s1_part = _mm_cvtsi128_si32(_mm_add_epi32(sad, _mm_unpackhi_epi64(sad, sad))) as u32;
+        let s1_part = (_mm_cvtsi128_si32(_mm_add_epi32(sad, _mm_unpackhi_epi64(sad, sad))) as u32)
+            as u64 as u32;
 
         s2 = ((s2 as u64 + s1 as u64 * 16) % DIVISOR as u64) as u32;
         s1 = (s1 as u64 + s1_part as u64) as u32;
@@ -862,7 +866,7 @@ unsafe fn hsum_epi32_avx256(v: __m256i) -> u32 {
     );
     let v64 = _mm_add_epi32(v128, _mm_shuffle_epi32(v128, 0x4E));
     let v32 = _mm_add_epi32(v64, _mm_shuffle_epi32(v64, 0xB1));
-    _mm_cvtsi128_si32(v32) as u32
+    (_mm_cvtsi128_si32(v32) as u32) as u64 as u32
 }
 
 #[target_feature(enable = "avx512f,avx512bw,avx512vl,avx512vnni")]
