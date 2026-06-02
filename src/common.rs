@@ -116,6 +116,25 @@ mod tests {
     }
 
     #[test]
+    #[should_panic]
+    fn test_bsr32_zero() {
+        let _ = bsr32(0);
+    }
+
+    #[test]
+    fn test_bsr32_property_all_powers_of_two() {
+        for i in 0..32 {
+            let val = 1u32 << i;
+            assert_eq!(bsr32(val), i as u32);
+
+            if i < 31 {
+                let mask = (1u32 << (i + 1)) - 1;
+                assert_eq!(bsr32(mask), i as u32);
+            }
+        }
+    }
+
+    #[test]
     fn test_slice_as_uninit_mut() {
         let mut data = [1u8, 2, 3, 4, 5];
         let uninit_slice = slice_as_uninit_mut(&mut data);
