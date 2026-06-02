@@ -399,20 +399,12 @@ impl Decompressor {
         self.static_codes_loaded = true;
     }
 
-    fn read_dynamic_huffman_header(
+    fn read_precode_lens(
         &mut self,
         input: &[u8],
         in_idx: &mut usize,
+        num_precode_syms: usize,
     ) -> DecompressResult {
-        refill_bits!(input, *in_idx, self.bitbuf, self.bitsleft);
-        if self.bitsleft < 14 {
-            return DecompressResult::ShortInput;
-        }
-        let num_litlen_syms = 257 + ((self.bitbuf & 0x1F) as usize);
-        let num_offset_syms = 1 + (((self.bitbuf >> 5) & 0x1F) as usize);
-        let num_precode_syms = 4 + (((self.bitbuf >> 10) & 0xF) as usize);
-        self.bitbuf >>= 14;
-        self.bitsleft -= 14;
         let permutation = [
             16, 17, 18, 0, 8, 7, 9, 6, 10, 5, 11, 4, 12, 3, 13, 2, 14, 1, 15,
         ];
@@ -431,8 +423,16 @@ impl Decompressor {
         if !self.build_precode_decode_table() {
             return DecompressResult::BadData;
         }
+        DecompressResult::Success
+    }
+
+    fn read_huffman_lens(
+        &mut self,
+        input: &[u8],
+        in_idx: &mut usize,
+        total_syms: usize,
+    ) -> DecompressResult {
         let mut i = 0;
-        let total_syms = num_litlen_syms + num_offset_syms;
         while i < total_syms {
             refill_bits!(input, *in_idx, self.bitbuf, self.bitsleft);
             let entry =
@@ -486,6 +486,35 @@ impl Decompressor {
         if i != total_syms {
             return DecompressResult::BadData;
         }
+        DecompressResult::Success
+    }
+
+    fn read_dynamic_huffman_header(
+        &mut self,
+        input: &[u8],
+        in_idx: &mut usize,
+    ) -> DecompressResult {
+        refill_bits!(input, *in_idx, self.bitbuf, self.bitsleft);
+        if self.bitsleft < 14 {
+            return DecompressResult::ShortInput;
+        }
+        let num_litlen_syms = 257 + ((self.bitbuf & 0x1F) as usize);
+        let num_offset_syms = 1 + (((self.bitbuf >> 5) & 0x1F) as usize);
+        let num_precode_syms = 4 + (((self.bitbuf >> 10) & 0xF) as usize);
+        self.bitbuf >>= 14;
+        self.bitsleft -= 14;
+
+        let res_precode = self.read_precode_lens(input, in_idx, num_precode_syms);
+        if res_precode != DecompressResult::Success {
+            return res_precode;
+        }
+
+        let total_syms = num_litlen_syms + num_offset_syms;
+        let res_huffman = self.read_huffman_lens(input, in_idx, total_syms);
+        if res_huffman != DecompressResult::Success {
+            return res_huffman;
+        }
+
         if !self.build_offset_decode_table(num_litlen_syms, num_offset_syms) {
             return DecompressResult::BadData;
         }
