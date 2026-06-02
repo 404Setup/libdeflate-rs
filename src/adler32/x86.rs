@@ -566,7 +566,7 @@ pub unsafe fn adler32_x86_avx2(adler: u32, p: &[u8]) -> u32 {
         let s_sum = _mm_add_epi32(s, _mm_shuffle_epi32(s, 0x4E));
         let s_sum = _mm_add_epi32(s_sum, _mm_shuffle_epi32(s_sum, 0xB1));
 
-        s2 = ((s2 as u64 + _mm_cvtsi128_si32(s_sum) as u32 as u64) % DIVISOR as u64) as u32;
+        s2 = ((s2 as u64 + (_mm_cvtsi128_si32(s_sum) as u32) as u64) % DIVISOR as u64) as u32;
 
         ptr = ptr.add(16);
         len -= 16;
@@ -814,8 +814,8 @@ pub unsafe fn adler32_x86_avx2_vnni(adler: u32, p: &[u8]) -> u32 {
         let v_s2_sum = _mm_add_epi32(v_s2_128, _mm_shuffle_epi32(v_s2_128, 0x31));
         let v_s2_sum = _mm_add_epi32(v_s2_sum, _mm_shuffle_epi32(v_s2_sum, 0x02));
 
-        s1 = (s1 as u64 + _mm_cvtsi128_si32(v_s1_sum) as u32 as u64) as u32;
-        s2 = ((s2 as u64 + _mm_cvtsi128_si32(v_s2_sum) as u32 as u64) % DIVISOR as u64) as u32;
+        s1 = (s1 as u64 + (_mm_cvtsi128_si32(v_s1_sum) as u32) as u64) as u32;
+        s2 = ((s2 as u64 + (_mm_cvtsi128_si32(v_s2_sum) as u32) as u64) % DIVISOR as u64) as u32;
 
         s1 %= DIVISOR;
         s2 %= DIVISOR;
@@ -838,7 +838,7 @@ pub unsafe fn adler32_x86_avx2_vnni(adler: u32, p: &[u8]) -> u32 {
         let s_sum = _mm_add_epi32(s, _mm_shuffle_epi32(s, 0x4E));
         let s_sum = _mm_add_epi32(s_sum, _mm_shuffle_epi32(s_sum, 0xB1));
 
-        s2 = ((s2 as u64 + _mm_cvtsi128_si32(s_sum) as u32 as u64) % DIVISOR as u64) as u32;
+        s2 = ((s2 as u64 + (_mm_cvtsi128_si32(s_sum) as u32) as u64) % DIVISOR as u64) as u32;
 
         let processed = 16;
         data = &data[processed..];
@@ -1070,8 +1070,8 @@ pub unsafe fn adler32_x86_avx512_vnni(adler: u32, p: &[u8]) -> u32 {
         let v_s2_sum = _mm_add_epi32(v_s2_128, _mm_shuffle_epi32(v_s2_128, 0x31));
         let v_s2_sum = _mm_add_epi32(v_s2_sum, _mm_shuffle_epi32(v_s2_sum, 0x02));
 
-        s1 = (s1 as u64 + _mm_cvtsi128_si32(v_s1_sum) as u32 as u64) as u32;
-        s2 = ((s2 as u64 + _mm_cvtsi128_si32(v_s2_sum) as u32 as u64) % DIVISOR as u64) as u32;
+        s1 = (s1 as u64 + (_mm_cvtsi128_si32(v_s1_sum) as u32) as u64) as u32;
+        s2 = ((s2 as u64 + (_mm_cvtsi128_si32(v_s2_sum) as u32) as u64) % DIVISOR as u64) as u32;
 
         s1 %= DIVISOR;
         s2 %= DIVISOR;
