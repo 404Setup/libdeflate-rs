@@ -164,6 +164,26 @@ fn test_compress_bound_overflow_check() {
 }
 
 #[test]
+fn test_zlib_compress_bound() {
+    let mut compressor = Compressor::new(6).unwrap();
+
+    let datasets: Vec<Vec<u8>> = vec![
+        vec![],
+        b"Hello world!".to_vec(),
+        vec![0u8; 1000],
+        (0..10000).map(|i| (i % 256) as u8).collect(),
+    ];
+
+    for data in datasets {
+        let bound = compressor.zlib_compress_bound(data.len());
+        assert!(bound >= data.len());
+
+        let compressed = compressor.compress_zlib(&data).unwrap();
+        assert!(compressed.len() <= bound, "Compressed size {} exceeds bound {} for input size {}", compressed.len(), bound, data.len());
+    }
+}
+
+#[test]
 fn test_compress_gzip_into_success() {
     let mut compressor = Compressor::new(6).unwrap();
     let mut decompressor = Decompressor::new();
