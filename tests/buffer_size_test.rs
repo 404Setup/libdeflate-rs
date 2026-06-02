@@ -74,3 +74,47 @@ fn test_default_buffer_size() {
     encoder.finish().unwrap();
     assert!(writer_data.lock().unwrap().len() > 0);
 }
+
+#[test]
+fn test_small_vs_large_buffer() {
+    use libdeflate::stream::DeflateDecoder;
+    use std::io::{Cursor, Read};
+
+    let data: Vec<u8> = (0..10000).map(|i| (i % 256) as u8).collect();
+
+    let writer_small = Arc::new(Mutex::new(Vec::new()));
+    let writer_large = Arc::new(Mutex::new(Vec::new()));
+
+    let mut encoder_small = DeflateEncoder::new(SharedWriter { data: writer_small.clone() }, 6).with_buffer_size(10);
+    let mut encoder_large = DeflateEncoder::new(SharedWriter { data: writer_large.clone() }, 6).with_buffer_size(10000);
+
+    encoder_small.write_all(&data).unwrap();
+    encoder_small.finish().unwrap();
+
+    encoder_large.write_all(&data).unwrap();
+    encoder_large.finish().unwrap();
+
+    let small_compressed = writer_small.lock().unwrap().clone();
+    let large_compressed = writer_large.lock().unwrap().clone();
+
+    // Verify small buffer compresses data correctly
+    let mut decoder = DeflateDecoder::new(Cursor::new(&small_compressed));
+    let mut decompressed = Vec::new();
+    decoder.read_to_end(&mut decompressed).unwrap();
+    assert_eq!(data, decompressed);
+
+    // Verify large buffer compresses data correctly
+    let mut decoder_large = DeflateDecoder::new(Cursor::new(&large_compressed));
+    let mut decompressed_large = Vec::new();
+    decoder_large.read_to_end(&mut decompressed_large).unwrap();
+    assert_eq!(data, decompressed_large);
+
+    // In DEFLATE, different flush boundaries might technically produce slightly different output sizes
+    // depending on the compression level and exact boundary, but they both should successfully decompress
+    // to the same original data, and the sizes shouldn't be radically different.
+    // The exact byte-for-byte comparison of small_compressed and large_compressed might fail
+    // if flushing changes blocks, but we can verify both yield valid, equivalent uncompressed data
+    // and that the small buffer works correctly over multiple chunks.
+    assert!(small_compressed.len() > 0);
+    assert!(large_compressed.len() > 0);
+}
