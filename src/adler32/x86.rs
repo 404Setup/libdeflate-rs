@@ -530,22 +530,13 @@ pub unsafe fn adler32_x86_avx2(adler: u32, p: &[u8]) -> u32 {
 
         v_s2 = _mm256_add_epi32(v_s2, v_s1_sums);
 
-        let v_s1_128 = _mm_add_epi32(
-            _mm256_extracti128_si256(v_s1, 0),
-            _mm256_extracti128_si256(v_s1, 1),
-        );
-        let v_s2_128 = _mm_add_epi32(
-            _mm256_extracti128_si256(v_s2, 0),
-            _mm256_extracti128_si256(v_s2, 1),
-        );
+        let mut s1_buf = [0u32; 8];
+        let mut s2_buf = [0u32; 8];
+        _mm256_storeu_si256(s1_buf.as_mut_ptr() as *mut __m256i, v_s1);
+        _mm256_storeu_si256(s2_buf.as_mut_ptr() as *mut __m256i, v_s2);
 
-        let mut s1_buf = [0u32; 4];
-        let mut s2_buf = [0u32; 4];
-        _mm_storeu_si128(s1_buf.as_mut_ptr() as *mut __m128i, v_s1_128);
-        _mm_storeu_si128(s2_buf.as_mut_ptr() as *mut __m128i, v_s2_128);
-
-        s1 = (s1 as u64 + s1_buf[0] as u64 + s1_buf[2] as u64) as u32;
-        let s2_sum = s2_buf[0] as u64 + s2_buf[1] as u64 + s2_buf[2] as u64 + s2_buf[3] as u64;
+        s1 = (s1 as u64 + s1_buf[0] as u64 + s1_buf[2] as u64 + s1_buf[4] as u64 + s1_buf[6] as u64) as u32;
+        let s2_sum = s2_buf[0] as u64 + s2_buf[1] as u64 + s2_buf[2] as u64 + s2_buf[3] as u64 + s2_buf[4] as u64 + s2_buf[5] as u64 + s2_buf[6] as u64 + s2_buf[7] as u64;
         s2 = ((s2 as u64 + s2_sum) % DIVISOR as u64) as u32;
 
         s1 %= DIVISOR;
@@ -819,7 +810,7 @@ pub unsafe fn adler32_x86_avx2_vnni(adler: u32, p: &[u8]) -> u32 {
         _mm_storeu_si128(s1_buf.as_mut_ptr() as *mut __m128i, v_s1_128);
         _mm_storeu_si128(s2_buf.as_mut_ptr() as *mut __m128i, v_s2_128);
 
-        s1 = (s1 as u64 + s1_buf[0] as u64 + s1_buf[2] as u64) as u32;
+        s1 = (s1 as u64 + s1_buf[0] as u64 + s1_buf[1] as u64 + s1_buf[2] as u64 + s1_buf[3] as u64) as u32;
         let s2_sum = s2_buf[0] as u64 + s2_buf[1] as u64 + s2_buf[2] as u64 + s2_buf[3] as u64;
         s2 = ((s2 as u64 + s2_sum) % DIVISOR as u64) as u32;
 
@@ -1079,7 +1070,7 @@ pub unsafe fn adler32_x86_avx512_vnni(adler: u32, p: &[u8]) -> u32 {
         _mm_storeu_si128(s1_buf.as_mut_ptr() as *mut __m128i, v_s1_128);
         _mm_storeu_si128(s2_buf.as_mut_ptr() as *mut __m128i, v_s2_128);
 
-        s1 = (s1 as u64 + s1_buf[0] as u64 + s1_buf[2] as u64) as u32;
+        s1 = (s1 as u64 + s1_buf[0] as u64 + s1_buf[1] as u64 + s1_buf[2] as u64 + s1_buf[3] as u64) as u32;
         let s2_sum = s2_buf[0] as u64 + s2_buf[1] as u64 + s2_buf[2] as u64 + s2_buf[3] as u64;
         s2 = ((s2 as u64 + s2_sum) % DIVISOR as u64) as u32;
 
