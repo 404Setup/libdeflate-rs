@@ -561,39 +561,19 @@ unsafe fn decompress_offset_cycle4<const SHIFT: i32>(
         copied += 64;
     }
 
-    loop {
-        if copied + 16 > length {
-            break;
-        }
+    if copied + 16 <= length {
         _mm_storeu_si128(out_next.add(copied) as *mut __m128i, v1);
         copied += 16;
 
-        if copied + 16 > length {
-            break;
-        }
-        _mm_storeu_si128(out_next.add(copied) as *mut __m128i, v2);
-        copied += 16;
+        if copied + 16 <= length {
+            _mm_storeu_si128(out_next.add(copied) as *mut __m128i, v2);
+            copied += 16;
 
-        if copied + 16 > length {
-            break;
+            if copied + 16 <= length {
+                _mm_storeu_si128(out_next.add(copied) as *mut __m128i, v3);
+                copied += 16;
+            }
         }
-        _mm_storeu_si128(out_next.add(copied) as *mut __m128i, v3);
-        copied += 16;
-
-        if copied + 16 > length {
-            break;
-        }
-        let next_v0 = _mm_alignr_epi8::<SHIFT>(v1, v0);
-        _mm_storeu_si128(out_next.add(copied) as *mut __m128i, next_v0);
-        copied += 16;
-
-        let next_v1 = _mm_alignr_epi8::<SHIFT>(v2, v1);
-        let next_v2 = _mm_alignr_epi8::<SHIFT>(v3, v2);
-        let next_v3 = _mm_alignr_epi8::<SHIFT>(next_v0, v3);
-        v0 = next_v0;
-        v1 = next_v1;
-        v2 = next_v2;
-        v3 = next_v3;
     }
 
     if copied < length {
