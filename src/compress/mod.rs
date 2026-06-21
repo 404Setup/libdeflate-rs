@@ -497,7 +497,7 @@ impl Compressor {
             let extra = (len_info >> 16) as u8;
             let base = len_info as u16;
 
-            let huff_entry = unsafe { *self.litlen_table.get_unchecked(257 + slot) };
+            let huff_entry = self.litlen_table[257 + slot];
             let code = huff_entry as u16;
             let huff_len = (huff_entry >> 32) as u8;
 
@@ -1952,14 +1952,14 @@ impl Compressor {
     #[inline(always)]
     unsafe fn get_literal_code(&self, lit: u8) -> (u64, u32) {
         let sym = lit as usize;
-        let entry = *self.litlen_table.get_unchecked(sym);
+        let entry = self.litlen_table[sym];
         (entry as u32 as u64, (entry >> 32) as u32)
     }
 
     #[inline(always)]
     unsafe fn get_literals_2_code(&self, lit1: u8, lit2: u8) -> (u64, u32) {
-        let entry1 = *self.litlen_table.get_unchecked(lit1 as usize);
-        let entry2 = *self.litlen_table.get_unchecked(lit2 as usize);
+        let entry1 = self.litlen_table[lit1 as usize];
+        let entry2 = self.litlen_table[lit2 as usize];
 
         let code1 = entry1 as u32;
         let len1 = (entry1 >> 32) as u32;
@@ -1972,10 +1972,10 @@ impl Compressor {
 
     #[inline(always)]
     unsafe fn get_literals_4_code(&self, lit1: u8, lit2: u8, lit3: u8, lit4: u8) -> (u64, u32) {
-        let entry1 = *self.litlen_table.get_unchecked(lit1 as usize);
-        let entry2 = *self.litlen_table.get_unchecked(lit2 as usize);
-        let entry3 = *self.litlen_table.get_unchecked(lit3 as usize);
-        let entry4 = *self.litlen_table.get_unchecked(lit4 as usize);
+        let entry1 = self.litlen_table[lit1 as usize];
+        let entry2 = self.litlen_table[lit2 as usize];
+        let entry3 = self.litlen_table[lit3 as usize];
+        let entry4 = self.litlen_table[lit4 as usize];
 
         let code1 = entry1 as u32 as u64;
         let len1 = (entry1 >> 32) as u32;
@@ -2019,10 +2019,10 @@ impl Compressor {
                     while lit_remain >= 4 {
                         unsafe {
                             let (code, len) = self.get_literals_4_code(
-                                *input.get_unchecked(in_pos),
-                                *input.get_unchecked(in_pos + 1),
-                                *input.get_unchecked(in_pos + 2),
-                                *input.get_unchecked(in_pos + 3),
+                                input[in_pos],
+                                input[in_pos + 1],
+                                input[in_pos + 2],
+                                input[in_pos + 3],
                             );
 
                             let new_bitcount = bitcount + len;
@@ -2057,8 +2057,8 @@ impl Compressor {
                     while lit_remain >= 2 {
                         unsafe {
                             let (code, len) = self.get_literals_2_code(
-                                *input.get_unchecked(in_pos),
-                                *input.get_unchecked(in_pos + 1),
+                                input[in_pos],
+                                input[in_pos + 1],
                             );
                             let new_bitcount = bitcount + len;
                             if new_bitcount >= 32 {
@@ -2080,7 +2080,7 @@ impl Compressor {
                     }
                     if lit_remain > 0 {
                         unsafe {
-                            let (code, len) = self.get_literal_code(*input.get_unchecked(in_pos));
+                            let (code, len) = self.get_literal_code(input[in_pos]);
                             let new_bitcount = bitcount + len;
                             if new_bitcount >= 32 {
                                 let buf = bitbuf | (code << bitcount);
@@ -2119,11 +2119,11 @@ impl Compressor {
                 let off_slot = seq.off_slot();
                 if out_idx + 16 < out_len {
                     unsafe {
-                        let entry = *self.match_len_table.get_unchecked(len as usize);
+                        let entry = self.match_len_table[len as usize];
                         let len_val = entry as u32;
                         let len_len = (entry >> 32) as u32;
 
-                        let entry_off = *self.offset_table.get_unchecked(off_slot);
+                        let entry_off = self.offset_table[off_slot];
                         let off_code = entry_off as u32;
                         let off_len = (entry_off >> 32) as u8 as u32;
                         let extra_bits = (entry_off >> 40) as u8 as u32;
@@ -2205,16 +2205,16 @@ impl Compressor {
 
     fn write_literal(&self, bs: &mut Bitstream, lit: u8) -> bool {
         let sym = lit as usize;
-        let entry = unsafe { *self.litlen_table.get_unchecked(sym) };
+        let entry = self.litlen_table[sym];
         unsafe { bs.write_bits_unchecked(entry as u32, (entry >> 32) as u32) }
     }
     fn write_sym(&self, bs: &mut Bitstream, sym: usize) -> bool {
-        let entry = unsafe { *self.litlen_table.get_unchecked(sym) };
+        let entry = self.litlen_table[sym];
         unsafe { bs.write_bits_unchecked(entry as u32, (entry >> 32) as u32) }
     }
 
     fn write_match(&self, bs: &mut Bitstream, len: usize, offset: usize, off_slot: usize) -> bool {
-        let entry = unsafe { *self.match_len_table.get_unchecked(len) };
+        let entry = self.match_len_table[len];
         let len_val = entry as u32;
         let len_len = (entry >> 32) as u32;
 
@@ -2222,7 +2222,7 @@ impl Compressor {
             return false;
         }
 
-        let entry = unsafe { *self.offset_table.get_unchecked(off_slot) };
+        let entry = self.offset_table[off_slot];
         let off_code = entry as u32;
         let off_len = (entry >> 32) as u8 as u32;
         let extra_bits = (entry >> 40) as u8 as u32;
