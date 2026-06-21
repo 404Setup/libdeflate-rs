@@ -86,12 +86,13 @@ impl<W: Write + Send> DeflateEncoder<W> {
                     } else {
                         crate::compress::FlushMode::Sync
                     };
-                    output.resize(bound, 0);
-                    let out_uninit = crate::common::slice_as_uninit_mut(&mut output[..bound]);
+                    let out_uninit = &mut output.spare_capacity_mut()[..bound];
                     let (res, size, _) = compressor.compress(chunk, out_uninit, mode);
                     if res == CompressResult::Success {
                         assert!(size <= bound);
-                        output.truncate(size);
+                        unsafe {
+                            output.set_len(size);
+                        }
                         Ok(())
                     } else {
                         Err(io::Error::other("Compression failed"))
@@ -128,12 +129,13 @@ impl<W: Write + Send> DeflateEncoder<W> {
             } else {
                 crate::compress::FlushMode::Sync
             };
-            output.resize(bound, 0);
-            let out_uninit = crate::common::slice_as_uninit_mut(&mut output[..bound]);
+            let out_uninit = &mut output.spare_capacity_mut()[..bound];
             let (res, size, _) = compressor.compress(&self.buffer, out_uninit, mode);
             if res == CompressResult::Success {
                 assert!(size <= bound);
-                output.truncate(size);
+                unsafe {
+                    output.set_len(size);
+                }
                 if let Some(writer) = &mut self.writer {
                     writer.write_all(&output[..size])?;
                 }

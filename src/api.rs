@@ -79,14 +79,15 @@ impl Compressor {
         let mut output = Vec::new();
         output.try_reserve_exact(bound).map_err(io::Error::other)?;
 
-        output.resize(bound, 0);
-        let out_uninit = crate::common::slice_as_uninit_mut(&mut output[..bound]);
+        let out_uninit = &mut output.spare_capacity_mut()[..bound];
 
         let (res, size) = f(&mut self.inner, data, out_uninit);
         match res {
             CompressResult::Success => {
                 assert!(size <= bound);
-                output.truncate(size);
+                unsafe {
+                    output.set_len(size);
+                }
                 Ok(output)
             }
             CompressResult::InsufficientSpace => Err(io::Error::other("Insufficient space")),
@@ -114,6 +115,8 @@ impl Compressor {
                 "Input and output buffers overlap",
             ));
         }
+        // Note: For `compress_into_helper`, `output` is a `&mut [u8]`, not a `Vec`.
+        // We still need to convert it to a `&mut [MaybeUninit<u8>]`.
         let out_uninit = crate::common::slice_as_uninit_mut(output);
         let (res, size) = f(&mut self.inner, data, out_uninit);
         match res {
@@ -230,13 +233,14 @@ impl Decompressor {
             .try_reserve_exact(expected_size)
             .map_err(io::Error::other)?;
 
-        output.resize(expected_size, 0);
-        let out_uninit = crate::common::slice_as_uninit_mut(&mut output[..expected_size]);
+        let out_uninit = &mut output.spare_capacity_mut()[..expected_size];
 
         let (res, _, size) = f(&mut self.inner, data, out_uninit);
         if res == crate::decompress::DecompressResult::Success {
             assert!(size <= expected_size);
-            output.truncate(size);
+            unsafe {
+                output.set_len(size);
+            }
             Ok(output)
         } else {
             Err(io::Error::new(
@@ -266,6 +270,7 @@ impl Decompressor {
             ));
         }
 
+        // Note: For `decompress_into_helper`, `output` is a `&mut [u8]`, not a `Vec`.
         let out_uninit = crate::common::slice_as_uninit_mut(output);
         let (res, _, size) = f(&mut self.inner, data, out_uninit);
         if res == crate::decompress::DecompressResult::Success {
