@@ -689,14 +689,13 @@ impl Compressor {
                             buf.reserve(bound);
                         }
 
-                        let buf_uninit = &mut buf.spare_capacity_mut()[..bound];
+                        buf.resize(bound, 0);
+                        let buf_uninit = crate::common::slice_as_uninit_mut(&mut buf[..bound]);
 
                         let (res, size, _) = compressor.compress(chunk, buf_uninit, mode);
                         if res == CompressResult::Success {
                             assert!(size <= bound);
-                            unsafe {
-                                buf.set_len(size);
-                            }
+                            buf.truncate(size);
                             if size < buf.capacity() / 2 {
                                 Ok(buf.to_vec())
                             } else {
