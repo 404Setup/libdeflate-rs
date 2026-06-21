@@ -79,6 +79,7 @@ impl Compressor {
         let mut output = Vec::new();
         output.try_reserve_exact(bound).map_err(io::Error::other)?;
 
+        // Avoid O(N) zero-initialization overhead
         let out_uninit = &mut output.spare_capacity_mut()[..bound];
 
         let (res, size) = f(&mut self.inner, data, out_uninit);
@@ -231,6 +232,7 @@ impl Decompressor {
             .try_reserve_exact(expected_size)
             .map_err(io::Error::other)?;
 
+        // Avoid O(N) zero-initialization overhead
         let out_uninit = &mut output.spare_capacity_mut()[..expected_size];
 
         let (res, _, size) = f(&mut self.inner, data, out_uninit);
