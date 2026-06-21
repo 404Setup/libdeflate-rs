@@ -19,7 +19,10 @@ impl BatchCompressor {
                 |(compressor, buffer), &input| {
                     let bound = Compressor::deflate_compress_bound(input.len());
                     buffer.clear();
-                    buffer.resize(bound, 0);
+                    buffer.reserve(bound);
+                    unsafe {
+                        buffer.set_len(bound);
+                    }
                     let buf_slice = crate::common::slice_as_uninit_mut(&mut buffer[..bound]);
 
                     let (res, size, _) =
@@ -58,7 +61,10 @@ impl BatchDecompressor {
                 || (Decompressor::new(), Vec::new()),
                 |(decompressor, buffer), (&input, &max_size)| {
                     buffer.clear();
-                    buffer.resize(max_size, 0);
+                    buffer.reserve(max_size);
+                    unsafe {
+                        buffer.set_len(max_size);
+                    }
                     let buf_slice = crate::common::slice_as_uninit_mut(&mut buffer[..max_size]);
 
                     let (res, _, size) =
