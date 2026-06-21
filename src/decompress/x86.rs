@@ -2005,7 +2005,7 @@ unsafe fn copy_match_bmi2(out_next: *mut u8, src: *const u8, offset: usize, leng
                 let v_pattern = match offset {
                     2 => _mm_set1_epi16(std::ptr::read_unaligned(src as *const u16) as i16),
                     4 => _mm_set1_epi32(std::ptr::read_unaligned(src as *const u32) as i32),
-                    _ => std::hint::unreachable_unchecked(),
+                    _ => unreachable!(),
                 };
                 decompress_fill_pattern(out_next, v_pattern, length);
             }
