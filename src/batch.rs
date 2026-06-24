@@ -20,16 +20,15 @@ impl BatchCompressor {
                     let bound = Compressor::deflate_compress_bound(input.len());
                     buffer.clear();
                     buffer.reserve(bound);
-                    unsafe {
-                        buffer.set_len(bound);
-                    }
-                    let buf_slice = crate::common::slice_as_uninit_mut(&mut buffer[..bound]);
+                    let buf_slice = &mut buffer.spare_capacity_mut()[..bound];
 
                     let (res, size, _) =
                         compressor.compress(input, buf_slice, crate::compress::FlushMode::Finish);
                     if res == CompressResult::Success {
                         assert!(size <= bound);
-                        buffer.truncate(size);
+                        unsafe {
+                            buffer.set_len(size);
+                        }
                         std::mem::take(buffer)
                     } else {
                         Vec::new()
@@ -62,16 +61,15 @@ impl BatchDecompressor {
                 |(decompressor, buffer), (&input, &max_size)| {
                     buffer.clear();
                     buffer.reserve(max_size);
-                    unsafe {
-                        buffer.set_len(max_size);
-                    }
-                    let buf_slice = crate::common::slice_as_uninit_mut(&mut buffer[..max_size]);
+                    let buf_slice = &mut buffer.spare_capacity_mut()[..max_size];
 
                     let (res, _, size) =
                         unsafe { decompressor.decompress_uninit(input, buf_slice) };
                     if res == DecompressResult::Success {
                         assert!(size <= max_size);
-                        buffer.truncate(size);
+                        unsafe {
+                            buffer.set_len(size);
+                        }
                         Some(std::mem::take(buffer))
                     } else {
                         None
