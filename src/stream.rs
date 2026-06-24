@@ -38,6 +38,106 @@ impl<W: Write + Send> DeflateEncoder<W> {
         self
     }
 
+    fn flush_buffer_parallel(&mut self, final_block: bool, chunk_size: usize, buffer_len: usize) -> io::Result<()> {
+        let num_chunks = (buffer_len + chunk_size - 1) / chunk_size;
+
+        if self.compressors.len() < num_chunks {
+            self.compressors
+                .reserve(num_chunks - self.compressors.len());
+            while self.compressors.len() < num_chunks {
+                self.compressors.push(Compressor::new(self.level));
+            }
+        }
+
+        if self.output_buffers.len() < num_chunks {
+            self.output_buffers
+                .reserve(num_chunks - self.output_buffers.len());
+            let bound = Compressor::deflate_compress_bound(chunk_size) + 5;
+            while self.output_buffers.len() < num_chunks {
+                self.output_buffers.push(Vec::with_capacity(bound));
+            }
+        }
+
+        self.buffer
+            .par_chunks(chunk_size)
+            .zip(self.compressors.par_iter_mut())
+            .zip(self.output_buffers.par_iter_mut())
+            .enumerate()
+            .try_for_each(|(i, ((chunk, compressor), output))| -> io::Result<()> {
+                let mut bound = Compressor::deflate_compress_bound(chunk.len());
+                if !(final_block && i == num_chunks - 1) {
+                    bound += 5;
+                }
+                output.clear();
+                if output.capacity() < bound {
+                    output.try_reserve(bound).map_err(io::Error::other)?;
+                }
+
+                let mode = if final_block && i == num_chunks - 1 {
+                    crate::compress::FlushMode::Finish
+                } else {
+                    crate::compress::FlushMode::Sync
+                };
+                unsafe { output.set_len(bound); }
+                let out_uninit = crate::common::slice_as_uninit_mut(&mut output[..bound]);
+                let (res, size, _) = compressor.compress(chunk, out_uninit, mode);
+                if res == CompressResult::Success {
+                    assert!(size <= bound);
+                    output.truncate(size);
+                    Ok(())
+                } else {
+                    Err(io::Error::other("Compression failed"))
+                }
+            })?;
+
+        if let Some(writer) = &mut self.writer {
+            for i in 0..num_chunks {
+                writer.write_all(&self.output_buffers[i])?;
+            }
+        }
+        Ok(())
+    }
+
+    fn flush_buffer_sequential(&mut self, final_block: bool) -> io::Result<()> {
+        if self.compressors.is_empty() {
+            self.compressors.push(Compressor::new(self.level));
+        }
+        if self.output_buffers.is_empty() {
+            let bound = Compressor::deflate_compress_bound(self.buffer.len()) + 5;
+            self.output_buffers.push(Vec::with_capacity(bound));
+        }
+
+        let compressor = &mut self.compressors[0];
+        let output = &mut self.output_buffers[0];
+        let mut bound = Compressor::deflate_compress_bound(self.buffer.len());
+        if !final_block {
+            bound += 5;
+        }
+        output.clear();
+        if output.capacity() < bound {
+            output.try_reserve(bound).map_err(io::Error::other)?;
+        }
+
+        let mode = if final_block {
+            crate::compress::FlushMode::Finish
+        } else {
+            crate::compress::FlushMode::Sync
+        };
+        unsafe { output.set_len(bound); }
+        let out_uninit = crate::common::slice_as_uninit_mut(&mut output[..bound]);
+        let (res, size, _) = compressor.compress(&self.buffer, out_uninit, mode);
+        if res == CompressResult::Success {
+            assert!(size <= bound);
+            output.truncate(size);
+            if let Some(writer) = &mut self.writer {
+                writer.write_all(&output[..size])?;
+            }
+        } else {
+            return Err(io::Error::other("Compression failed"));
+        }
+        Ok(())
+    }
+
     fn flush_buffer(&mut self, final_block: bool) -> io::Result<()> {
         if self.buffer.is_empty() && !final_block {
             return Ok(());
@@ -47,99 +147,9 @@ impl<W: Write + Send> DeflateEncoder<W> {
         let buffer_len = self.buffer.len();
 
         if buffer_len > chunk_size {
-            let num_chunks = (buffer_len + chunk_size - 1) / chunk_size;
-
-            if self.compressors.len() < num_chunks {
-                self.compressors
-                    .reserve(num_chunks - self.compressors.len());
-                while self.compressors.len() < num_chunks {
-                    self.compressors.push(Compressor::new(self.level));
-                }
-            }
-
-            if self.output_buffers.len() < num_chunks {
-                self.output_buffers
-                    .reserve(num_chunks - self.output_buffers.len());
-                let bound = Compressor::deflate_compress_bound(chunk_size) + 5;
-                while self.output_buffers.len() < num_chunks {
-                    self.output_buffers.push(Vec::with_capacity(bound));
-                }
-            }
-
-            self.buffer
-                .par_chunks(chunk_size)
-                .zip(self.compressors.par_iter_mut())
-                .zip(self.output_buffers.par_iter_mut())
-                .enumerate()
-                .try_for_each(|(i, ((chunk, compressor), output))| -> io::Result<()> {
-                    let mut bound = Compressor::deflate_compress_bound(chunk.len());
-                    if !(final_block && i == num_chunks - 1) {
-                        bound += 5;
-                    }
-                    output.clear();
-                    if output.capacity() < bound {
-                        output.try_reserve(bound).map_err(io::Error::other)?;
-                    }
-
-                    let mode = if final_block && i == num_chunks - 1 {
-                        crate::compress::FlushMode::Finish
-                    } else {
-                        crate::compress::FlushMode::Sync
-                    };
-                    unsafe { output.set_len(bound); }
-                    let out_uninit = crate::common::slice_as_uninit_mut(&mut output[..bound]);
-                    let (res, size, _) = compressor.compress(chunk, out_uninit, mode);
-                    if res == CompressResult::Success {
-                        assert!(size <= bound);
-                        output.truncate(size);
-                        Ok(())
-                    } else {
-                        Err(io::Error::other("Compression failed"))
-                    }
-                })?;
-
-            if let Some(writer) = &mut self.writer {
-                for i in 0..num_chunks {
-                    writer.write_all(&self.output_buffers[i])?;
-                }
-            }
+            self.flush_buffer_parallel(final_block, chunk_size, buffer_len)?;
         } else {
-            if self.compressors.is_empty() {
-                self.compressors.push(Compressor::new(self.level));
-            }
-            if self.output_buffers.is_empty() {
-                let bound = Compressor::deflate_compress_bound(self.buffer.len()) + 5;
-                self.output_buffers.push(Vec::with_capacity(bound));
-            }
-
-            let compressor = &mut self.compressors[0];
-            let output = &mut self.output_buffers[0];
-            let mut bound = Compressor::deflate_compress_bound(self.buffer.len());
-            if !final_block {
-                bound += 5;
-            }
-            output.clear();
-            if output.capacity() < bound {
-                output.try_reserve(bound).map_err(io::Error::other)?;
-            }
-
-            let mode = if final_block {
-                crate::compress::FlushMode::Finish
-            } else {
-                crate::compress::FlushMode::Sync
-            };
-            unsafe { output.set_len(bound); }
-            let out_uninit = crate::common::slice_as_uninit_mut(&mut output[..bound]);
-            let (res, size, _) = compressor.compress(&self.buffer, out_uninit, mode);
-            if res == CompressResult::Success {
-                assert!(size <= bound);
-                output.truncate(size);
-                if let Some(writer) = &mut self.writer {
-                    writer.write_all(&output[..size])?;
-                }
-            } else {
-                return Err(io::Error::other("Compression failed"));
-            }
+            self.flush_buffer_sequential(final_block)?;
         }
 
         self.buffer.clear();
