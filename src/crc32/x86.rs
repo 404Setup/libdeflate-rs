@@ -5,6 +5,7 @@ use core::arch::x86_64::*;
 
 use crate::crc32_tables::*;
 
+#[inline(never)]
 #[target_feature(enable = "pclmulqdq", enable = "sse4.1")]
 pub unsafe fn crc32_x86_pclmulqdq(mut crc: u32, p: &[u8]) -> u32 {
     let mut len = p.len();
@@ -205,6 +206,7 @@ pub unsafe fn crc32_x86_pclmulqdq(mut crc: u32, p: &[u8]) -> u32 {
 }
 
 #[cfg(target_arch = "x86_64")]
+#[inline(never)]
 #[target_feature(enable = "avx512f,avx512bw,avx512vl,vpclmulqdq")]
 pub unsafe fn crc32_x86_vpclmulqdq_avx512_vl512(crc: u32, p: &[u8]) -> u32 {
     let mut len = p.len();
@@ -573,6 +575,7 @@ pub unsafe fn crc32_x86_vpclmulqdq_avx512_vl512(crc: u32, p: &[u8]) -> u32 {
 }
 
 #[cfg(target_arch = "x86_64")]
+#[inline(never)]
 #[target_feature(enable = "avx2,vpclmulqdq")]
 pub unsafe fn crc32_x86_vpclmulqdq_avx2(crc: u32, p: &[u8]) -> u32 {
     let mut len = p.len();

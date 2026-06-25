@@ -275,8 +275,8 @@ unsafe fn match_len_sw(a: *const u8, b: *const u8, max_len: usize) -> usize {
 }
 
 #[cfg(target_arch = "x86_64")]
+#[inline(never)]
 #[target_feature(enable = "sse2")]
-#[inline]
 unsafe fn match_len_sse2(a: *const u8, b: *const u8, max_len: usize) -> usize {
     let mut len = 0;
 
@@ -360,8 +360,8 @@ unsafe fn match_len_sse2(a: *const u8, b: *const u8, max_len: usize) -> usize {
 }
 
 #[cfg(target_arch = "x86_64")]
+#[inline(never)]
 #[target_feature(enable = "avx2")]
-#[inline]
 unsafe fn match_len_avx2(a: *const u8, b: *const u8, max_len: usize) -> usize {
     let mut len = 0;
 
@@ -544,8 +544,8 @@ unsafe fn match_len_avx2(a: *const u8, b: *const u8, max_len: usize) -> usize {
 }
 
 #[cfg(target_arch = "x86_64")]
+#[inline(never)]
 #[target_feature(enable = "avx512bw")]
-#[inline]
 unsafe fn match_len_avx512(a: *const u8, b: *const u8, max_len: usize) -> usize {
     let mut len = 0;
 
@@ -592,6 +592,7 @@ unsafe fn match_len_avx512(a: *const u8, b: *const u8, max_len: usize) -> usize 
 }
 
 #[cfg(target_arch = "x86_64")]
+#[inline(never)]
 #[target_feature(enable = "avx512vl,avx512bw")]
 unsafe fn match_len_avx10(a: *const u8, b: *const u8, max_len: usize) -> usize {
     let mut len = 0;
@@ -663,8 +664,8 @@ unsafe fn match_len_avx10(a: *const u8, b: *const u8, max_len: usize) -> usize {
 }
 
 #[cfg(target_arch = "aarch64")]
+#[inline(never)]
 #[target_feature(enable = "neon")]
-#[inline]
 unsafe fn match_len_neon(a: *const u8, b: *const u8, max_len: usize) -> usize {
     let mut len = 0;
 

@@ -85,6 +85,7 @@ macro_rules! adler32_tail {
     };
 }
 
+#[inline(never)]
 #[target_feature(enable = "sse2")]
 pub unsafe fn adler32_x86_sse2(adler: u32, p: &[u8]) -> u32 {
     let mut s1 = adler & 0xFFFF;
@@ -288,6 +289,7 @@ pub unsafe fn adler32_x86_sse2(adler: u32, p: &[u8]) -> u32 {
     (s2 % DIVISOR) << 16 | (s1 % DIVISOR)
 }
 
+#[inline(never)]
 #[target_feature(enable = "avx2")]
 pub unsafe fn adler32_x86_avx2(adler: u32, p: &[u8]) -> u32 {
     let mut s1 = adler & 0xFFFF;
@@ -576,6 +578,7 @@ pub unsafe fn adler32_x86_avx2(adler: u32, p: &[u8]) -> u32 {
     (s2 << 16) | s1
 }
 
+#[inline(never)]
 #[target_feature(enable = "avxvnni")]
 pub unsafe fn adler32_x86_avx2_vnni(adler: u32, p: &[u8]) -> u32 {
     let mut s1 = adler & 0xFFFF;
@@ -866,6 +869,7 @@ unsafe fn hsum_epi32_avx256(v: __m256i) -> u32 {
     (_mm_cvtsi128_si32(v32) as u32) as u64 as u32
 }
 
+#[inline(never)]
 #[target_feature(enable = "avx512f,avx512bw,avx512vl,avx512vnni")]
 pub unsafe fn adler32_x86_avx512_vnni(adler: u32, p: &[u8]) -> u32 {
     let mut s1 = adler & 0xFFFF;
@@ -911,65 +915,7 @@ pub unsafe fn adler32_x86_avx512_vnni(adler: u32, p: &[u8]) -> u32 {
             let mut v_s2_b = _mm512_setzero_si512();
             let mut v_s2_c = _mm512_setzero_si512();
             let mut v_s2_d = _mm512_setzero_si512();
-            let mut v_s2_e = _mm512_setzero_si512();
-            let mut v_s2_f = _mm512_setzero_si512();
-            let mut v_s2_g = _mm512_setzero_si512();
-            let mut v_s2_h = _mm512_setzero_si512();
             let v_zero = _mm512_setzero_si512();
-
-            while chunk_n >= 512 {
-                let d1 = _mm512_loadu_si512(ptr as *const _);
-                let d2 = _mm512_loadu_si512(ptr.add(64) as *const _);
-                let d3 = _mm512_loadu_si512(ptr.add(128) as *const _);
-                let d4 = _mm512_loadu_si512(ptr.add(192) as *const _);
-                let d5 = _mm512_loadu_si512(ptr.add(256) as *const _);
-                let d6 = _mm512_loadu_si512(ptr.add(320) as *const _);
-                let d7 = _mm512_loadu_si512(ptr.add(384) as *const _);
-                let d8 = _mm512_loadu_si512(ptr.add(448) as *const _);
-
-                v_s2_a = _mm512_dpbusd_epi32(v_s2_a, d1, mults);
-                v_s2_b = _mm512_dpbusd_epi32(v_s2_b, d2, mults);
-                v_s2_c = _mm512_dpbusd_epi32(v_s2_c, d3, mults);
-                v_s2_d = _mm512_dpbusd_epi32(v_s2_d, d4, mults);
-                v_s2_e = _mm512_dpbusd_epi32(v_s2_e, d5, mults);
-                v_s2_f = _mm512_dpbusd_epi32(v_s2_f, d6, mults);
-                v_s2_g = _mm512_dpbusd_epi32(v_s2_g, d7, mults);
-                v_s2_h = _mm512_dpbusd_epi32(v_s2_h, d8, mults);
-
-                let u1 = _mm512_dpbusd_epi32(v_zero, d1, ones_u8);
-                let u2 = _mm512_dpbusd_epi32(v_zero, d2, ones_u8);
-                let u3 = _mm512_dpbusd_epi32(v_zero, d3, ones_u8);
-                let u4 = _mm512_dpbusd_epi32(v_zero, d4, ones_u8);
-                let u5 = _mm512_dpbusd_epi32(v_zero, d5, ones_u8);
-                let u6 = _mm512_dpbusd_epi32(v_zero, d6, ones_u8);
-                let u7 = _mm512_dpbusd_epi32(v_zero, d7, ones_u8);
-                let u8 = _mm512_dpbusd_epi32(v_zero, d8, ones_u8);
-
-                let u12 = _mm512_add_epi32(u1, u2);
-                let u12_x2 = _mm512_add_epi32(u12, u12);
-                let inc_a = _mm512_add_epi32(_mm512_add_epi32(u1, u12_x2), u3);
-
-                let u56 = _mm512_add_epi32(u5, u6);
-                let u56_x2 = _mm512_add_epi32(u56, u56);
-                let inc_b = _mm512_add_epi32(_mm512_add_epi32(u5, u56_x2), u7);
-
-                let u34 = _mm512_add_epi32(u3, u4);
-                let total_u_a = _mm512_add_epi32(u12, u34);
-
-                let u78 = _mm512_add_epi32(u7, u8);
-                let total_u_b = _mm512_add_epi32(u56, u78);
-
-                let u_a_x4 = _mm512_slli_epi32(total_u_a, 2);
-                let combined_inc = _mm512_add_epi32(_mm512_add_epi32(inc_a, inc_b), u_a_x4);
-
-                let s1_x8 = _mm512_slli_epi32(v_s1, 3);
-                v_s1_sums = _mm512_add_epi32(v_s1_sums, _mm512_add_epi32(s1_x8, combined_inc));
-
-                v_s1 = _mm512_add_epi32(v_s1, _mm512_add_epi32(total_u_a, total_u_b));
-
-                ptr = ptr.add(512);
-                chunk_n -= 512;
-            }
 
             while chunk_n >= 256 {
                 let d1 = _mm512_loadu_si512(ptr as *const _);
@@ -1005,8 +951,6 @@ pub unsafe fn adler32_x86_avx512_vnni(adler: u32, p: &[u8]) -> u32 {
 
             v_s2 = _mm512_add_epi32(v_s2, _mm512_add_epi32(v_s2_a, v_s2_b));
             v_s2 = _mm512_add_epi32(v_s2, _mm512_add_epi32(v_s2_c, v_s2_d));
-            v_s2 = _mm512_add_epi32(v_s2, _mm512_add_epi32(v_s2_e, v_s2_f));
-            v_s2 = _mm512_add_epi32(v_s2, _mm512_add_epi32(v_s2_g, v_s2_h));
 
             let processed = ptr as usize - data.as_ptr() as usize;
             data = &data[processed..];

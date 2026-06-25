@@ -2064,6 +2064,7 @@ unsafe fn copy_match_bmi2(out_next: *mut u8, src: *const u8, offset: usize, leng
 }
 
 #[cfg(target_arch = "x86_64")]
+#[inline(never)]
 #[target_feature(enable = "bmi2,ssse3,sse4.1")]
 pub unsafe fn decompress_bmi2_ptr(
     d: &mut Decompressor,
@@ -2089,7 +2090,7 @@ pub unsafe fn decompress_bmi2_ptr(
         match block_type {
             DEFLATE_BLOCKTYPE_UNCOMPRESSED => {
                 let skip = bitsleft & 7;
-                let _ = bitbuf >> skip;
+                bitbuf >>= skip;
                 bitsleft -= skip;
                 let unused_bytes = bitsleft / 8;
                 in_idx -= unused_bytes as usize;
