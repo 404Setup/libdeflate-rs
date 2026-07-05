@@ -2082,6 +2082,9 @@ pub unsafe fn decompress_bmi2_ptr(
     while !is_final_block {
         refill_bits!(input, in_idx, bitbuf, bitsleft);
 
+        if bitsleft < 3 {
+            return (DecompressResult::BadData, 0, 0);
+        }
         is_final_block = (bitbuf & 1) != 0;
         let block_type = ((bitbuf >> 1) & 3) as u8;
         bitbuf >>= 3;
@@ -2180,6 +2183,7 @@ pub unsafe fn decompress_bmi2_ptr(
                                         if entry & HUFFDEC_END_OF_BLOCK != 0 {
                                             bitbuf >>= entry as u8;
                                             bitsleft -= entry & 0xFF;
+                                            eob_found = true;
                                             break;
                                         }
                                         bitbuf = saved_bitbuf;

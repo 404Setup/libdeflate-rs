@@ -1450,6 +1450,12 @@ impl Compressor {
     ) -> (CompressResult, usize, u32) {
         let mut bs = Bitstream::new(output);
         let mut in_idx = 0;
+        if input.is_empty() && flush_mode == FlushMode::Finish {
+            if !self.write_uncompressed_block_impl(input, 0, 0, &mut bs, true) {
+                return (CompressResult::InsufficientSpace, 0, 0);
+            }
+            return (CompressResult::Success, bs.out_idx, 0);
+        }
         while in_idx < input.len() {
             let block_len = min(65535, input.len() - in_idx);
             let bfinal = in_idx + block_len >= input.len() && flush_mode == FlushMode::Finish;
@@ -1821,7 +1827,17 @@ impl Compressor {
         );
         self.update_huffman_tables();
 
-        if !self.write_dynamic_block_with_sequences(input, start_pos, bs, is_final) {
+        let dynamic_cost =
+            self.calculate_dynamic_header_size() + self.calculate_block_data_size() + 3; // +3 for block header
+
+        // To be safe against exact alignment overhead for uncompressed block, we allow max 7 bits padding per 65535 block bytes.
+        let uncompressed_cost = (processed * 8) + (processed / 65535 + 1) * 40 + 7;
+
+        if dynamic_cost > uncompressed_cost {
+            if !self.write_uncompressed_block_impl(input, start_pos, processed, bs, is_final) {
+                return 0;
+            }
+        } else if !self.write_dynamic_block_with_sequences(input, start_pos, bs, is_final) {
             return 0;
         }
         processed

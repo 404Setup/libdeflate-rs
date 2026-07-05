@@ -970,6 +970,18 @@ impl Decompressor {
                     let subtable_bits = (entry >> 8) & 0x3F;
                     entry = self.litlen_decode_table
                         [subtable_idx + ((self.bitbuf as usize) & ((1 << subtable_bits) - 1))];
+                    if entry & HUFFDEC_EXCEPTIONAL != 0 {
+                        if entry & HUFFDEC_END_OF_BLOCK != 0 {
+                            let eob_bits = entry & 0xFF;
+                            if self.bitsleft < eob_bits {
+                                return DecompressResult::ShortInput;
+                            }
+                            self.bitbuf >>= eob_bits;
+                            self.bitsleft -= eob_bits;
+                            return DecompressResult::Success;
+                        }
+                        return DecompressResult::BadData;
+                    }
                 }
             }
             let saved_bitbuf = self.bitbuf;
@@ -1436,7 +1448,10 @@ fn build_decode_table(
                 }
                 cur_table_end <<= 1;
             }
-            if len > table_bits || len_counts[len] != 0 {
+            if len > DEFLATE_MAX_CODEWORD_LEN {
+                return true;
+            }
+            if len_counts[len] != 0 {
                 break;
             }
         }
