@@ -190,6 +190,32 @@ fn test_encoder_bounds_large_writes() {
 }
 
 #[test]
+fn test_stored_encoder_boundaries_and_flush() {
+    for size in [0, 1, 65535, 65536, 1024 * 1024 + 1] {
+        let data: Vec<u8> = (0..size).map(|i| i as u8).collect();
+        for flush in [false, true] {
+            let mut encoder = DeflateEncoder::new(Vec::new(), 0);
+            encoder.write_all(&data).unwrap();
+            if flush {
+                encoder.flush().unwrap();
+                encoder.flush().unwrap();
+                encoder.write_all(&data).unwrap();
+            }
+            let compressed = encoder.finish().unwrap();
+            let expected = if flush { data.repeat(2) } else { data.clone() };
+            let mut output = vec![0; expected.len()];
+            assert_eq!(
+                libdeflater::Decompressor::new()
+                    .deflate_decompress(&compressed, &mut output)
+                    .unwrap(),
+                expected.len()
+            );
+            assert_eq!(output, expected);
+        }
+    }
+}
+
+#[test]
 fn test_encoder_does_not_retry_partial_write_on_drop() {
     struct FailAfterPrefix(Arc<Mutex<usize>>);
     impl Write for FailAfterPrefix {
@@ -206,13 +232,15 @@ fn test_encoder_does_not_retry_partial_write_on_drop() {
             Ok(())
         }
     }
-    let calls = Arc::new(Mutex::new(0));
-    let mut encoder = DeflateEncoder::new(FailAfterPrefix(calls.clone()), 1);
-    encoder
-        .write_all(b"partial writes must not be replayed")
-        .unwrap();
-    assert!(encoder.finish().is_err());
-    assert_eq!(*calls.lock().unwrap(), 2);
+    for level in [0, 1] {
+        let calls = Arc::new(Mutex::new(0));
+        let mut encoder = DeflateEncoder::new(FailAfterPrefix(calls.clone()), level);
+        encoder
+            .write_all(b"partial writes must not be replayed")
+            .unwrap();
+        assert!(encoder.finish().is_err());
+        assert_eq!(*calls.lock().unwrap(), 2);
+    }
 }
 
 #[test]

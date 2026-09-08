@@ -35,6 +35,13 @@ fn bench_stored_blocks(c: &mut Criterion) {
                 .unwrap()
         });
     });
+    c.bench_function("stored_encoder_1mb", |b| {
+        b.iter(|| {
+            let mut encoder = DeflateEncoder::new(std::io::sink(), 0);
+            encoder.write_all(std::hint::black_box(&data)).unwrap();
+            encoder.finish().unwrap();
+        });
+    });
 }
 
 criterion_group!(benches, bench_encoder_parallel, bench_stored_blocks);

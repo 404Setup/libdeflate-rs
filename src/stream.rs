@@ -109,6 +109,22 @@ impl<W: Write + Send> DeflateEncoder<W> {
         Ok(())
     }
 
+    fn flush_buffer_stored(&mut self, final_block: bool) -> io::Result<()> {
+        if let Some(writer) = &mut self.writer {
+            let num_blocks = self.buffer.len().div_ceil(u16::MAX as usize).max(1);
+            for i in 0..num_blocks {
+                let start = i * u16::MAX as usize;
+                let end = min(start + u16::MAX as usize, self.buffer.len());
+                let len = (end - start) as u16;
+                let [lo, hi] = len.to_le_bytes();
+                let header = [(final_block && i + 1 == num_blocks) as u8, lo, hi, !lo, !hi];
+                writer.write_all(&header)?;
+                writer.write_all(&self.buffer[start..end])?;
+            }
+        }
+        Ok(())
+    }
+
     fn flush_buffer_sequential(&mut self, final_block: bool) -> io::Result<()> {
         if self.compressors.is_empty() {
             self.compressors.push(Compressor::new(self.level));
@@ -164,7 +180,10 @@ impl<W: Write + Send> DeflateEncoder<W> {
 
         // A partial write cannot be replayed without corrupting the stream.
         self.failed = true;
-        if buffer_len > chunk_size {
+        if self.level == 0 {
+            // Stored blocks can be written directly without compressors or output buffers.
+            self.flush_buffer_stored(final_block)?;
+        } else if buffer_len > chunk_size {
             self.flush_buffer_parallel(final_block, chunk_size, buffer_len)?;
         } else {
             self.flush_buffer_sequential(final_block)?;

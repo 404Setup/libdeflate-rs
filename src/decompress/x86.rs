@@ -2092,9 +2092,6 @@ pub unsafe fn decompress_bmi2_ptr(
 
         match block_type {
             DEFLATE_BLOCKTYPE_UNCOMPRESSED => {
-                let skip = bitsleft & 7;
-                bitbuf >>= skip;
-                bitsleft -= skip;
                 let unused_bytes = bitsleft / 8;
                 in_idx -= unused_bytes as usize;
                 bitbuf = 0;
@@ -2299,5 +2296,10 @@ pub unsafe fn decompress_bmi2_ptr(
             _ => return (DecompressResult::BadData, 0, 0),
         }
     }
-    (DecompressResult::Success, in_idx, out_idx)
+    // Whole prefetched bytes after the final block belong to the caller.
+    (
+        DecompressResult::Success,
+        in_idx - (bitsleft / 8) as usize,
+        out_idx,
+    )
 }

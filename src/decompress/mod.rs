@@ -192,7 +192,12 @@ impl Decompressor {
         self.is_final_block = false;
 
         let mut out_idx = 0;
-        let res = unsafe { self.decompress_streaming_ptr(input, out_ptr, out_len, &mut out_idx) };
+        let mut res =
+            unsafe { self.decompress_streaming_ptr(input, out_ptr, out_len, &mut out_idx) };
+        if res.0 == DecompressResult::Success {
+            // Whole prefetched bytes after the final block belong to the caller.
+            res.1 -= (self.bitsleft / 8) as usize;
+        }
         self.state = DecompressorState::Start;
         self.is_final_block = false;
         self.bitbuf = 0;
@@ -206,6 +211,9 @@ impl Decompressor {
         output: &mut [u8],
         out_idx: &mut usize,
     ) -> (DecompressResult, usize, usize) {
+        if *out_idx > output.len() {
+            return (DecompressResult::InsufficientSpace, 0, 0);
+        }
         unsafe { self.decompress_streaming_ptr(input, output.as_mut_ptr(), output.len(), out_idx) }
     }
 
@@ -286,27 +294,41 @@ impl Decompressor {
                     let skip = self.bitsleft & 7;
                     self.bitbuf >>= skip;
                     self.bitsleft -= skip;
-                    let unused_bytes = self.bitsleft / 8;
-                    in_idx = in_idx.saturating_sub(unused_bytes as usize);
-                    self.bitbuf = 0;
-                    self.bitsleft = 0;
-                    if in_idx + 4 > input.len() {
+                    // Buffered bytes may come from an earlier streaming call.
+                    while self.bitsleft < 32 && in_idx < input.len() {
+                        self.bitbuf |= (input[in_idx] as u64) << self.bitsleft;
+                        self.bitsleft += 8;
+                        in_idx += 1;
+                    }
+                    if self.bitsleft < 32 {
                         return (
                             DecompressResult::ShortInput,
                             in_idx,
                             *out_idx - start_out_idx,
                         );
                     }
-                    let len = u16::from_le_bytes([input[in_idx], input[in_idx + 1]]) as usize;
-                    let nlen = u16::from_le_bytes([input[in_idx + 2], input[in_idx + 3]]) as usize;
-                    in_idx += 4;
+                    let len = (self.bitbuf & 0xffff) as usize;
+                    let nlen = ((self.bitbuf >> 16) & 0xffff) as usize;
+                    self.bitbuf >>= 32;
+                    self.bitsleft -= 32;
                     if len != (!nlen & 0xFFFF) {
                         return (DecompressResult::BadData, in_idx, *out_idx - start_out_idx);
                     }
                     self.state = DecompressorState::UncompressedBody { len };
                 }
                 DecompressorState::UncompressedBody { len } => {
-                    let remaining = len;
+                    let mut remaining = len;
+                    while remaining > 0 && self.bitsleft >= 8 && *out_idx < out_len {
+                        unsafe { *out_ptr.add(*out_idx) = self.bitbuf as u8 };
+                        self.bitbuf >>= 8;
+                        self.bitsleft -= 8;
+                        *out_idx += 1;
+                        remaining -= 1;
+                    }
+                    if self.bitsleft == 0 {
+                        // The word refill may leave uncounted bits above the valid bytes.
+                        self.bitbuf = 0;
+                    }
                     let available_in = input.len() - in_idx;
                     let available_out = out_len - *out_idx;
                     let copy_len = min(remaining, min(available_in, available_out));
@@ -451,44 +473,25 @@ impl Decompressor {
             if presym < 16 {
                 self.lens[i] = presym as u8;
                 i += 1;
-            } else if presym == 16 {
-                if i == 0 {
-                    return DecompressResult::BadData;
-                }
-                let rep_val = self.lens[i - 1];
-                if self.bitsleft < 2 {
-                    return DecompressResult::ShortInput;
-                }
-                let rep_count = 3 + ((self.bitbuf & 3) as usize);
-                self.bitbuf >>= 2;
-                self.bitsleft -= 2;
-                let fill_len = min(rep_count, total_syms - i);
-                self.lens[i..i + fill_len].fill(rep_val);
-                i += fill_len;
-            } else if presym == 17 {
-                if self.bitsleft < 3 {
-                    return DecompressResult::ShortInput;
-                }
-                let rep_count = 3 + ((self.bitbuf & 7) as usize);
-                self.bitbuf >>= 3;
-                self.bitsleft -= 3;
-                let fill_len = min(rep_count, total_syms - i);
-                self.lens[i..i + fill_len].fill(0);
-                i += fill_len;
-            } else {
-                if self.bitsleft < 7 {
-                    return DecompressResult::ShortInput;
-                }
-                let rep_count = 11 + ((self.bitbuf & 0x7F) as usize);
-                self.bitbuf >>= 7;
-                self.bitsleft -= 7;
-                let fill_len = min(rep_count, total_syms - i);
-                self.lens[i..i + fill_len].fill(0);
-                i += fill_len;
+                continue;
             }
-        }
-        if i != total_syms {
-            return DecompressResult::BadData;
+            let (rep_val, base_count, extra_bits) = match presym {
+                16 if i > 0 => (self.lens[i - 1], 3, 2),
+                17 => (0, 3, 3),
+                18 => (0, 11, 7),
+                _ => return DecompressResult::BadData,
+            };
+            if self.bitsleft < extra_bits {
+                return DecompressResult::ShortInput;
+            }
+            let rep_count = base_count + (self.bitbuf & ((1 << extra_bits) - 1)) as usize;
+            if rep_count > total_syms - i {
+                return DecompressResult::BadData;
+            }
+            self.bitbuf >>= extra_bits;
+            self.bitsleft -= extra_bits;
+            self.lens[i..i + rep_count].fill(rep_val);
+            i += rep_count;
         }
         DecompressResult::Success
     }
@@ -519,13 +522,14 @@ impl Decompressor {
             return res_huffman;
         }
 
+        // Either builder can overwrite cached tables before reporting failure.
+        self.static_codes_loaded = false;
         if !self.build_offset_decode_table(num_litlen_syms, num_offset_syms) {
             return DecompressResult::BadData;
         }
         if !self.build_litlen_decode_table(num_litlen_syms) {
             return DecompressResult::BadData;
         }
-        self.static_codes_loaded = false;
         DecompressResult::Success
     }
 

@@ -1,6 +1,16 @@
 use libdeflate::batch::{BatchCompressor, BatchDecompressor};
 
 #[test]
+fn test_batch_allocation_failure_preserves_other_results() {
+    let compressed = BatchCompressor::new(1).compress_batch(&[b"hello"]);
+    let input = compressed[0].as_slice();
+    assert_eq!(
+        BatchDecompressor::new().decompress_batch(&[input, input, input], &[5, usize::MAX, 5]),
+        vec![Some(b"hello".to_vec()), None, Some(b"hello".to_vec())]
+    );
+}
+
+#[test]
 fn test_batch_missing_sizes_preserves_input_positions() {
     let compressed = BatchCompressor::new(1).compress_batch(&[b"hello", b"world"]);
     let inputs: Vec<&[u8]> = compressed.iter().map(Vec::as_slice).collect();
