@@ -250,7 +250,11 @@ impl Decompressor {
                     }
                 }
                 DecompressorState::DynamicHeader => {
+                    let checkpoint = (in_idx, self.bitbuf, self.bitsleft);
                     let res = self.read_dynamic_huffman_header(input, &mut in_idx);
+                    if res == DecompressResult::ShortInput {
+                        (in_idx, self.bitbuf, self.bitsleft) = checkpoint;
+                    }
                     if res == DecompressResult::Success {
                         self.state = DecompressorState::BlockBody;
                     } else {
@@ -951,10 +955,16 @@ impl Decompressor {
                 }
             }
 
+            // Retry the entire symbol when either input or output is incomplete.
+            let checkpoint = (*in_idx, self.bitbuf, self.bitsleft);
             refill_bits!(input, *in_idx, self.bitbuf, self.bitsleft);
             let mut entry = self.litlen_decode_table[(self.bitbuf as usize) & litlen_tablemask];
             if entry & HUFFDEC_EXCEPTIONAL != 0 {
                 if entry & HUFFDEC_END_OF_BLOCK != 0 {
+                    if self.bitsleft < entry & 0xFF {
+                        (*in_idx, self.bitbuf, self.bitsleft) = checkpoint;
+                        return DecompressResult::ShortInput;
+                    }
                     self.bitbuf >>= entry as u8;
                     self.bitsleft -= entry & 0xFF;
                     return DecompressResult::Success;
@@ -962,6 +972,7 @@ impl Decompressor {
                 if entry & HUFFDEC_SUBTABLE_POINTER != 0 {
                     let main_bits = entry & 0xFF;
                     if self.bitsleft < main_bits {
+                        (*in_idx, self.bitbuf, self.bitsleft) = checkpoint;
                         return DecompressResult::ShortInput;
                     }
                     self.bitbuf >>= main_bits;
@@ -974,6 +985,7 @@ impl Decompressor {
                         if entry & HUFFDEC_END_OF_BLOCK != 0 {
                             let eob_bits = entry & 0xFF;
                             if self.bitsleft < eob_bits {
+                                (*in_idx, self.bitbuf, self.bitsleft) = checkpoint;
                                 return DecompressResult::ShortInput;
                             }
                             self.bitbuf >>= eob_bits;
@@ -987,12 +999,14 @@ impl Decompressor {
             let saved_bitbuf = self.bitbuf;
             let total_bits = entry & 0xFF;
             if self.bitsleft < total_bits {
+                (*in_idx, self.bitbuf, self.bitsleft) = checkpoint;
                 return DecompressResult::ShortInput;
             }
             self.bitbuf >>= total_bits;
             self.bitsleft -= total_bits;
             if entry & HUFFDEC_LITERAL != 0 {
                 if *out_idx >= out_len {
+                    (*in_idx, self.bitbuf, self.bitsleft) = checkpoint;
                     return DecompressResult::InsufficientSpace;
                 }
                 unsafe {
@@ -1012,10 +1026,7 @@ impl Decompressor {
                 if entry & HUFFDEC_SUBTABLE_POINTER != 0 {
                     let main_bits = entry & 0xFF;
                     if self.bitsleft < main_bits {
-                        self.state = DecompressorState::BlockBodyOffset {
-                            length,
-                            extra_bits: 0,
-                        };
+                        (*in_idx, self.bitbuf, self.bitsleft) = checkpoint;
                         return DecompressResult::ShortInput;
                     }
                     self.bitbuf >>= main_bits;
@@ -1028,10 +1039,7 @@ impl Decompressor {
                 let saved_bitbuf = self.bitbuf;
                 let total_bits = entry & 0xFF;
                 if self.bitsleft < total_bits {
-                    self.state = DecompressorState::BlockBodyOffset {
-                        length,
-                        extra_bits: 0,
-                    };
+                    (*in_idx, self.bitbuf, self.bitsleft) = checkpoint;
                     return DecompressResult::ShortInput;
                 }
                 self.bitbuf >>= total_bits;
@@ -1048,6 +1056,7 @@ impl Decompressor {
                 let dest = *out_idx;
                 let src = dest - offset;
                 if dest + length > out_len {
+                    (*in_idx, self.bitbuf, self.bitsleft) = checkpoint;
                     return DecompressResult::InsufficientSpace;
                 }
 
