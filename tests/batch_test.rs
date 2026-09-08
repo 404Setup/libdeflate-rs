@@ -1,6 +1,22 @@
 use libdeflate::batch::{BatchCompressor, BatchDecompressor};
 
 #[test]
+fn test_batch_missing_sizes_preserves_input_positions() {
+    let compressed = BatchCompressor::new(1).compress_batch(&[b"hello", b"world"]);
+    let inputs: Vec<&[u8]> = compressed.iter().map(Vec::as_slice).collect();
+    let decoder = BatchDecompressor::new();
+    assert_eq!(
+        decoder.decompress_batch(&inputs, &[5]),
+        vec![Some(b"hello".to_vec()), None]
+    );
+    assert_eq!(decoder.decompress_batch(&inputs, &[]), vec![None, None]);
+    assert_eq!(
+        decoder.decompress_batch(&inputs[..1], &[5, 5]),
+        vec![Some(b"hello".to_vec())]
+    );
+}
+
+#[test]
 fn test_batch_compress_decompress_roundtrip() {
     let inputs: Vec<&[u8]> = vec![
         b"Hello world! This is a test string for deflate compression.",

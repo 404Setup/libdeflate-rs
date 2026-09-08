@@ -1,6 +1,34 @@
 use libdeflate::{Compressor, Decompressor, adler32, crc32};
 
 #[test]
+fn test_gzip_header_checksum() {
+    let data = b"gzip header checksum";
+    let compressed = Compressor::new(1).unwrap().compress_gzip(data).unwrap();
+    for optional_fields in [false, true] {
+        let mut gzip = compressed[..10].to_vec();
+        gzip[3] = 2;
+        if optional_fields {
+            gzip[3] |= 4 | 8 | 16;
+            gzip.extend_from_slice(&[3, 0, 1, 2, 3]);
+            gzip.extend_from_slice(b"file.txt\0comment\0");
+        }
+        let checksum = crc32(0, &gzip) as u16;
+        let checksum_pos = gzip.len();
+        gzip.extend_from_slice(&checksum.to_le_bytes());
+        gzip.extend_from_slice(&compressed[10..]);
+        let mut decoder = Decompressor::new();
+        assert_eq!(decoder.decompress_gzip(&gzip, data.len()).unwrap(), data);
+        gzip[checksum_pos] ^= 1;
+        assert!(decoder.decompress_gzip(&gzip, data.len()).is_err());
+        let mut output = [0; 64];
+        assert!(decoder.decompress_gzip_into(&gzip, &mut output).is_err());
+        for len in 0..checksum_pos + 2 {
+            assert!(decoder.decompress_gzip(&gzip[..len], data.len()).is_err());
+        }
+    }
+}
+
+#[test]
 fn test_adler32_empty() {
     let buf = [];
     assert_eq!(adler32(1, &buf), 1);

@@ -1213,6 +1213,13 @@ impl Decompressor {
         }
 
         if flg & GZIP_FHCRC != 0 {
+            if in_idx + 2 > input.len() {
+                return (DecompressResult::ShortInput, 0, 0);
+            }
+            let expected_crc = u16::from_le_bytes([input[in_idx], input[in_idx + 1]]);
+            if crate::crc32::crc32(0, &input[..in_idx]) as u16 != expected_crc {
+                return (DecompressResult::BadData, 0, 0);
+            }
             in_idx += 2;
         }
 

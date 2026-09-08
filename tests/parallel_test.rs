@@ -1,6 +1,52 @@
 use libdeflate::{Compressor, Decompressor};
 
 #[test]
+fn test_stored_blocks_sizes_and_flush_modes() {
+    use libdeflate::compress::{CompressResult, Compressor, FlushMode};
+    use std::mem::MaybeUninit;
+
+    let mut compressor = Compressor::new(0);
+    for size in [0, 65535, 65536, 256 * 1024 + 1, 1024 * 1024] {
+        let data: Vec<u8> = (0..size).map(|i| i as u8).collect();
+        for mode in [FlushMode::None, FlushMode::Sync, FlushMode::Finish] {
+            let mut output =
+                vec![MaybeUninit::uninit(); Compressor::deflate_compress_bound(size) + 5];
+            let (result, written, bits) = compressor.compress(&data, &mut output, mode);
+            assert_eq!(result, CompressResult::Success);
+            assert_eq!(bits, 0);
+            let (_, expected) = compressor.compress_to_size(&data, mode == FlushMode::Finish);
+            assert_eq!(
+                written,
+                expected + if mode == FlushMode::Sync { 5 } else { 0 }
+            );
+            // SAFETY: successful compression initialized `written` bytes.
+            let mut compressed = unsafe {
+                std::slice::from_raw_parts(output.as_ptr().cast::<u8>(), written).to_vec()
+            };
+            if mode != FlushMode::Finish {
+                compressed.extend_from_slice(&[1, 0, 0, 255, 255]);
+            }
+            let mut decoded = vec![0; size];
+            assert_eq!(
+                libdeflater::Decompressor::new()
+                    .deflate_decompress(&compressed, &mut decoded)
+                    .unwrap(),
+                size
+            );
+            assert_eq!(decoded, data);
+            if written > 0 {
+                assert_eq!(
+                    compressor
+                        .compress(&data, &mut output[..written - 1], mode)
+                        .0,
+                    CompressResult::InsufficientSpace
+                );
+            }
+        }
+    }
+}
+
+#[test]
 fn test_parallel_deflate_1mb() {
     let size = 1024 * 1024;
     let mut data = Vec::with_capacity(size);

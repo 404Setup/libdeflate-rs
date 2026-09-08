@@ -24,5 +24,18 @@ fn bench_encoder_parallel(c: &mut Criterion) {
     group.finish();
 }
 
-criterion_group!(benches, bench_encoder_parallel);
+fn bench_stored_blocks(c: &mut Criterion) {
+    let data = vec![42; 1024 * 1024];
+    let mut compressor = libdeflate::Compressor::new(0).unwrap();
+    let mut output = vec![0; compressor.deflate_compress_bound(data.len())];
+    c.bench_function("stored_blocks_1mb", |b| {
+        b.iter(|| {
+            compressor
+                .compress_deflate_into(std::hint::black_box(&data), &mut output)
+                .unwrap()
+        });
+    });
+}
+
+criterion_group!(benches, bench_encoder_parallel, bench_stored_blocks);
 criterion_main!(benches);

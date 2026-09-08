@@ -48,6 +48,8 @@ impl BatchDecompressor {
         Self
     }
 
+    /// Returns one result per input. Missing size limits produce `None`;
+    /// extra size limits are ignored.
     pub fn decompress_batch(
         &self,
         inputs: &[&[u8]],
@@ -55,10 +57,11 @@ impl BatchDecompressor {
     ) -> Vec<Option<Vec<u8>>> {
         inputs
             .par_iter()
-            .zip(max_out_sizes.par_iter())
+            .enumerate()
             .map_init(
                 || (Decompressor::new(), Vec::new()),
-                |(decompressor, buffer), (&input, &max_size)| {
+                |(decompressor, buffer), (i, &input)| {
+                    let &max_size = max_out_sizes.get(i)?;
                     buffer.clear();
                     buffer.reserve(max_size);
                     let buf_slice = &mut buffer.spare_capacity_mut()[..max_size];

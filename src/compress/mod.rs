@@ -665,12 +665,17 @@ impl Compressor {
         output: &mut [MaybeUninit<u8>],
         flush_mode: FlushMode,
     ) -> (CompressResult, usize, u32) {
+        // Stored blocks only copy bytes; parallel staging adds allocations and another copy.
+        if self.compression_level == 0 {
+            return self.compress_uncompressed(input, output, flush_mode);
+        }
+
         if input.len() > 256 * 1024 {
             let chunk_size = 256 * 1024;
-            let chunks: Vec<&[u8]> = input.chunks(chunk_size).collect();
+            let num_chunks = input.len().div_ceil(chunk_size);
 
-            let compressed_chunks_res: Vec<io::Result<Vec<u8>>> = chunks
-                .par_iter()
+            let compressed_chunks_res: Vec<io::Result<Vec<u8>>> = input
+                .par_chunks(chunk_size)
                 .enumerate()
                 .map_init(
                     || {
@@ -680,7 +685,7 @@ impl Compressor {
                         )
                     },
                     |(compressor, buf), (i, chunk)| {
-                        let is_last = i == chunks.len() - 1;
+                        let is_last = i == num_chunks - 1;
                         let mode = if is_last { flush_mode } else { FlushMode::Sync };
 
                         let bound = Self::deflate_compress_bound(chunk.len());
@@ -689,13 +694,13 @@ impl Compressor {
                             buf.reserve(bound);
                         }
 
-                        buf.resize(bound, 0);
-                        let buf_uninit = crate::common::slice_as_uninit_mut(&mut buf[..bound]);
+                        let buf_uninit = &mut buf.spare_capacity_mut()[..bound];
 
                         let (res, size, _) = compressor.compress(chunk, buf_uninit, mode);
                         if res == CompressResult::Success {
                             assert!(size <= bound);
-                            buf.truncate(size);
+                            // SAFETY: successful compression initialized the first `size` bytes.
+                            unsafe { buf.set_len(size) };
                             if size < buf.capacity() / 2 {
                                 Ok(buf.to_vec())
                             } else {
@@ -731,10 +736,6 @@ impl Compressor {
                 }
             }
             return (CompressResult::Success, out_idx, 0);
-        }
-
-        if self.compression_level == 0 {
-            return self.compress_uncompressed(input, output, flush_mode);
         }
 
         let mut bs = Bitstream::new(output);
