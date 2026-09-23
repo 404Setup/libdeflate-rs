@@ -1,2 +1,5 @@
 [build]
 rustflags = ["-C", "target-cpu=native"]
+
+[registries.rust]
+index = "sparse+https://mvnc.pkg.one/rust/"
